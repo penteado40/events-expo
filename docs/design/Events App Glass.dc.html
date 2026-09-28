@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e8e6e2;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#b0532e}a:hover{color:#8a3d1f}
+input{outline:none}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<section style="padding:56px 64px 24px;display:flex;flex-direction:column;gap:32px">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:880px">
+    <div style="font:500 13px 'IBM Plex Mono',monospace;color:#6b6760;letter-spacing:.04em">Direção escolhida · 2a</div>
+    <div style="font:500 28px Geist,sans-serif;color:#1d1b18">Painel em vidro líquido</div>
+    <div style="font:400 15px/1.5 Geist,sans-serif;color:#5d5952;text-wrap:pretty">As superfícies refratam o fundo com um mapa de deslocamento nas bordas, não com um simples desfoque. Tab bar flutuante e abas segmentadas em pílula de vidro. A refração só funciona no Chromium. Nos outros navegadores fica um vidro translúcido.</div>
+  </div>
+  <div style="display:flex;gap:72px;flex-wrap:wrap;align-items:flex-start">
+    <div id="2a" style="display:flex;flex-direction:column;gap:14px;width:410px">
+      <div style="display:flex;gap:10px;align-items:center">
+        <span style="font:600 13px 'IBM Plex Mono',monospace;background:#1d1b18;color:#fff;padding:3px 8px;border-radius:4px">2a</span>
+        <span style="font:500 15px Geist,sans-serif;color:#1d1b18">Painel · liquid glass</span>
+      </div>
+      <div style="background:#000;padding:10px;border-radius:58px;width:390px;box-shadow:0 30px 60px -20px rgba(0,0,0,.45)">
+        <div style="position:relative;width:390px;height:844px;border-radius:48px;overflow:hidden;background:#07080a;color:#f2f1ee;display:flex;flex-direction:column;font-family:'IBM Plex Sans',sans-serif;isolation:isolate">
+          <div ref="{{ lgRef }}" style="position:absolute;width:0;height:0;overflow:hidden"></div>
+          <div style="position:absolute;inset:0;z-index:-1;overflow:hidden">
+            <div style="position:absolute;width:420px;height:420px;left:-140px;top:-80px;border-radius:50%;background:radial-gradient(circle,#b5e35a 0%,rgba(181,227,90,0) 65%);opacity:.55"></div>
+            <div style="position:absolute;width:460px;height:460px;right:-200px;top:260px;border-radius:50%;background:radial-gradient(circle,#4f7dff 0%,rgba(79,125,255,0) 65%);opacity:.6"></div>
+            <div style="position:absolute;width:380px;height:380px;left:-60px;bottom:-140px;border-radius:50%;background:radial-gradient(circle,#b36bff 0%,rgba(179,107,255,0) 65%);opacity:.45"></div>
+            <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 32px),repeating-linear-gradient(90deg,rgba(255,255,255,.05) 0 1px,transparent 1px 32px)"></div>
+          </div>
+          <div style="height:50px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font:500 15px 'IBM Plex Sans',sans-serif">
+            <span>9:41</span><span style="width:26px;height:12px;border:1.5px solid #f2f1ee;border-radius:4px"></span>
+          </div>
+
+          <sc-if value="{{ C.isLogin }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;display:flex;flex-direction:column;padding:36px 18px 30px;gap:22px">
+              <div style="display:flex;align-items:center;gap:10px;padding:0 6px"><span style="width:10px;height:10px;border-radius:5px;background:#b5e35a;box-shadow:0 0 12px #b5e35a"></span><span style="font:500 14px 'IBM Plex Mono',monospace">events-api</span></div>
+              <div style="font:500 34px/1.12 'IBM Plex Sans',sans-serif;letter-spacing:-.01em;padding:0 6px">Entre para gerenciar seus eventos.</div>
+              <div style="flex:1"></div>
+              <div style="border-radius:28px;padding:18px;display:flex;flex-direction:column;gap:12px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(255,255,255,.06),0 16px 40px -16px rgba(0,0,0,.6)">
+                <div style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66);padding:0 4px">POST /api/v1/auth/login</div>
+                <input type="email" value="{{ C.email }}" onChange="{{ C.onEmail }}" placeholder="email" style="height:52px;border:1px solid rgba(255,255,255,.14);border-radius:16px;background:rgba(0,0,0,.28);color:#f2f1ee;font:400 16px 'IBM Plex Mono',monospace;padding:0 16px">
+                <input type="password" value="{{ C.password }}" onChange="{{ C.onPassword }}" placeholder="senha" style="height:52px;border:1px solid rgba(255,255,255,.14);border-radius:16px;background:rgba(0,0,0,.28);color:#f2f1ee;font:400 16px 'IBM Plex Mono',monospace;padding:0 16px">
+                <sc-if value="{{ C.hasError }}" hint-placeholder-val="{{ false }}">
+                  <div style="border:1px solid rgba(255,154,134,.35);background:rgba(60,18,12,.55);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:4px">
+                    <span style="font:500 12px 'IBM Plex Mono',monospace;color:#ff9a86">{{ C.errorCode }}</span>
+                    <span style="font-size:14px;line-height:1.45;color:#f3d6cf;text-wrap:pretty">{{ C.error }}</span>
+                  </div>
+                </sc-if>
+                <button onClick="{{ C.onLogin }}" style="height:56px;border:none;border-radius:28px;background:#b5e35a;color:#0f1011;font-size:16px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 8px 24px -8px rgba(181,227,90,.6)">{{ C.loginLabel }}</button>
+                <button onClick="{{ C.onDemo }}" style="height:48px;border:1px solid rgba(255,255,255,.16);border-radius:24px;background:rgba(255,255,255,.06);color:#f2f1ee;font-size:15px">Modo demo</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ C.isEvents }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;overflow:auto;padding:14px 16px 120px;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 6px">
+                <span style="font:600 32px 'IBM Plex Sans',sans-serif">Eventos</span>
+                <span style="font:13px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">{{ C.evCount }} · {{ C.roleScope }}</span>
+              </div>
+              <div style="border-radius:26px;padding:18px 20px;display:flex;justify-content:space-between;align-items:flex-end;background:rgba(181,227,90,.14);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.8);border:1px solid rgba(181,227,90,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 16px 40px -16px rgba(0,0,0,.6)">
+                <div style="display:flex;flex-direction:column;gap:4px"><span style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#b5e35a">PARA CONFERIR</span><span style="font-size:14px;color:rgba(255,255,255,.8)">contribuições marcadas como pagas</span></div>
+                <span style="font:500 50px/1 'IBM Plex Mono',monospace;color:#b5e35a">{{ C.totalPending }}</span>
+              </div>
+              <sc-for list="{{ C.events }}" as="e" hint-placeholder-count="4">
+                <button onClick="{{ e.onOpen }}" style="text-align:left;border-radius:24px;padding:16px 18px;color:#f2f1ee;display:flex;flex-direction:column;gap:10px;opacity:{{ e.opacity }};background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -1px 0 rgba(255,255,255,.06),0 16px 40px -16px rgba(0,0,0,.6)">
+                  <div style="display:flex;justify-content:space-between;font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)"><span>{{ e.dateShort }}</span><span>{{ e.roleLabel }}</span></div>
+                  <span style="font:500 20px/1.2 'IBM Plex Sans',sans-serif">{{ e.name }}</span>
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                    <span style="font-size:13px;color:rgba(255,255,255,.66)">{{ e.typeLabel }} · {{ e.venueShort }}</span>
+                    <sc-if value="{{ e.hasPending }}" hint-placeholder-val="{{ false }}"><span style="font:500 12px 'IBM Plex Mono',monospace;background:rgba(181,227,90,.16);border:1px solid rgba(181,227,90,.35);color:#b5e35a;padding:3px 9px;border-radius:10px;flex:none">{{ e.pending }} pendentes</span></sc-if>
+                    <sc-if value="{{ e.archived }}" hint-placeholder-val="{{ false }}"><span style="font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66);border:1px solid rgba(255,255,255,.18);padding:3px 9px;border-radius:10px;flex:none">arquivado</span></sc-if>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ C.isEvent }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;overflow:auto;display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 14px">
+                <button onClick="{{ C.onBack }}" style="width:44px;height:44px;border-radius:22px;color:#f2f1ee;font-size:18px;background:rgba(255,255,255,.08);backdrop-filter:url(#lgPill) blur(1px) saturate(1.6);border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.35)">←</button>
+                <span style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66);flex:1;text-align:center;padding-right:50px">#{{ C.ev.id }} · {{ C.ev.roleLabel }}</span>
+              </div>
+              <div style="padding:10px 22px 16px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 30px/1.12 'IBM Plex Sans',sans-serif">{{ C.ev.name }}</span>
+                <span style="font:13px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">{{ C.ev.dateShort }} · {{ C.ev.typeLabel }}</span>
+                <span style="font-size:14px;color:rgba(255,255,255,.78)">{{ C.ev.venue }}</span>
+                <sc-if value="{{ C.ev.archived }}" hint-placeholder-val="{{ false }}"><span style="font:12px 'IBM Plex Mono',monospace;color:#f0c24b;margin-top:4px">ARQUIVADO · site não aceita escritas</span></sc-if>
+              </div>
+              <div style="padding:0 16px 14px;position:sticky;top:0;z-index:2">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);border-radius:24px;padding:5px;gap:2px;background:rgba(255,255,255,.08);backdrop-filter:url(#lgPill) blur(2px) saturate(1.6);border:1px solid rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 12px 30px -12px rgba(0,0,0,.6)">
+                  <sc-for list="{{ C.ev.tabs }}" as="t" hint-placeholder-count="4">
+                    <button onClick="{{ t.onClick }}" style="height:38px;border:none;border-radius:19px;background:{{ t.bg }};color:{{ t.fg }};font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:4px">{{ t.label }}<sc-if value="{{ t.hasBadge }}" hint-placeholder-val="{{ false }}"><span style="width:6px;height:6px;border-radius:3px;background:#b5e35a;box-shadow:0 0 6px #b5e35a"></span></sc-if></button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="padding:0 16px 32px;display:flex;flex-direction:column;gap:10px">
+                <sc-if value="{{ C.ev.isResumo }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div style="border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)"><span style="font:11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">RSVP · VÃO</span><span style="font:500 30px 'IBM Plex Mono',monospace">{{ C.ev.yes }}</span></div>
+                    <div style="border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)"><span style="font:11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">RSVP · NÃO VÃO</span><span style="font:500 30px 'IBM Plex Mono',monospace">{{ C.ev.no }}</span></div>
+                    <div style="border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)"><span style="font:11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">VERIFICADO</span><span style="font:500 22px 'IBM Plex Mono',monospace">{{ C.ev.raised }}</span></div>
+                    <div style="border-radius:22px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;background:rgba(181,227,90,.12);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.8);border:1px solid rgba(181,227,90,.32);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)"><span style="font:11px 'IBM Plex Mono',monospace;color:#b5e35a">PARA CONFERIR</span><span style="font:500 30px 'IBM Plex Mono',monospace;color:#b5e35a">{{ C.ev.pending }}</span></div>
+                  </div>
+                  <div style="border-radius:22px;padding:14px 16px;display:flex;justify-content:space-between;font-size:14px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgPill) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)"><span style="color:rgba(255,255,255,.66)">Site</span><span style="font-family:'IBM Plex Mono',monospace">{{ C.ev.siteUrl }}</span></div>
+                  <div style="border-radius:22px;padding:4px 16px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)">
+                    <sc-for list="{{ C.ev.members }}" as="m" hint-placeholder-count="3">
+                      <div style="display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px"><span>{{ m.name }}</span><span style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">{{ m.roleLabel }}</span></div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ C.ev.isRsvps }}" hint-placeholder-val="{{ false }}">
+                  <sc-for list="{{ C.ev.rsvps }}" as="r" hint-placeholder-count="5">
+                    <div style="border-radius:20px;padding:12px 16px;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgPill) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)">
+                      <span style="width:8px;height:8px;border-radius:4px;background:{{ r.dot }};flex:none"></span>
+                      <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:15px">{{ r.name }}</span><span style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66);overflow:hidden;text-overflow:ellipsis">{{ r.email }}</span></div>
+                      <span style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66);flex:none">{{ r.date }}</span>
+                    </div>
+                  </sc-for>
+                </sc-if>
+                <sc-if value="{{ C.ev.isPresentes }}" hint-placeholder-val="{{ false }}">
+                  <sc-if value="{{ C.ev.noItems }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px;color:rgba(255,255,255,.66);padding:8px 6px">Sem lista de presentes.</span></sc-if>
+                  <sc-for list="{{ C.ev.items }}" as="i" hint-placeholder-count="4">
+                    <div style="border-radius:22px;padding:10px;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)">
+                      <div style="width:48px;height:48px;border-radius:14px;flex:none;background:repeating-linear-gradient(135deg,rgba(255,255,255,.1) 0 6px,rgba(255,255,255,.04) 6px 12px)"></div>
+                      <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:15px">{{ i.name }}</span><span style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">{{ i.countLabel }}</span></div>
+                      <span style="font:500 14px 'IBM Plex Mono',monospace;padding-right:6px">{{ i.price }}</span>
+                    </div>
+                  </sc-for>
+                </sc-if>
+                <sc-if value="{{ C.ev.isConferencia }}" hint-placeholder-val="{{ false }}">
+                  <sc-if value="{{ C.ev.viewerNote }}" hint-placeholder-val="{{ false }}"><span style="font:12px/1.5 'IBM Plex Mono',monospace;color:#f0c24b;padding:4px 6px">VIEWER · somente leitura. A conferência cabe a Managers e Owners.</span></sc-if>
+                  <sc-if value="{{ C.ev.noContribs }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px;color:rgba(255,255,255,.66);padding:8px 6px">Nenhuma contribuição.</span></sc-if>
+                  <sc-for list="{{ C.ev.contribs }}" as="c" hint-placeholder-count="4">
+                    <button onClick="{{ c.onOpen }}" style="text-align:left;border-radius:22px;padding:14px 16px;color:#f2f1ee;display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 12px 30px -14px rgba(0,0,0,.6)">
+                      <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:15px">{{ c.guest }}</span><span style="font:500 16px 'IBM Plex Mono',monospace">{{ c.amount }}</span></div>
+                      <div style="display:flex;justify-content:space-between;gap:10px;font:12px 'IBM Plex Mono',monospace"><span style="color:rgba(255,255,255,.66);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.item }}</span><span style="color:{{ c.dot }};flex:none">● {{ c.statusShort }}</span></div>
+                    </button>
+                  </sc-for>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ C.isProfile }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;overflow:auto;padding:14px 16px 120px;display:flex;flex-direction:column;gap:14px">
+              <span style="font:600 32px 'IBM Plex Sans',sans-serif;padding:0 6px">Perfil</span>
+              <div style="border-radius:26px;padding:18px;display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 16px 40px -16px rgba(0,0,0,.6)">
+                <div style="width:52px;height:52px;border-radius:26px;background:#b5e35a;color:#0f1011;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)">{{ C.initials }}</div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:18px;font-weight:500">{{ C.user.name }}</span><span style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)">{{ C.connLabel }}</span></div>
+              </div>
+              <div style="font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66);padding:4px 6px 0">GET /api/v1/me</div>
+              <div style="border-radius:22px;padding:4px 16px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgCard) blur(1.5px) saturate(1.6);border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)">
+                <sc-for list="{{ C.meRows }}" as="p" hint-placeholder-count="5">
+                  <div style="display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.08);font:13px 'IBM Plex Mono',monospace"><span style="color:rgba(255,255,255,.66)">{{ p.k }}</span><span style="text-align:right;word-break:break-all">{{ p.v }}</span></div>
+                </sc-for>
+              </div>
+              <button onClick="{{ C.onLogout }}" style="height:52px;border-radius:26px;color:#ff9a86;font-size:15px;margin-top:8px;background:rgba(255,255,255,.06);backdrop-filter:url(#lgPill) blur(1.5px) saturate(1.6);border:1px solid rgba(255,154,134,.3);box-shadow:inset 0 1px 0 rgba(255,255,255,.25)">Sair</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ C.showNav }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:50%;bottom:28px;transform:translateX(-50%);display:grid;grid-template-columns:1fr 1fr;gap:4px;width:220px;padding:5px;border-radius:32px;background:rgba(255,255,255,.08);backdrop-filter:url(#lgPill) blur(2px) saturate(1.7);border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(255,255,255,.08),0 18px 40px -12px rgba(0,0,0,.7)">
+              <button onClick="{{ C.onBack }}" style="height:48px;border:none;border-radius:26px;background:{{ C.navEventsBg }};color:{{ C.navEventsFg }};font-size:14px;font-weight:500">Eventos</button>
+              <button onClick="{{ C.onProfile }}" style="height:48px;border:none;border-radius:26px;background:{{ C.navProfileBg }};color:{{ C.navProfileFg }};font-size:14px;font-weight:500">Perfil</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ C.hasSheet }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;background:rgba(0,0,0,.35);display:flex;flex-direction:column;justify-content:flex-end;padding:0 8px 8px">
+              <div onClick="{{ C.onCloseSheet }}" style="flex:1"></div>
+              <div style="border-radius:40px;padding:14px 20px 26px;display:flex;flex-direction:column;gap:14px;background:rgba(30,32,36,.45);backdrop-filter:url(#lgCard) blur(14px) saturate(1.8);border:1px solid rgba(255,255,255,.2);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 -10px 50px -10px rgba(0,0,0,.6)">
+                <div style="width:40px;height:5px;border-radius:3px;background:rgba(255,255,255,.3);align-self:center"></div>
+                <div style="display:flex;justify-content:space-between;font:12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.66)"><span>CONTRIBUTION #{{ C.sheet.id }}</span><span style="color:{{ C.sheet.dot }}">● {{ C.sheet.statusShort }}</span></div>
+                <span style="font:500 40px 'IBM Plex Mono',monospace">{{ C.sheet.amount }}</span>
+                <div style="display:flex;flex-direction:column;border-top:1px solid rgba(255,255,255,.12)">
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px"><span style="color:rgba(255,255,255,.66)">Convidado</span><span>{{ C.sheet.guest }}</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px;gap:12px"><span style="color:rgba(255,255,255,.66)">Presente</span><span style="text-align:right">{{ C.sheet.item }}</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:14px"><span style="color:rgba(255,255,255,.66)">Marcada paga</span><span>{{ C.sheet.when }}</span></div>
+                  <div style="display:flex;justify-content:space-between;padding:10px 0;font-size:14px"><span style="color:rgba(255,255,255,.66)">Comprovante</span><span>{{ C.sheet.receiptLabel }}</span></div>
+                </div>
+                <sc-if value="{{ C.sheet.canAct }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:8px">
+                    <button onClick="{{ C.sheet.onReject }}" style="height:54px;border:1px solid rgba(255,154,134,.35);border-radius:27px;background:rgba(255,154,134,.08);color:#ff9a86;font-size:15px;font-weight:500">Rejeitar</button>
+                    <button onClick="{{ C.sheet.onVerify }}" style="height:54px;border:none;border-radius:27px;background:#b5e35a;color:#0f1011;font-size:15px;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.6)">Verificar Pix</button>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ C.sheet.viewerBlocked }}" hint-placeholder-val="{{ false }}"><span style="font:12px 'IBM Plex Mono',monospace;color:#f0c24b">403 FORBIDDEN · Viewers não fazem a conferência</span></sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;http://localhost:3000/api/v1&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;demoRole&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;SUPER_ADMIN&quot;,&quot;USER&quot;],&quot;default&quot;:&quot;SUPER_ADMIN&quot;,&quot;tsType&quot;:&quot;'SUPER_ADMIN'|'USER'&quot;}}">
+const TYPE={WEDDING:'Casamento',BIRTHDAY:'Aniversário',CORPORATE:'Corporativo',BABY_SHOWER:'Chá de bebê',PARTY:'Festa',OTHER:'Outro'};
+const ROLE={OWNER:'Owner',MANAGER:'Manager',VIEWER:'Viewer',SUPER_ADMIN:'Super admin'};
+const R=(name,email,st,date)=>({name,email,st,date});
+const I=(name,price,count)=>({name,price,count});
+const C=(id,guest,item,amount,paidAt,receipt,status)=>({id,guest,item,amount,paidAt,receipt,status});
+const M=(name,role,primary)=>({name,role,primary});
+const EVENTS=[
+ {id:12,name:'Ana & Rafael',type:'WEDDING',startsAt:'2026-11-14T16:30',venue:'Fazenda Santa Clara · Itu, SP',siteUrl:'anaerafael.com.br',archived:false,myRole:'OWNER',
+  members:[M('Ana Lima','OWNER',true),M('Rafael Souza','OWNER'),M('Cláudia Lima','OWNER'),M('Pedro Souza','VIEWER')],
+  rsvps:[R('Beatriz Nogueira','bia.nogueira@gmail.com','YES','26/09'),R('Carlos Menezes','carlos.m@uol.com.br','YES','25/09'),R('Daniela Prado','dani.prado@gmail.com','NO','24/09'),R('Eduardo Tavares','edu.tavares@hotmail.com','YES','22/09'),R('Fernanda Ruiz','fe.ruiz@gmail.com','YES','20/09'),R('Gustavo Leal','gleal@outlook.com','NO','18/09'),R('Helena Costa','helena.costa@gmail.com','YES','15/09')],
+  items:[I('Jantar na lua de mel',450,3),I('Jogo de panelas',890,1),I('Passeio de barco em Ilhabela',620,2),I('Cafeteira espresso',1290,0),I('Cota da viagem',200,11)],
+  contribs:[C(301,'Beatriz Nogueira','Jantar na lua de mel',450,'2026-09-26T21:14',true,'PAID'),C(302,'Carlos Menezes','Cota da viagem',200,'2026-09-26T10:02',false,'PAID'),C(303,'Helena Costa','Passeio de barco em Ilhabela',620,'2026-09-25T19:40',true,'PAID'),C(298,'Eduardo Tavares','Cota da viagem',200,'2026-09-21T08:30',true,'VERIFIED'),C(295,'Fernanda Ruiz','Jogo de panelas',890,'2026-09-19T15:12',true,'VERIFIED'),C(290,'Gustavo Leal','Jantar na lua de mel',450,'2026-09-17T12:00',false,'REJECTED')]},
+ {id:15,name:'Chá da Júlia',type:'BABY_SHOWER',startsAt:'2026-10-11T15:00',venue:'Casa da vó Lurdes · Campinas, SP',siteUrl:'chadajulia.com.br',archived:false,myRole:'VIEWER',
+  members:[M('Júlia Martins','OWNER',true),M('Cláudia Lima','VIEWER')],
+  rsvps:[R('Marina Alves','marina.alves@gmail.com','YES','23/09'),R('Tatiane Rocha','tati.rocha@gmail.com','YES','21/09'),R('Sônia Martins','sonia.m@terra.com.br','YES','19/09')],
+  items:[I('Carrinho de bebê',1800,0),I('Kit fraldas M',180,6)],
+  contribs:[C(412,'Marina Alves','Kit fraldas M',180,'2026-09-24T09:20',true,'PAID'),C(413,'Tatiane Rocha','Kit fraldas M',180,'2026-09-22T18:45',false,'PAID')]},
+ {id:14,name:'Marcos, 40',type:'BIRTHDAY',startsAt:'2026-10-24T20:00',venue:'Bar do Alemão · Pinheiros, SP',siteUrl:'marcos40.com.br',archived:false,myRole:'MANAGER',
+  members:[M('Marcos Andrade','OWNER',true),M('Cláudia Lima','MANAGER')],
+  rsvps:[R('Rodrigo Pires','rpires@gmail.com','YES','25/09'),R('Luana Dias','luana.dias@gmail.com','NO','24/09'),R('Tiago Moura','tiago.moura@gmail.com','YES','23/09'),R('Paula Reis','paula.reis@gmail.com','YES','20/09')],
+  items:[I('Garrafa de single malt',520,1),I('Cota do churrasco',100,4)],
+  contribs:[C(388,'Tiago Moura','Cota do churrasco',100,'2026-09-25T22:10',false,'PAID'),C(380,'Rodrigo Pires','Garrafa de single malt',520,'2026-09-20T11:00',true,'VERIFIED')]},
+ {id:16,name:'Festa de fim de ano Vera Cruz',type:'PARTY',startsAt:'2026-12-12T19:00',venue:'Colégio Vera Cruz · São Paulo, SP',siteUrl:'festaveracruz.com.br',archived:false,myRole:null,
+  members:[],rsvps:[R('Renata Gomes','renata.g@gmail.com','YES','27/09')],items:[],contribs:[]},
+ {id:9,name:'Offsite Kora 2026',type:'CORPORATE',startsAt:'2026-09-12T09:00',venue:'Hotel Boa Vista · Porto Feliz, SP',siteUrl:'offsite.kora.com.br',archived:true,myRole:'OWNER',
+  members:[M('Cláudia Lima','OWNER',true),M('Otávio Kern','MANAGER')],
+  rsvps:[R('Otávio Kern','otavio@kora.com.br','YES','01/09'),R('Isabela Faria','isabela@kora.com.br','YES','02/09'),R('Jonas Lemos','jonas@kora.com.br','NO','03/09')],items:[],contribs:[]}
+];
+const BRL=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const when=iso=>{const d=new Date(iso);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})};
+const ST={PAID:['Aguardando conferência','pendente'],VERIFIED:['Verificada','verificada'],REJECTED:['Rejeitada','rejeitada']};
+const PA={active:'#231c17',inactive:'#8a7b6e',line:'#b0532e',PAID:'#a1431f',VERIFIED:'#3f7d4f',REJECTED:'#7d6f63',YES:'#3f7d4f',NO:'#7d6f63'};
+const PB={active:'#0f1011',inactive:'#8b8d91',activeBg:'#eceae6',PAID:'#b5e35a',VERIFIED:'#7fb2ff',REJECTED:'#ff8f7a',YES:'#b5e35a',NO:'#5b5d61'};
+
+const PC={active:'#0f1011',inactive:'rgba(255,255,255,.66)',activeBg:'rgba(255,255,255,.88)',PAID:'#b5e35a',VERIFIED:'#9cc4ff',REJECTED:'#ff9a86',YES:'#b5e35a',NO:'rgba(255,255,255,.4)'};
+function lensMap(w,h,r,bezel){
+  const cv=document.createElement('canvas');cv.width=w;cv.height=h;const x=cv.getContext('2d');const img=x.createImageData(w,h);
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){
+    const px=i+.5-w/2,py=j+.5-h/2,hx=w/2-r,hy=h/2-r,qx=Math.abs(px)-hx,qy=Math.abs(py)-hy,ox=Math.max(qx,0),oy=Math.max(qy,0);
+    const dist=r-(Math.hypot(ox,oy)+Math.min(Math.max(qx,qy),0));
+    let nx=0,ny=0,m=0;
+    if(dist>=0&&dist<bezel){let gx,gy;if(qx>0&&qy>0){gx=ox;gy=oy}else if(qx>qy){gx=1;gy=0}else{gx=0;gy=1}const l=Math.hypot(gx,gy)||1;nx=gx/l*Math.sign(px);ny=gy/l*Math.sign(py);const t=1-dist/bezel;m=t*t}
+    const k=(j*w+i)*4;img.data[k]=128-nx*m*127;img.data[k+1]=128-ny*m*127;img.data[k+2]=128;img.data[k+3]=255;
+  }
+  x.putImageData(img,0,0);return cv.toDataURL();
+}
+class Component extends DCLogic {
+  state={a:this.init(),b:this.init(),c:this.init()};
+  lgRef=React.createRef();
+  componentDidMount(){
+    const el=this.lgRef.current;if(!el)return;
+    const f=(id,url,scale)=>`<filter id="${id}" x="0" y="0" width="1" height="1" filterUnits="objectBoundingBox" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB"><feImage href="${url}" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="m"/><feDisplacementMap in="SourceGraphic" in2="m" scale="${scale}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+    el.innerHTML=`<svg width="0" height="0" style="position:absolute"><defs>${f('lgCard',lensMap(300,200,46,42),0.09)}${f('lgPill',lensMap(240,96,48,30),0.14)}</defs></svg>`;
+  }
+  init(){return {screen:'login',email:'admin@local.test',password:'admin123',loading:false,error:'',errorCode:'',token:null,user:null,live:false,eventId:null,tab:'resumo',sheetId:null,decisions:{}}}
+  set(k,p){this.setState(s=>({[k]:{...s[k],...(typeof p==='function'?p(s[k]):p)}}))}
+  base(){return (this.props.apiBase??'http://localhost:3000/api/v1').replace(/\/$/,'')}
+  async login(k){
+    const s=this.state[k];
+    this.set(k,{loading:true,error:'',errorCode:''});
+    try{
+      const r=await fetch(this.base()+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:s.email,password:s.password})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok){const e=j.error||{};const d=(e.details||[]).map(x=>x.path+': '+x.message).join(' · ');this.set(k,{loading:false,error:(e.message||'Erro '+r.status)+(d?' ('+d+')':''),errorCode:e.code||'HTTP_'+r.status});return}
+      const token=j.data.token;
+      let user=j.data.user;
+      const m=await fetch(this.base()+'/me',{headers:{Authorization:'Bearer '+token}});
+      if(m.ok){const mj=await m.json();user=mj.data}
+      this.set(k,{loading:false,token,user,live:true,screen:'events'});
+    }catch(e){
+      this.set(k,{loading:false,errorCode:'NETWORK',error:'Não foi possível conectar a '+this.base()+'. Fora de produção a API só libera CORS para localhost. Use o modo demo.'});
+    }
+  }
+  demo(k){
+    const sup=(this.props.demoRole??'SUPER_ADMIN')==='SUPER_ADMIN';
+    this.set(k,{user:sup?{id:1,name:'Admin Local',email:'admin@local.test',role:'SUPER_ADMIN',createdAt:'2026-09-27T22:56:48.000Z'}:{id:7,name:'Cláudia Lima',email:'claudia.lima@gmail.com',role:'USER',createdAt:'2026-09-27T22:58:10.000Z'},live:false,token:null,screen:'events',error:'',errorCode:''});
+  }
+  view(k,P){
+    const s=this.state[k], set=p=>this.set(k,p);
+    const u=s.user, sup=!!u&&u.role==='SUPER_ADMIN';
+    const dec=(e,c)=>s.decisions[e.id+':'+c.id]||c.status;
+    const role=e=>sup?'SUPER_ADMIN':e.myRole;
+    const list=EVENTS.filter(e=>sup||e.myRole);
+    const pendOf=e=>e.contribs.filter(c=>dec(e,c)==='PAID').length;
+    const events=list.map(e=>{const d=new Date(e.startsAt),p=pendOf(e);return {
+      id:e.id,name:e.name,typeLabel:TYPE[e.type],venueShort:e.venue.split(' · ')[1]||e.venue,
+      day:String(d.getDate()).padStart(2,'0'),mon:d.toLocaleDateString('pt-BR',{month:'short'}).replace('.',''),
+      dateShort:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}).replace(/\//g,'.')+' · '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+      roleLabel:ROLE[role(e)]+(e.members.some(m=>m.primary&&m.name===u?.name)?' · principal':''),
+      archived:e.archived,opacity:e.archived?0.55:1,pending:p,hasPending:p>0,pendingLabel:p+(p>1?' para conferir':' para conferir'),
+      onOpen:()=>set({screen:'event',eventId:e.id,tab:'resumo'})}});
+    const out={
+      isLogin:s.screen==='login',isEvents:s.screen==='events',isEvent:s.screen==='event',isProfile:s.screen==='profile',
+      email:s.email,password:s.password,onEmail:ev=>set({email:ev.target.value}),onPassword:ev=>set({password:ev.target.value}),
+      onLogin:()=>this.login(k),onDemo:()=>this.demo(k),loginLabel:s.loading?'Entrando…':'Entrar',
+      hasError:!!s.error,error:s.error,errorCode:s.errorCode,
+      user:u||{},firstName:u?u.name.split(' ')[0]:'',initials:u?u.name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase():'',
+      isSuper:sup,evCount:events.length,roleScope:sup?'super admin':'seus eventos',
+      totalPending:list.reduce((a,e)=>a+pendOf(e),0),
+      today:new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}),
+      events,
+      onBack:()=>set({screen:'events',sheetId:null}),onProfile:()=>set({screen:'profile'}),
+      onLogout:()=>this.set(k,{...this.init(),email:s.email}),
+      showNav:s.screen==='events'||s.screen==='profile',
+      navEventsColor:s.screen==='events'?'#b5e35a':'#8b8d91',navProfileColor:s.screen==='profile'?'#b5e35a':'#8b8d91',
+      navEventsBg:s.screen==='events'?'rgba(255,255,255,.88)':'transparent',navEventsFg:s.screen==='events'?'#0f1011':'rgba(255,255,255,.75)',
+      navProfileBg:s.screen==='profile'?'rgba(255,255,255,.88)':'transparent',navProfileFg:s.screen==='profile'?'#0f1011':'rgba(255,255,255,.75)',
+      connLabel:s.live?'API real · '+this.base().replace(/^https?:\/\//,''):'modo demo · dados locais',
+      ev:{},sheet:{},hasSheet:false
+    };
+    if(u){
+      const since=new Date(u.createdAt).toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'});
+      out.profileRows=[{k:'Email',v:u.email},{k:'Papel',v:u.role==='SUPER_ADMIN'?'Super admin':'Usuário'},{k:'Desde',v:since},{k:'Conexão',v:s.live?'API real':'Modo demo'},{k:'Sessão',v:s.live?'expira em 12h':'—'}];
+      out.meRows=[{k:'id',v:String(u.id)},{k:'name',v:u.name},{k:'email',v:u.email},{k:'role',v:u.role},{k:'createdAt',v:u.createdAt}];
+    }
+    const e=EVENTS.find(x=>x.id===s.eventId);
+    if(e){
+      const r=role(e),canVerify=sup||r==='OWNER'||r==='MANAGER',d=new Date(e.startsAt),p=pendOf(e);
+      const contribs=e.contribs.map(c=>{const st=dec(e,c);return {...c,st,amount:BRL(c.amount),when:when(c.paidAt),statusLabel:ST[st][0],statusShort:ST[st][1],color:P[st],dot:P[st],onOpen:()=>set({sheetId:c.id})}}).sort((a,b)=>(a.st==='PAID'?0:1)-(b.st==='PAID'?0:1));
+      const tabs=[['resumo','Resumo'],['rsvps','RSVPs'],['presentes','Presentes'],['conferencia','Conferir']].map(([id,label])=>{const on=s.tab===id;return {label,fg:on?P.active:P.inactive,line:on?P.line:'transparent',bg:on?P.activeBg:'transparent',hasBadge:id==='conferencia'&&p>0,badge:p,onClick:()=>set({tab:id})}});
+      out.ev={id:e.id,name:e.name,typeLabel:TYPE[e.type],roleLabel:ROLE[r],venue:e.venue,siteUrl:e.siteUrl,archived:e.archived,
+        dateLong:d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})+', '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+        dateShort:events.find(x=>x.id===e.id)?.dateShort,
+        tabs,isResumo:s.tab==='resumo',isRsvps:s.tab==='rsvps',isPresentes:s.tab==='presentes',isConferencia:s.tab==='conferencia',
+        yes:e.rsvps.filter(x=>x.st==='YES').length,no:e.rsvps.filter(x=>x.st==='NO').length,
+        raised:BRL(e.contribs.filter(c=>dec(e,c)==='VERIFIED').reduce((a,c)=>a+c.amount,0)),pending:p,
+        members:e.members.map(m=>({name:m.name,roleLabel:ROLE[m.role]+(m.primary?' · principal':'')})),
+        rsvpCount:e.rsvps.length,rsvps:e.rsvps.map(x=>({...x,label:x.st==='YES'?'Vai':'Não vai',color:P[x.st],dot:P[x.st]})),
+        items:e.items.map(i=>({name:i.name,price:BRL(i.price),countLabel:i.count===0?'nenhuma contribuição':i.count+(i.count>1?' contribuições':' contribuição')})),noItems:e.items.length===0,
+        contribs,noContribs:contribs.length===0,viewerNote:!canVerify&&contribs.length>0};
+      const c=contribs.find(x=>x.id===s.sheetId);
+      if(c){
+        const pending=c.st==='PAID',key=e.id+':'+c.id;
+        const decide=v=>set(st=>({decisions:{...st.decisions,[key]:v},sheetId:null}));
+        out.hasSheet=true;
+        out.sheet={...c,hasReceipt:c.receipt,noReceipt:!c.receipt,receiptLabel:c.receipt?'anexado':'não anexado',canAct:pending&&canVerify,readOnly:!(pending&&canVerify),viewerBlocked:pending&&!canVerify,onVerify:()=>decide('VERIFIED'),onReject:()=>decide('REJECTED')};
+        out.onCloseSheet=()=>set({sheetId:null});
+      }
+    }
+    return out;
+  }
+  renderVals(){return {A:this.view('a',PA),B:this.view('b',PB),C:this.view('c',PC),lgRef:this.lgRef}}
+}
+</script>
+</body>
+</html>
