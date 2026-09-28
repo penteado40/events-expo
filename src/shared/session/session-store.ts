@@ -45,7 +45,8 @@ export function createSessionStore({ isDev = __DEV__ }: Options = {}) {
           return { ...current, session: session && !session.live && !isDev ? null : session }
         },
         // Also on a read error: the app then starts signed out instead of hanging on the splash.
-        onRehydrateStorage: () => () => store.setState({ hydrated: true }),
+        // Deferred: with synchronous storage (web) this runs before `store` is assigned.
+        onRehydrateStorage: () => () => queueMicrotask(() => store.setState({ hydrated: true })),
       },
     ),
   )

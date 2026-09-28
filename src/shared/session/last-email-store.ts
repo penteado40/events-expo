@@ -22,7 +22,8 @@ export function createLastEmailStore() {
         name: 'lastEmail',
         storage: secureJSONStorage,
         partialize: (state) => ({ email: state.email }),
-        onRehydrateStorage: () => () => store.setState({ hydrated: true }),
+        // Deferred: with synchronous storage (web) this runs before `store` is assigned.
+        onRehydrateStorage: () => () => queueMicrotask(() => store.setState({ hydrated: true })),
       },
     ),
   )
