@@ -4,7 +4,7 @@ describe('AuthRepository contract (mock)', () => {
   it('logs in the demo Super admin with the seeded credentials', async () => {
     const repo = createMockAuthRepository({ getToken: () => null })
 
-    const { token, user } = await repo.login('admin@local.test', 'admin123')
+    const { token, user } = await repo.login({ email: 'admin@local.test', password: 'admin123' })
 
     expect(token).toEqual(expect.any(String))
     expect(user).toEqual({
@@ -19,7 +19,9 @@ describe('AuthRepository contract (mock)', () => {
   it('rejects a wrong password with INVALID_CREDENTIALS and the API message', async () => {
     const repo = createMockAuthRepository({ getToken: () => null })
 
-    await expect(repo.login('admin@local.test', 'wrong')).rejects.toMatchObject({
+    await expect(
+      repo.login({ email: 'admin@local.test', password: 'wrong' }),
+    ).rejects.toMatchObject({
       code: 'INVALID_CREDENTIALS',
       message: 'Email ou senha inválidos.',
     })
@@ -28,11 +30,13 @@ describe('AuthRepository contract (mock)', () => {
   it('rejects a malformed email or empty password with VALIDATION_ERROR', async () => {
     const repo = createMockAuthRepository({ getToken: () => null })
 
-    await expect(repo.login('not-an-email', 'admin123')).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      message: 'Dados inválidos.',
-    })
-    await expect(repo.login('admin@local.test', '')).rejects.toMatchObject({
+    await expect(repo.login({ email: 'not-an-email', password: 'admin123' })).rejects.toMatchObject(
+      {
+        code: 'VALIDATION_ERROR',
+        message: 'Dados inválidos.',
+      },
+    )
+    await expect(repo.login({ email: 'admin@local.test', password: '' })).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
     })
   })
@@ -40,7 +44,7 @@ describe('AuthRepository contract (mock)', () => {
   it('returns the logged-in User from me() with the token from login', async () => {
     let token: string | null = null
     const repo = createMockAuthRepository({ getToken: () => token })
-    const login = await repo.login('admin@local.test', 'admin123')
+    const login = await repo.login({ email: 'admin@local.test', password: 'admin123' })
     token = login.token
 
     await expect(repo.me()).resolves.toEqual(login.user)

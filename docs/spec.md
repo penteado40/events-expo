@@ -101,8 +101,8 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - Dark mode only, portrait only.
 
 **Architecture (ADR-0001)**
-- Feature-based layout: `src/features/<feature>/` (`api.ts`, `mock.ts`, `schemas.ts`, `hooks/`, `components/`), shared code in `src/shared/` (`components/ui`, `lib`, `theme`, `session`), routes in `src/app/` that only compose screens from features, with no business logic.
-- Boundaries (`eslint-plugin-boundaries`): `app` imports `features` and `shared`; a feature imports only itself and `shared`; `shared` imports only `shared`; a feature's `mock.ts` is imported only by its own `api.ts` and by tests.
+- Feature-based layout: `src/features/<feature>/` (`api.ts`, `repository.ts`, `mock.ts`, `schemas.ts`, `hooks/`, `components/`), shared code in `src/shared/` (`components/ui`, `lib`, `theme`, `session`), routes in `src/app/` that only compose screens from features, with no business logic.
+- Boundaries (`eslint-plugin-boundaries`): `app` imports `features` and `shared`; a feature imports only itself and `shared`; `shared` imports only `shared`; a feature's `mock.ts` is imported only by its own `api.ts` and by its own tests.
 - Server state: TanStack Query. Every API call goes through the feature's `api.ts` and is exposed through custom hooks (`useX` / `useXMutation`).
 - Client state: Zustand, only for global UI/session state.
 - Validation and types: Zod with inferred types (`z.infer`); the same schemas validate mock and HTTP responses. Forms with React Hook Form + `zodResolver`.
@@ -133,8 +133,8 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - "Modo demo" is rendered only when `__DEV__`. In development, while `auth` is not in `LIVE_MODULES`, "Entrar" logs in against the mock (`admin@local.test / admin123`; otherwise `INVALID_CREDENTIALS`).
 
 **Data layer (the main seam)**
-- Repository interfaces, one per feature in its `api.ts`, mirroring the events-api contract (issues #5, #6, #10, #13, #17 there):
-  - `AuthRepository`: `login(email, password)` → `POST /auth/login` → `{ token, user }`; `me()` → `GET /me`.
+- Repository interfaces, one per feature in its `repository.ts` (re-exported by `api.ts`, which picks the implementation), mirroring the events-api contract (issues #5, #6, #10, #13, #17 there):
+  - `AuthRepository`: `login({ email, password })` → `POST /auth/login` → `{ token, user }`; `me()` → `GET /me`.
   - `EventsRepository`: `list()` → `GET /events` (all for Super admin, member's Events otherwise); `get(id)` → `GET /events/:id`.
   - `MembersRepository`: `list(eventId)` → `GET /events/:id/members`.
   - `RsvpsRepository`: `list(eventId)` → `GET /events/:id/rsvps`.

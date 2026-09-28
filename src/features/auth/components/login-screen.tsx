@@ -13,8 +13,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ErrorBox, Glass } from '@/shared/components/ui'
+import { validationError } from '@/shared/lib/api-error'
 import { useLastEmail } from '@/shared/session'
-import { colors, fonts, radii } from '@/shared/theme'
+import { colors, fonts, radii, textStyles } from '@/shared/theme'
 
 import { useEnterDemo } from '../hooks/use-enter-demo'
 import { useLogin } from '../hooks/use-login'
@@ -30,6 +31,8 @@ export function LoginScreen() {
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginInputSchema),
+    // Read once, not subscribed: the splash waits for the store to hydrate, and Login remounts
+    // after "Sair" (Stack.Protected), so this is always the current saved email.
     defaultValues: { email: useLastEmail.getState().email, password: '' },
   })
 
@@ -38,17 +41,12 @@ export function LoginScreen() {
     login.reset()
     handleSubmit((input) => login.mutate(input))()
   }
-  const edit = (onChange: (text: string) => void) => (text: string) => {
+  const clearErrorOnChange = (onChange: (text: string) => void) => (text: string) => {
     if (login.error) login.reset()
     onChange(text)
   }
 
-  const error =
-    errors.email || errors.password
-      ? { code: 'VALIDATION_ERROR', message: 'Dados inválidos.' }
-      : login.error
-        ? { code: login.error.code, message: login.error.message }
-        : null
+  const error = errors.email || errors.password ? validationError() : login.error
 
   return (
     <KeyboardAvoidingView
@@ -74,7 +72,7 @@ export function LoginScreen() {
             render={({ field }) => (
               <Input
                 value={field.value}
-                onChangeText={edit(field.onChange)}
+                onChangeText={clearErrorOnChange(field.onChange)}
                 onBlur={field.onBlur}
                 placeholder="email"
                 autoCapitalize="none"
@@ -90,7 +88,7 @@ export function LoginScreen() {
             render={({ field }) => (
               <Input
                 value={field.value}
-                onChangeText={edit(field.onChange)}
+                onChangeText={clearErrorOnChange(field.onChange)}
                 onBlur={field.onBlur}
                 placeholder="senha"
                 secureTextEntry
@@ -156,7 +154,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   card: { padding: 18, gap: 12 },
-  endpoint: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
+  endpoint: textStyles.monoCaption,
   input: {
     height: 52,
     borderRadius: radii.input,
@@ -174,15 +172,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -8px rgba(181,227,90,.6)',
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -8px ${colors.accentGlow}`,
   },
   primaryText: { fontFamily: fonts.sans600, fontSize: 16, color: colors.onAccent },
   secondary: {
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,.06)',
+    backgroundColor: colors.secondaryButtonBg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,.16)',
+    borderColor: colors.secondaryButtonBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },

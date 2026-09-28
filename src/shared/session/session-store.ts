@@ -1,8 +1,6 @@
 import { z } from 'zod'
-import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 
-import { secureJSONStorage } from './secure-storage'
+import { createPersistedStore } from './create-persisted-store'
 import { userSchema } from './user'
 
 /** Who is signed in on this device and how (see CONTEXT.md). `live` = backed by the real events-api. */
@@ -24,31 +22,26 @@ type Options = {
 }
 
 export function createSessionStore({ isDev = __DEV__ }: Options = {}) {
-  const store = create<SessionState>()(
-    persist(
-      (set) => ({
-        session: null,
-        hydrated: false,
-        signIn: (session) => set({ session }),
-        signOut: () => set({ session: null }),
-      }),
-      {
-        name: 'session',
-        storage: secureJSONStorage,
-        partialize: (state) => ({ session: state.session }),
-        merge: (persisted, current) => {
-          // A malformed keychain entry starts the app signed out instead of restoring garbage.
-          const stored = sessionSchema.safeParse(
-            (persisted as { session?: unknown } | undefined)?.session,
-          )
-          const session = stored.success ? stored.data : null
-          return { ...current, session: session && !session.live && !isDev ? null : session }
-        },
-        // Also on a read error: the app then starts signed out instead of hanging on the splash.
-        // Deferred: with synchronous storage (web) this runs before `store` is assigned.
-        onRehydrateStorage: () => () => queueMicrotask(() => store.setState({ hydrated: true })),
+  return createPersistedStore<SessionState, Pick<SessionState, 'session'>>(
+    (set) => ({
+      session: null,
+      hydrated: false,
+      signIn: (session) => set({ session }),
+      signOut: () => set({ session: null }),
+    }),
+    {
+      name: 'session',
+      partialize: (state) => ({ session: state.session }),
+      merge: (persisted, current) => {
+        // A malformed keychain entry starts the app signed out instead of restoring garbage.
+        const stored = sessionSchema.safeParse(
+          (persisted as { session?: unknown } | undefined)?.session,
+        )
+        const session = stored.success ? stored.data : null
+        // Only a development build can open one without an API behind it (Demo mode, or the mock
+        // "Entrar" while `auth` is not live), so a release build drops any it finds.
+        return { ...current, session: session && !session.live && !isDev ? null : session }
       },
-    ),
+    },
   )
-  return store
 }

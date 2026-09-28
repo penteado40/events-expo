@@ -1,5 +1,5 @@
-import { ApiError } from '@/shared/lib/api-error'
-import type { User } from '@/shared/session/user'
+import { ApiError, validationError } from '@/shared/lib/api-error'
+import { userSchema, type User } from '@/shared/session'
 
 import type { AuthRepository } from './repository'
 import { loginInputSchema, loginResponseSchema } from './schemas'
@@ -36,12 +36,11 @@ export function createMockAuthRepository({ getToken, latencyMs = 0 }: Options): 
   const delay = () => new Promise((resolve) => setTimeout(resolve, latencyMs))
 
   return {
-    async login(email, password) {
+    async login(input) {
       await delay()
-      const input = loginInputSchema.safeParse({ email, password })
-      if (!input.success) {
-        throw new ApiError('VALIDATION_ERROR', 'Dados inválidos.', input.error.issues)
-      }
+      const parsed = loginInputSchema.safeParse(input)
+      if (!parsed.success) throw validationError(parsed.error.issues)
+      const { email, password } = parsed.data
       const account = ACCOUNTS.find((a) => a.user.email === email && a.password === password)
       if (!account) throw new ApiError('INVALID_CREDENTIALS', 'Email ou senha inválidos.')
       return loginResponseSchema.parse({ token: mockTokenFor(account.user), user: account.user })
@@ -52,7 +51,7 @@ export function createMockAuthRepository({ getToken, latencyMs = 0 }: Options): 
       const token = getToken()
       const account = ACCOUNTS.find((a) => token !== null && mockTokenFor(a.user) === token)
       if (!account) throw new ApiError('UNAUTHENTICATED', 'Sessão inválida.')
-      return account.user
+      return userSchema.parse(account.user)
     },
   }
 }

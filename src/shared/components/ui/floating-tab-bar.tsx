@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Tabs from 'expo-router/js-tabs'
 import Animated, { Easing, useAnimatedStyle, withTiming } from 'react-native-reanimated'
 
-import { colors, fonts, radii } from '@/shared/theme'
+import { colors, fonts, radii, tabBarGlass } from '@/shared/theme'
 
 import { Glass } from './glass'
 
@@ -34,9 +34,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
       <Glass
         variant="pill"
         radius={radii.tabBar}
-        borderColor="rgba(255,255,255,.2)"
-        highlight="rgba(255,255,255,.4)"
-        shadow="0 18px 40px -12px rgba(0,0,0,.7)"
+        {...tabBarGlass}
         style={styles.bar}
         contentStyle={styles.content}
       >

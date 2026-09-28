@@ -15,3 +15,5 @@ _Avoid_: mock (é a implementação), modo offline
 **Live session** (sessão real):
 Uma Session apoiada em um login real na events-api.
 _Avoid_: produção, modo real
+
+Enquanto `auth` não é um módulo live (até o PROJ-86), "Entrar" em desenvolvimento abre uma Session contra o mock. Ela não é Live session nem Demo mode: grava o último email, e o Perfil a mostra com o rótulo `modo demo · dados locais`, como toda Session sem API por trás. O app publicado não entra pelo mock.

@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Glass, PressableGlass } from '@/shared/components/ui'
-import { colors, fonts, radii, spacing, type GlassVariant } from '@/shared/theme'
+import { colors, fonts, radii, spacing, textStyles, type GlassVariant } from '@/shared/theme'
 
 const SAMPLES: { variant: GlassVariant; radius: number; label: string }[] = [
   { variant: 'accent', radius: radii.heroCard, label: 'Card acento' },
@@ -36,11 +36,14 @@ export default function EventsShowcase() {
 }
 
 const styles = StyleSheet.create({
-  // 120 bottom padding keeps content clear of the floating tab bar.
-  screen: { paddingHorizontal: spacing.screen, paddingBottom: 120, gap: spacing.cardGap },
-  title: { fontFamily: fonts.sans600, fontSize: 32, color: colors.text },
+  screen: {
+    paddingHorizontal: spacing.screen,
+    paddingBottom: spacing.tabBarClearance,
+    gap: spacing.cardGap,
+  },
+  title: textStyles.screenTitle,
   note: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted, marginBottom: 4 },
   card: { paddingVertical: 18, paddingHorizontal: 18, gap: 6 },
-  meta: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
+  meta: textStyles.monoCaption,
   label: { fontFamily: fonts.sans500, fontSize: 20, color: colors.text },
 })

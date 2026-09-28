@@ -25,6 +25,7 @@ module.exports = defineConfig([
       'import/resolver': { typescript: { alwaysTryTypes: true } },
       'boundaries/legacy-templates': false,
       'boundaries/elements': [
+        { type: 'feature-test', pattern: 'src/features/*/__tests__', capture: ['feature'] },
         { type: 'test', pattern: 'src/**/__tests__' },
         { type: 'app', pattern: 'src/app' },
         { type: 'feature', pattern: 'src/features/*', capture: ['feature'] },
@@ -41,7 +42,22 @@ module.exports = defineConfig([
           checkInternals: true,
           policies: [
             { allow: { to: { module: { origin: ['external', 'core'] } } } },
-            { from: { element: { type: 'test' } }, allow: { to: { element: { type: '*' } } } },
+            // Tests reach shared/ and, in a feature, that feature's files including its mock.
+            {
+              from: { element: { type: ['feature-test', 'test'] } },
+              allow: { to: { element: { type: ['shared', 'test'] } } },
+            },
+            {
+              from: { element: { type: 'feature-test' } },
+              allow: {
+                to: {
+                  element: {
+                    type: ['feature', 'feature-test'],
+                    captured: { feature: '{{ from.element.captured.feature }}' },
+                  },
+                },
+              },
+            },
             {
               from: { element: { type: 'app' } },
               allow: { to: [{ element: { type: ['app', 'shared'] } }, sameFeatureAny()] },

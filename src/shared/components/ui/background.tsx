@@ -18,9 +18,16 @@ export function Background() {
 
   // Positions from the 390 pt design frame (README "Fundo").
   const orbs: Orb[] = [
-    { id: 'lime', color: '#b5e35a', size: 420, opacity: 0.55, x: -140, y: -80 },
-    { id: 'blue', color: '#4f7dff', size: 460, opacity: 0.6, x: width + 200 - 460, y: 260 },
-    { id: 'violet', color: '#b36bff', size: 380, opacity: 0.45, x: -60, y: height + 140 - 380 },
+    { id: 'lime', color: colors.accent, size: 420, opacity: 0.55, x: -140, y: -80 },
+    { id: 'blue', color: colors.orbBlue, size: 460, opacity: 0.6, x: width + 200 - 460, y: 260 },
+    {
+      id: 'violet',
+      color: colors.orbViolet,
+      size: 380,
+      opacity: 0.45,
+      x: -60,
+      y: height + 140 - 380,
+    },
   ]
 
   const content = (
@@ -34,7 +41,7 @@ export function Background() {
           </RadialGradient>
         ))}
         <Pattern id="grid" width={32} height={32} patternUnits="userSpaceOnUse">
-          <Path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(255,255,255,.05)" strokeWidth={1} />
+          <Path d="M 32 0 L 0 0 0 32" fill="none" stroke={colors.gridLine} strokeWidth={1} />
         </Pattern>
       </Defs>
       {orbs.map((orb) => (

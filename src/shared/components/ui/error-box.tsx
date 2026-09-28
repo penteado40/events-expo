@@ -1,9 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native'
 
+import type { ApiErrorCode } from '@/shared/lib/api-error'
 import { colors, fonts, radii } from '@/shared/theme'
 
 /** The API error as the design shows it: `code` on top, `message` below. */
-export function ErrorBox({ code, message }: { code: string; message: string }) {
+export function ErrorBox({ code, message }: { code: ApiErrorCode; message: string }) {
   return (
     <View style={styles.box} accessibilityRole="alert">
       <Text style={styles.code}>{code}</Text>

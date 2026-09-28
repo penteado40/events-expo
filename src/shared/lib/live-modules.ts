@@ -4,4 +4,5 @@
  */
 export const LIVE_MODULES: readonly LiveModule[] = []
 
-export type LiveModule = 'auth' | 'events' | 'members' | 'rsvps' | 'registry' | 'contributions'
+/** Grows as each module gets an HTTP implementation. */
+export type LiveModule = 'auth'

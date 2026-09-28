@@ -19,3 +19,7 @@ export class ApiError extends Error {
     this.name = 'ApiError'
   }
 }
+
+/** Invalid input, as both the API and the client-side form check report it. */
+export const validationError = (details?: unknown) =>
+  new ApiError('VALIDATION_ERROR', 'Dados inválidos.', details)

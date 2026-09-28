@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { userSchema } from '@/shared/session/user'
+import { userSchema } from '@/shared/session'
 
 export const loginInputSchema = z.object({
   email: z.email(),

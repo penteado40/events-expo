@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Glass, PressableGlass } from '@/shared/components/ui'
 import { useSession, type User } from '@/shared/session'
-import { colors, fonts, radii, spacing } from '@/shared/theme'
+import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
 
 const initials = (name: string) =>
   name
@@ -69,7 +69,7 @@ export function ProfileScreen() {
         radius={radii.pillButton}
         onPress={signOut}
         accessibilityLabel="Sair"
-        borderColor="rgba(255,154,134,.3)"
+        borderColor={colors.dangerBorder}
         contentStyle={styles.signOut}
       >
         <Text style={styles.signOutText}>Sair</Text>
@@ -80,9 +80,8 @@ export function ProfileScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  // 120 bottom padding keeps content clear of the floating tab bar.
-  screen: { paddingHorizontal: spacing.screen, paddingBottom: 120, gap: 14 },
-  title: { fontFamily: fonts.sans600, fontSize: 32, color: colors.text, marginBottom: 4 },
+  screen: { paddingHorizontal: spacing.screen, paddingBottom: spacing.tabBarClearance, gap: 14 },
+  title: { ...textStyles.screenTitle, marginBottom: 4 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18 },
   avatar: {
     width: 52,
@@ -94,8 +93,8 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontFamily: fonts.sans600, fontSize: 18, color: colors.onAccent },
   name: { fontFamily: fonts.sans500, fontSize: 18, color: colors.text },
-  source: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  endpoint: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted, marginTop: 6 },
+  source: { ...textStyles.monoCaption, marginTop: 2 },
+  endpoint: { ...textStyles.monoCaption, marginTop: 6 },
   fields: { paddingHorizontal: 16, paddingVertical: 6 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 10 },
   key: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted },
