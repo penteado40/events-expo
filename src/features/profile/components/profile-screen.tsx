@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Glass, PressableGlass } from '@/shared/components/ui'
+import { API_HOST } from '@/shared/lib/api-client'
 import { useSession, type User } from '@/shared/session'
 import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
 
@@ -22,8 +23,7 @@ export function ProfileScreen() {
   if (!session) return null
 
   const { user } = session
-  // PROJ-86 adds the API host: `API real · {host}`.
-  const source = session.live ? 'API real' : 'modo demo · dados locais'
+  const source = session.live ? `API real · ${API_HOST}` : 'modo demo · dados locais'
   const rows: [keyof User, string][] = [
     ['id', String(user.id)],
     ['name', user.name],

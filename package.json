@@ -66,6 +66,9 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "/docs/"
+    ],
+    "testMatch": [
+      "**/*.test.[jt]s?(x)"
     ]
   }
 }

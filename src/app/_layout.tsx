@@ -1,14 +1,19 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
+import { useSessionCheck } from '@/features/auth'
 import { Background, BlurTargetProvider } from '@/shared/components/ui'
+import { clearCacheOnSignOut, createQueryClient } from '@/shared/lib/query-client'
 import { useLastEmail, useSession } from '@/shared/session'
 import { colors, useAppFonts } from '@/shared/theme'
 
 SplashScreen.preventAutoHideAsync()
+
+const queryClient = createQueryClient()
+clearCacheOnSignOut(queryClient)
 
 const theme = {
   ...DarkTheme,
@@ -16,12 +21,13 @@ const theme = {
 }
 
 export default function RootLayout() {
-  const [queryClient] = useState(() => new QueryClient())
   const fontsLoaded = useAppFonts()
   const sessionLoaded = useSession((state) => state.hydrated)
   const emailLoaded = useLastEmail((state) => state.hydrated)
   const signedIn = useSession((state) => state.session !== null)
   const ready = fontsLoaded && sessionLoaded && emailLoaded
+  // Optimistic startup: a saved Session enters at once; a Live one is re-checked in the background.
+  useSessionCheck(sessionLoaded)
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync()

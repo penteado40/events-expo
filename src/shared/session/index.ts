@@ -10,3 +10,6 @@ export const useSession = createSessionStore()
 
 /** The email last used with "Entrar". */
 export const useLastEmail = createLastEmailStore()
+
+/** Ends the Session the API refused (`UNAUTHENTICATED`); Stack.Protected then returns to Login. */
+export const expireSession = (token: string | null) => useSession.getState().expire(token)

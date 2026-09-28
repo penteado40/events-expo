@@ -69,6 +69,29 @@ describe('Session store', () => {
     expect(release.current.session).toEqual(live)
   })
 
+  it('expires the Session refused by the API, but not a newer one', async () => {
+    const session = await open(createSessionStore())
+    await act(() => session.current.signIn({ ...admin, token: 'new' }))
+
+    await act(() => session.current.expire('old'))
+    expect(session.current.session).toMatchObject({ token: 'new' })
+
+    await act(() => session.current.expire('new'))
+    expect(session.current.session).toBeNull()
+  })
+
+  it('refreshes the stored User only while the same Session is open', async () => {
+    const session = await open(createSessionStore())
+    await act(() => session.current.signIn(admin))
+    const renamed = { ...admin.user, name: 'Admin Renomeado' }
+
+    await act(() => session.current.updateUser('other-token', renamed))
+    expect(session.current.session?.user.name).toBe('Admin Local')
+
+    await act(() => session.current.updateUser(admin.token, renamed))
+    expect(session.current.session).toEqual({ ...admin, user: renamed })
+  })
+
   it('starts signed out when the stored Session is malformed', async () => {
     await SecureStore.setItemAsync(
       'session',
