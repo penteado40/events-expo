@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { ApiError, internalError } from './api-error'
+import { ApiError, internalError, networkError } from './api-error'
 
 const TIMEOUT_MS = 15_000
 
@@ -66,11 +66,7 @@ export function createHttpClient({
       const text = await response.text()
       payload = parseJson(text)
     } catch (cause) {
-      throw new ApiError(
-        'NETWORK',
-        'Não foi possível conectar. Verifique sua internet e tente de novo.',
-        { cause },
-      )
+      throw networkError(cause)
     } finally {
       clearTimeout(timer)
     }

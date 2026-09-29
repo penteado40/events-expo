@@ -63,7 +63,7 @@ export const spacing = {
 /** Text styles repeated across screens. */
 export const textStyles = {
   screenTitle: { fontFamily: fonts.sans600, fontSize: 32, color: colors.text },
-  /** Mono 12 muted: `METHOD /path` labels, meta lines. */
+  /** Mono 12 muted: meta lines. */
   monoCaption: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
 } as const
 

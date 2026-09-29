@@ -54,7 +54,7 @@ export function ProfileScreen() {
           <Fragment key={label}>
             {index > 0 && <View style={styles.divider} />}
             <View style={styles.row}>
-              <Text style={styles.key}>{label}</Text>
+              <Text style={styles.label}>{label}</Text>
               <Text style={styles.value} numberOfLines={1}>
                 {value}
               </Text>
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: fonts.sans500, fontSize: 12, color: colors.textMuted },
   fields: { paddingHorizontal: 16, paddingVertical: 6 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 10 },
-  key: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
+  label: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
   value: { flexShrink: 1, fontFamily: fonts.sans400, fontSize: 13, color: colors.text },
   divider: { height: 1, backgroundColor: colors.divider },
   signOut: {
