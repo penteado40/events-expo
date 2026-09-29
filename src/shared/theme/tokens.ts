@@ -24,6 +24,7 @@ export const colors = {
   errorText: '#f3d6cf',
   secondaryButtonBg: 'rgba(255,255,255,.06)',
   secondaryButtonBorder: 'rgba(255,255,255,.16)',
+  chipMutedBorder: 'rgba(255,255,255,.18)',
   orbBlue: '#4f7dff',
   orbViolet: '#b36bff',
   gridLine: 'rgba(255,255,255,.05)',
@@ -62,7 +63,7 @@ export const spacing = {
 /** Text styles repeated across screens. */
 export const textStyles = {
   screenTitle: { fontFamily: fonts.sans600, fontSize: 32, color: colors.text },
-  /** Mono 12 muted: `METHOD /path` labels, meta lines. */
+  /** Mono 12 muted: meta lines. */
   monoCaption: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
 } as const
 

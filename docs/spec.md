@@ -21,8 +21,8 @@ Data comes through repository interfaces that mirror the planned API contract. A
 ### Session and login
 1. As a member, I want to log in with my events-api email and password, so that I can access my Events from my phone.
 2. As a member, I want the "Entrar" button to show "Entrando…" while the login is in progress, so that I know the app is working.
-3. As a member, I want to see the API's error `code` and `message` when login fails (e.g. `INVALID_CREDENTIALS` · "Email ou senha inválidos."), so that I understand what went wrong.
-4. As a member, I want a `NETWORK` error shown when the API is unreachable, so that I can tell a connection problem apart from wrong credentials.
+3. As a member, I want to see a clear message when login fails (e.g. "Email ou senha inválidos."), so that I understand what went wrong.
+4. As a member, I want a connection message ("Não foi possível conectar. Verifique sua internet e tente de novo.") when the server is unreachable, so that I can tell a connection problem apart from wrong credentials.
 5. As a member, I want my session kept on the device securely, so that I don't have to log in every time I open the app.
 6. As a member, I want the app to open straight into my Events when I have a saved session, so that startup is fast.
 7. As a member, I want the app to re-check my session in the background on startup, so that a revoked or expired session sends me back to login.
@@ -42,7 +42,7 @@ Data comes through repository interfaces that mirror the planned API contract. A
 19. As a member, I want archived Events shown with reduced opacity and an "arquivado" chip, so that I can tell they're no longer active.
 20. As a User who isn't a member of any Event, I want a clear empty state ("Nenhum evento ainda." / "Um Super admin precisa te adicionar como membro.") without the hero, so that I understand why the list is empty.
 21. As a member, I want glass skeletons while Events load, so that the screen doesn't jump when data arrives.
-22. As a member, I want a data error shown with `code` + `message` and a "Tentar de novo" button, so that I can recover from a failed load.
+22. As a member, I want a data error shown with its message and a "Tentar de novo" button, so that I can recover from a failed load.
 23. As a member, I want tapping an Event card to open its detail on the Summary tab, so that I can dig in.
 
 ### Event detail
@@ -63,19 +63,19 @@ Data comes through repository interfaces that mirror the planned API contract. A
 
 ### Contribution sheet and Verification
 38. As a member, I want tapping a Contribution to open a floating bottom sheet, so that I can see its details without leaving the Event.
-39. As a member, I want the sheet to show `CONTRIBUTION #{id}`, its status, the amount, the Guest, the Registry item, when it was marked paid and whether a Receipt is attached, so that I have everything needed to check the Pix.
+39. As a member, I want the sheet to show `Contribuição #{id}`, its status, the amount, the Guest, the Registry item, when it was marked paid and whether a Receipt is attached, so that I have everything needed to check the Pix.
 40. As a member, I want to tap "anexado ↗" to open the Receipt, so that I can compare it with my bank statement before deciding.
 41. As an Owner, Manager or Super admin, I want "Verificar Pix" and "Rejeitar" buttons on a `PAID` Contribution, so that I can complete the Verification.
 42. As a verifier, I want the hero total, the "Conferir" dot and the "Verificado" stat to update immediately after I verify or reject, so that the app feels instant.
 43. As a verifier, I want a failed Verification to roll back the optimistic change and show the error, so that the screen never lies about the real state.
-44. As a Viewer opening a `PAID` Contribution, I want "403 FORBIDDEN · Viewers não fazem a conferência" instead of buttons, so that the rule is explicit.
+44. As a Viewer opening a `PAID` Contribution, I want "Viewers não fazem a conferência." instead of buttons, so that the rule is explicit.
 45. As a member, I want to close the sheet by tapping outside it or swiping it down, so that it's quick to dismiss.
 46. As a member, I want the sheet to have its own route, so that a Contribution can be linked to directly.
 
 ### Profile and navigation
 47. As a member, I want a floating tab bar with "Eventos" and "Perfil" on the main screens (hidden in the Event detail), so that I can move between them.
-48. As a member, I want the Profile to show my initials avatar, name, and whether I'm on the real API (`API real · host`) or demo (`modo demo · dados locais`), so that I know which data I'm seeing.
-49. As a member, I want the Profile to show my `GET /me` data (id, name, email, role, createdAt), so that I can check my account.
+48. As a member, I want the Profile to show my initials avatar and name, so that I know who is signed in. As a developer in Demo mode, I want a small `demo` chip next to the name, so that I never mistake sample data for real data.
+49. As a member, I want the Profile to show my email, "Papel · Super admin" if I'm a Super admin, and "Membro desde" with the date I was created, so that I can check my account.
 50. As a member, I want a "Sair" button that clears my session and returns to login, so that I can switch accounts.
 
 ### Look and feel
@@ -99,6 +99,7 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - TypeScript strict, alias `@/` → `src/`. `expo lint` (eslint-config-expo, flat config) + Prettier using the backend's `.prettierrc.json`; `npm run lint` runs both. Module boundaries are enforced with `eslint-plugin-boundaries` (see Architecture).
 - All code, routes, file names and identifiers in English; only user-facing copy in pt-BR. Domain terms follow the events-api `CONTEXT.md` (Event, EventMember, RSVP, Registry item, Contribution, Receipt, Verification, Primary owner).
 - Dark mode only, portrait only.
+- User-facing copy never exposes where data comes from or backend internals: no endpoints, hosts, API vs. mock, raw error codes, raw field names or raw values (e.g. `SUPER_ADMIN`, ISO dates). Codes stay on `ApiError` for logic and tests only. The one exception is the `demo` chip on Perfil, which exists only in development builds.
 
 **Architecture (ADR-0001)**
 - Feature-based layout: `src/features/<feature>/` (`api.ts`, `repository.ts`, `mock.ts`, `schemas.ts`, `hooks/`, `components/`), shared code in `src/shared/` (`components/ui`, `lib`, `theme`, `session`), routes in `src/app/` that only compose screens from features, with no business logic.
@@ -121,7 +122,7 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - Fixed background: `#07080a`, three radial orbs via `react-native-svg` `RadialGradient`, 32 pt grid of 1 px `rgba(255,255,255,.05)` lines; does not scroll.
 - Fonts: `@expo-google-fonts/ibm-plex-sans` (400/500/600) and `@expo-google-fonts/ibm-plex-mono` (400/500); splash held until fonts and the stored session are loaded.
 - Press feedback: scale 0.98 + stronger top highlight (Reanimated).
-- Loading: glass skeletons shaped like the real cards. Query errors: the login's error box (`code` + `message`) plus "Tentar de novo".
+- Loading: glass skeletons shaped like the real cards. Query errors: the login's error box (message only) plus "Tentar de novo".
 - Money formatted with `Intl` pt-BR using the Event's `currency`.
 - Receipt opens with `expo-web-browser`.
 
@@ -130,7 +131,7 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - Startup is optimistic: splash only until storage is read; with a live session the app enters immediately and calls `GET /me` in the background. Demo sessions are restored too.
 - Any `UNAUTHENTICATED` error from any repository calls `expireSession()` in `shared/session`, which clears the Session once (however many requests fail in parallel); `Stack.Protected` then returns to Login, silently, with no message. Only the `UNAUTHENTICATED` code triggers it, never the 401 status alone (a wrong password is `401 INVALID_CREDENTIALS`). "Sair" and expiry both clear the TanStack Query cache.
 - Background `GET /me` on startup (`useSessionCheck`, once per cold start, Live sessions only): 200 replaces `session.user` with the fresh data; `UNAUTHENTICATED` expires the Session; `NETWORK` or any other error keeps the saved Session silently.
-- Demo users live in a table in the auth mock. PROJ-85 ships only the Super admin `{ id: 1, name: 'Admin Local', email: 'admin@local.test', role: 'SUPER_ADMIN', createdAt: '2026-01-01T12:00:00.000Z' }`; more users (e.g. the handoff's User `{ id: 7, name: 'Cláudia Lima', email: 'claudia.lima@gmail.com', role: 'USER' }`) are added later. Perfil shows every `/me` field raw, including `createdAt` as ISO.
+- Demo users live in a table in the auth mock. PROJ-85 ships only the Super admin `{ id: 1, name: 'Admin Local', email: 'admin@local.test', role: 'SUPER_ADMIN', createdAt: '2026-01-01T12:00:00.000Z' }`; more users (e.g. the handoff's User `{ id: 7, name: 'Cláudia Lima', email: 'claudia.lima@gmail.com', role: 'USER' }`) are added later. Perfil shows Email, Papel ("Super admin", only for `SUPER_ADMIN`; no row for `USER`) and "Membro desde" (`createdAt` formatted pt-BR, e.g. "28 de set. de 2026"), labels and values in Plex Sans; no `id` row, no `name` row (the name is in the header).
 - "Modo demo" is rendered only when `__DEV__`. Once `auth` is in `LIVE_MODULES` (PROJ-86), "Entrar" always calls the HTTP `POST /auth/login` and opens a Live session, in development and release alike; without the backend running, development uses "Modo demo". Every Session is either a Live session or Demo mode. The mock login (`admin@local.test / admin123`; otherwise `INVALID_CREDENTIALS`) remains the reference for the contract suite.
 - The login form validates with the same Zod schema before the request (`VALIDATION_ERROR` · "Dados inválidos."); the API's own `VALIDATION_ERROR` message shows only if invalid input gets through.
 
@@ -143,8 +144,8 @@ Data comes through repository interfaces that mirror the planned API contract. A
   - `RegistryRepository`: `list(eventId)` → `GET /events/:id/registry-items`.
   - `ContributionsRepository`: `list(eventId)` → `GET /events/:id/contributions`; `verify` / `reject` → `PATCH /events/:id/contributions/:cid/verify|reject` (only from `PAID`; Viewer → `403 FORBIDDEN`); `getReceiptUrl` → `GET /events/:id/contributions/:cid/receipt` (no Receipt → `404 NOT_FOUND`).
 - Types follow the backend issues over the README where they differ: `Event { id, name, slug, type: 'WEDDING'|'BIRTHDAY'|'CORPORATE'|'BABY_SHOWER'|'PARTY'|'OTHER', status: 'ACTIVE'|'ARCHIVED', startsAt, endsAt?, timezone, locale, currency, venue, siteUrl }`; `EventMember { userId, name, role: 'OWNER'|'MANAGER'|'VIEWER', isPrimaryOwner }`; `Rsvp { name, email, attending, createdAt }`; `RegistryItem { id, name, price, imageUrl, contributionCount }`; `Contribution { id, guestName, registryItemId, amount, status: 'PENDING'|'ABANDONED'|'PAID'|'VERIFIED'|'REJECTED', paidAt, hasReceipt }` (the app lists `PAID`, `VERIFIED`, `REJECTED`). Field names get reconciled when each backend module lands.
-- A shared HTTP client (`src/shared/lib/http.ts`): base URL from `EXPO_PUBLIC_API_URL` (default `http://localhost:3000/api/v1` in development builds only; a release build without it fails loudly at startup), Bearer token, unwraps `{ data }`, maps `{ error: { code, message, details? } }` to a typed `ApiError`, maps fetch failures and a 15 s timeout (`AbortController`) to code `NETWORK`, emits the session-expired signal on `UNAUTHENTICATED`. `ApiError.code` keeps the known codes as a union but accepts any string, so backend codes the app doesn't list (e.g. `403 USER_PENDING` for a Pending user) pass through with the API's message; a body that isn't the envelope becomes `INTERNAL_ERROR` with the HTTP status in `details`.
-- Perfil shows `API real · {host}` (hostname and port of the base URL). The Session doesn't store which API it was opened against; a token from another backend gets a 401 on the background `/me` and returns to Login.
+- A shared HTTP client (`src/shared/lib/http.ts`): base URL from `EXPO_PUBLIC_API_URL` (default `http://localhost:3000/api/v1` in development builds only; a release build without it fails loudly at startup), Bearer token, unwraps `{ data }`, maps `{ error: { code, message, details? } }` to a typed `ApiError`, maps fetch failures and a 15 s timeout (`AbortController`) to code `NETWORK` with the message "Não foi possível conectar. Verifique sua internet e tente de novo." (never the host), emits the session-expired signal on `UNAUTHENTICATED`. `ApiError.code` keeps the known codes as a union but accepts any string, so backend codes the app doesn't list (e.g. `403 USER_PENDING` for a Pending user) pass through with the API's message; a body that isn't the envelope becomes `INTERNAL_ERROR` with the HTTP status in `details`.
+- Perfil doesn't show which backend it talks to. The Session doesn't store which API it was opened against; a token from another backend gets a 401 on the background `/me` and returns to Login.
 - `.env.example` (committed; `.env` is ignored) documents `EXPO_PUBLIC_API_URL` for the iOS simulator (`localhost`), the Android emulator (`10.0.2.2`) and a device on the LAN (the Mac's IP).
 - Mock implementation built from the prototype's `EVENTS` constant (Ana & Rafael, Chá da Júlia, Marcos 40, Festa de fim de ano Vera Cruz, Offsite Kora 2026 archived) with memberships keyed by user id; enforces the same visibility and permission rules and returns the same error codes as the real API; ~300 ms latency in dev; Verification results live in memory only (reset on reload).
 - Implementation selection, inside each feature's `api.ts`: Demo mode → always mock; Live session → HTTP for modules listed in `LIVE_MODULES` (`src/shared/lib/live-modules.ts`; `auth` joins in PROJ-86), mock for the rest. The mock is only ever selected in development builds.

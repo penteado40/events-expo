@@ -79,11 +79,12 @@ Margem lateral da tela 16 · gap entre cartões 10–14 · padding de cartão 14
 
 ## Screens
 
+A interface nunca mostra de onde vêm os dados nem detalhes da API (endpoints, host, códigos de erro, nomes de campos). Onde o protótipo HTML diverge disso, vale este README.
+
 ### 1. Login
-- Layout em coluna, padding 36/18/30. Topo: ponto lima 10 px com glow `0 0 12px #b5e35a` + `events-api` (Mono 14/500). Título "Entre para gerenciar seus eventos." Espaço flexível. Cartão de vidro **Card**, radius 28, padding 18, gap 12, contendo:
-  - Rótulo `POST /api/v1/auth/login` (Mono 12, muted)
+- Layout em coluna, padding 36/18/30. Topo: título "Entre para gerenciar seus eventos." (sem marca nem ponto lima). Espaço flexível. Cartão de vidro **Card**, radius 28, padding 18, gap 12, contendo:
   - Input email e input senha: altura 52, radius 16, fundo `rgba(0,0,0,.28)`, borda `rgba(255,255,255,.14)`, placeholder "email" / "senha"
-  - Erro (condicional): caixa radius 16, fundo `rgba(60,18,12,.55)`, borda `rgba(255,154,134,.35)`; linha 1 = `code` (Mono 12/500, `#ff9a86`), linha 2 = `message` (14/1.45, `#f3d6cf`). Em falha de rede use code `NETWORK`.
+  - Erro (condicional): caixa radius 16, fundo `rgba(60,18,12,.55)`, borda `rgba(255,154,134,.35)`; só a `message` (14/1.45, `#f3d6cf`), sem o `code`. Em falha de rede: "Não foi possível conectar. Verifique sua internet e tente de novo."
   - Botão "Entrar" (carregando: "Entrando…"): altura 56, radius 28, fundo lima, texto `#0f1011` 16/600, `inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -8px rgba(181,227,90,.6)`
   - Botão "Modo demo": altura 48, radius 24, fundo `rgba(255,255,255,.06)`, borda `rgba(255,255,255,.16)`
 - Não há cadastro: só o Super admin cria Users.
@@ -110,14 +111,14 @@ Margem lateral da tela 16 · gap entre cartões 10–14 · padding de cartão 14
 
 ### 4. Folha de Contribuição (bottom sheet)
 - Overlay `rgba(0,0,0,.35)`; toque fora fecha. Folha flutuante com inset de 8 nas laterais e embaixo, **Sheet**, radius 40, padding 14/20/26, gap 14, alça de 40×5.
-- `CONTRIBUTION #{id}` + status colorido; valor (Mono 40); tabela: Convidado, Presente, Marcada paga (`dd/mm HH:MM`), Comprovante (`anexado` / `não anexado`).
+- `Contribuição #{id}` + status colorido; valor (Mono 40); tabela: Convidado, Presente, Marcada paga (`dd/mm HH:MM`), Comprovante (`anexado` / `não anexado`).
 - Se `PAID` e o papel pode verificar: botões em grade 1 : 1.4, altura 54, radius 27: **Rejeitar** (borda `rgba(255,154,134,.35)`, fundo `.08`, texto `#ff9a86`) e **Verificar Pix** (lima). Ação → atualiza o status e fecha a folha.
-- Se `PAID` e Viewer: "403 FORBIDDEN · Viewers não fazem a conferência" (Mono 12, warning).
+- Se `PAID` e Viewer: "Viewers não fazem a conferência." (Mono 12, warning).
 - Nota de domínio: "paga" é declaração do Guest, não prova (ADR-0004).
 
 ### 5. Perfil (tab "Perfil")
-- "Perfil"; cartão (radius 26) com avatar 52 lima com as iniciais e o nome, e abaixo `API real · host` ou `modo demo · dados locais`.
-- Rótulo `GET /api/v1/me` e cartão com linhas `id`, `name`, `email`, `role`, `createdAt` (Mono 13, chave muted, valor à direita).
+- "Perfil"; cartão (radius 26) com avatar 52 lima com as iniciais e o nome. Só no Modo demo: chip `demo` ao lado do nome (estilo do chip `arquivado`: radius 10, muted, borda `rgba(255,255,255,.18)`).
+- Cartão com linhas **Email**, **Papel** · Super admin (só para `SUPER_ADMIN`) e **Membro desde** · data pt-BR ("28 de set. de 2026"). Plex Sans 13, rótulo muted, valor à direita.
 - Botão **Sair** (Pill, altura 52, radius 26, borda `rgba(255,154,134,.3)`, texto `#ff9a86`) → limpa sessão e volta ao login (mantém o email digitado).
 
 ### Tab bar flutuante

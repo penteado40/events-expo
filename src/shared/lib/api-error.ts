@@ -28,6 +28,12 @@ export class ApiError extends Error {
 export const validationError = (details?: unknown) =>
   new ApiError('VALIDATION_ERROR', 'Dados inválidos.', details)
 
+/** The API could not be reached (fetch failure or timeout). Never names the server. */
+export const networkError = (cause?: unknown) =>
+  new ApiError('NETWORK', 'Não foi possível conectar. Verifique sua internet e tente de novo.', {
+    cause,
+  })
+
 /** The API answered with something that is not the contract. Same message as the API's own. */
 export const internalError = (details?: unknown) =>
   new ApiError('INTERNAL_ERROR', 'Erro interno. Tente novamente mais tarde.', details)
