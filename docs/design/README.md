@@ -87,15 +87,16 @@ A interface nunca mostra de onde vêm os dados nem detalhes da API (endpoints, h
   - Erro (condicional): caixa radius 16, fundo `rgba(60,18,12,.55)`, borda `rgba(255,154,134,.35)`; só a `message` (14/1.45, `#f3d6cf`), sem o `code`. Em falha de rede: "Não foi possível conectar. Verifique sua internet e tente de novo."
   - Botão "Entrar" (carregando: "Entrando…"): altura 56, radius 28, fundo lima, texto `#0f1011` 16/600, `inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -8px rgba(181,227,90,.6)`
   - Botão "Modo demo": altura 48, radius 24, fundo `rgba(255,255,255,.06)`, borda `rgba(255,255,255,.16)`
+    - Ao tocar, o botão dá lugar a duas pills lado a lado, mesmo estilo: "Super admin" e "Cláudia Lima · user"; cada uma abre o Modo demo com aquele usuário
 - Não há cadastro: só o Super admin cria Users.
 
 ### 2. Eventos (tab "Eventos")
 - Header: "Eventos" + à direita `{n} · super admin` ou `{n} · seus eventos` (Mono 13, muted).
 - **Hero "Para conferir"** (Card acento, radius 26, padding 18/20): à esquerda "PARA CONFERIR" (Mono 12/500, lima, tracking .06em) e "contribuições marcadas como pagas" (14, 80% branco); à direita o total de Contributions `PAID` em todos os eventos visíveis (Mono 50, lima).
-- Lista de **cartões de evento** (Card, radius 24, padding 16/18, gap 10):
-  - Linha 1: data `dd.mm.aa · HH:MM` e papel (`Owner`, `Manager`, `Viewer`, `Super admin`; + ` · principal` se Primary owner). Mono 12, muted.
+- Lista de **cartões de evento** (ativos por data, o mais próximo primeiro; arquivados no fim, o mais recente primeiro) (Card, radius 24, padding 16/18, gap 10):
+  - Linha 1: data `dd.mm.aa · HH:MM` e papel (`Owner`, `Manager`, `Viewer`, `Super admin`; + ` · principal` se Primary owner; o papel de membro prevalece, e `Super admin` só aparece onde ele não é membro). Mono 12, muted.
   - Nome do evento.
-  - Linha 3: `Tipo · Cidade, UF` (13, muted) e chip à direita: `N pendentes` (lima em `rgba(181,227,90,.16)`, borda `.35`) ou `arquivado` (muted, borda `rgba(255,255,255,.18)`).
+  - Linha 3: `Tipo · Cidade, UF` (13, muted; a cidade vem do campo `city` do Event, e sem ela só o tipo) e chip à direita: `N pendentes` (lima em `rgba(181,227,90,.16)`, borda `.35`) ou `arquivado` (muted, borda `rgba(255,255,255,.18)`).
   - Evento arquivado: cartão com opacidade .55.
 - Toque no cartão → Detalhe (aba Resumo).
 - Padding inferior de 120 para não ficar sob a tab bar.
@@ -144,7 +145,7 @@ Base `/api/v1`. Sucesso `{ data }`; erro `{ error: { code, message, details? } }
 
 ## Dados mock (até existirem os módulos events / rsvp / registry)
 Tipos sugeridos (pelo `CONTEXT.md`):
-- `Event { id, name, type: 'WEDDING'|'BIRTHDAY'|'CORPORATE'|'BABY_SHOWER'|'PARTY'|'OTHER', startsAt, venue, siteUrl, archived, members: EventMember[] }`
+- `Event { id, name, type: 'WEDDING'|'BIRTHDAY'|'CORPORATE'|'BABY_SHOWER'|'PARTY'|'OTHER', startsAt, venue, siteUrl, archived, members: EventMember[] }` (dados do protótipo; o contrato real está no `docs/spec.md`, com `venueName`, `venueAddress`, `city` e `mapsUrl` no lugar de `venue`)
 - `EventMember { userId, name, role: 'OWNER'|'MANAGER'|'VIEWER', isPrimaryOwner }`
 - `Rsvp { name, email, attending: boolean, createdAt }`
 - `RegistryItem { id, name, price, imageUrl, contributionCount }`
