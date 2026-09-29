@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { EVENT_STATUSES, EVENT_TYPES } from '@/shared/domain/events'
-import { EVENT_ROLES } from '@/shared/domain/roles'
+import { membershipSchema } from '@/shared/domain/roles'
 
 /**
  * An item of `GET /events` and `GET /events/:id` (events-api PROJ-55): the Event, the requester's
@@ -24,7 +24,7 @@ export const eventSchema = z.object({
   venueAddress: z.string().nullable(),
   city: z.string().nullable(),
   mapsUrl: z.string().nullable(),
-  membership: z.object({ role: z.enum(EVENT_ROLES), isPrimaryOwner: z.boolean() }).nullable(),
+  membership: membershipSchema.nullable(),
   paidContributionCount: z.number().int().nonnegative(),
 })
 

@@ -1,4 +1,4 @@
-import { eventPlace, formatEventDate, pendingTotal, sortEvents, type EventStatus } from '../events'
+import { formatEventDate, pendingTotal, sortEvents, type EventStatus } from '../events'
 
 describe('formatEventDate', () => {
   it.each([
@@ -10,19 +10,6 @@ describe('formatEventDate', () => {
     ['2026-01-01T03:00:00.000Z', 'America/Sao_Paulo', '01.01.26 · 00:00'],
   ])('%s in %s → %s', (startsAt, timezone, expected) => {
     expect(formatEventDate(startsAt, timezone)).toBe(expected)
-  })
-})
-
-describe('eventPlace', () => {
-  it('shows the type and the city', () => {
-    expect(eventPlace({ type: 'WEDDING', city: 'Itu, SP' })).toBe('Casamento · Itu, SP')
-    expect(eventPlace({ type: 'BABY_SHOWER', city: 'Campinas, SP' })).toBe(
-      'Chá de bebê · Campinas, SP',
-    )
-  })
-
-  it('shows just the type when the Event has no city', () => {
-    expect(eventPlace({ type: 'CORPORATE', city: null })).toBe('Corporativo')
   })
 })
 

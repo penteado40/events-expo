@@ -1,6 +1,6 @@
 import { ApiError } from '@/shared/lib/api-error'
 
-import { createMockBackend, type MockBackend } from './backend'
+import { createMockBackend, notFound, type MockBackend } from './backend'
 
 /** The base URL tests serve the fake API from. */
 export const BASE_URL = 'http://api.test/api/v1'
@@ -38,12 +38,14 @@ export function createFakeApi({
         return json(200, { data: await backend.login(JSON.parse(String(init?.body))) })
       }
       if (route === 'GET /me') return json(200, { data: await backend.me(token) })
-      if (route === 'GET /events') return json(200, { data: await backend.listEvents(token) })
+      // The API's auth guard: the token names the requester.
+      const requester = await backend.me(token)
+      if (route === 'GET /events') return json(200, { data: await backend.listEvents(requester) })
       const eventId = route.match(/^GET \/events\/([^/]+)$/)?.[1]
       if (eventId !== undefined) {
-        return json(200, { data: await backend.getEvent(token, Number(eventId)) })
+        return json(200, { data: await backend.getEvent(requester, Number(eventId)) })
       }
-      throw new ApiError('NOT_FOUND', 'Recurso não encontrado.')
+      throw notFound()
     } catch (error) {
       if (!(error instanceof ApiError)) throw error
       const { code, message, details } = error

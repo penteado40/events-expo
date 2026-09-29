@@ -13,17 +13,6 @@ export const EVENT_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
-const TYPE_LABELS: Record<EventType, string> = {
-  WEDDING: 'Casamento',
-  BIRTHDAY: 'Aniversário',
-  CORPORATE: 'Corporativo',
-  BABY_SHOWER: 'Chá de bebê',
-  PARTY: 'Festa',
-  OTHER: 'Outro',
-}
-
-export const eventTypeLabel = (type: EventType) => TYPE_LABELS[type]
-
 /** `dd.mm.aa · HH:MM` in the Event's own timezone: the time on the invitation, not the device's. */
 export function formatEventDate(startsAt: string, timezone: string): string {
   const parts = new Intl.DateTimeFormat('pt-BR', {
@@ -38,10 +27,6 @@ export function formatEventDate(startsAt: string, timezone: string): string {
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value
   return `${part('day')}.${part('month')}.${part('year')} · ${part('hour')}:${part('minute')}`
 }
-
-/** `Tipo · Cidade, UF`, or just the type when the Event has no city. */
-export const eventPlace = ({ type, city }: { type: EventType; city: string | null }) =>
-  city ? `${eventTypeLabel(type)} · ${city}` : eventTypeLabel(type)
 
 export const isArchived = (event: { status: EventStatus }) => event.status === 'ARCHIVED'
 

@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import type { User } from '@/shared/session'
 
 export const EVENT_ROLES = ['OWNER', 'MANAGER', 'VIEWER'] as const
@@ -5,7 +7,9 @@ export const EVENT_ROLES = ['OWNER', 'MANAGER', 'VIEWER'] as const
 export type EventRole = (typeof EVENT_ROLES)[number]
 
 /** The requester's Event member entry, as the API sends it with each Event. */
-export type Membership = { role: EventRole; isPrimaryOwner: boolean }
+export const membershipSchema = z.object({ role: z.enum(EVENT_ROLES), isPrimaryOwner: z.boolean() })
+
+export type Membership = z.infer<typeof membershipSchema>
 
 const SUPER_ADMIN = 'Super admin'
 
@@ -14,6 +18,8 @@ const EVENT_ROLE_LABELS: Record<EventRole, string> = {
   MANAGER: 'Manager',
   VIEWER: 'Viewer',
 }
+
+export const isSuperAdmin = (user: Pick<User, 'role'>) => user.role === 'SUPER_ADMIN'
 
 /**
  * Who the viewer is in an Event: their role, with "· principal" for the Primary owner. No
@@ -27,4 +33,4 @@ export function roleLabel(membership: Membership | null): string {
 
 /** A User's platform role, when they have one: only the Super admin does. */
 export const platformRoleLabel = (role: User['role']): string | null =>
-  role === 'SUPER_ADMIN' ? SUPER_ADMIN : null
+  isSuperAdmin({ role }) ? SUPER_ADMIN : null

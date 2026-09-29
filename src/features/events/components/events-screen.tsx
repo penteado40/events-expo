@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Glass, QueryError } from '@/shared/components/ui'
 import { pendingTotal } from '@/shared/domain/events'
+import { isSuperAdmin } from '@/shared/domain/roles'
 import { useSession } from '@/shared/session'
 import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
 
@@ -17,7 +18,7 @@ import { EventsSkeleton } from './events-skeleton'
 export function EventsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const superAdmin = useSession((state) => state.session?.user.role === 'SUPER_ADMIN')
+  const superAdmin = useSession((state) => !!state.session && isSuperAdmin(state.session.user))
   const events = useEvents()
   // Only a pull shows the spinner; background refetches (focus, remount) stay silent.
   const [pulling, setPulling] = useState(false)

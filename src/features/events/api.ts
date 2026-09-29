@@ -20,6 +20,6 @@ export function createHttpEventsRepository(http: HttpClient): EventsRepository {
 export const eventsRepository = selectRepository<EventsRepository>('events', {
   http: createHttpEventsRepository(apiClient),
   mock: createMockEventsRepository({
-    getToken: () => useSession.getState().session?.token ?? null,
+    getRequester: () => useSession.getState().session?.user ?? null,
   }),
 })

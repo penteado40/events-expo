@@ -5,15 +5,27 @@ import { BASE_URL, createFakeApi } from '@/shared/mock-backend/fake-api'
 import { createHttpEventsRepository, type EventsRepository } from '../api'
 import { createMockEventsRepository } from '../mock'
 
-type GetToken = () => string | null
+/** A repository for the sample User with that id, or for no Session (`null`). */
+type CreateRepository = (userId: number | null) => EventsRepository
 
-const implementations: [string, (getToken: GetToken) => EventsRepository][] = [
-  ['mock', (getToken) => createMockEventsRepository({ getToken, backend: createMockBackend() })],
+const implementations: [string, CreateRepository][] = [
+  [
+    'mock',
+    (userId) => {
+      const backend = createMockBackend()
+      const getRequester = () => (userId === null ? null : backend.user(userId))
+      return createMockEventsRepository({ getRequester, backend })
+    },
+  ],
   [
     'HTTP',
-    (getToken) =>
+    (userId) =>
       createHttpEventsRepository(
-        createHttpClient({ baseUrl: BASE_URL, getToken, fetch: createFakeApi() }),
+        createHttpClient({
+          baseUrl: BASE_URL,
+          getToken: () => (userId === null ? null : mockTokenFor({ id: userId })),
+          fetch: createFakeApi(),
+        }),
       ),
   ],
 ]
@@ -23,7 +35,7 @@ const CLAUDIA = 7
 const NO_EVENTS = 9
 
 describe.each(implementations)('EventsRepository contract (%s)', (_, createRepository) => {
-  const as = (userId: number) => createRepository(() => mockTokenFor({ id: userId }))
+  const as = (userId: number) => createRepository(userId)
 
   describe('list()', () => {
     it('gives the Super admin every Event, with no Membership in any', async () => {
@@ -75,11 +87,8 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
       })
     })
 
-    it('rejects a request without a valid token with UNAUTHENTICATED', async () => {
-      await expect(createRepository(() => null).list()).rejects.toMatchObject({
-        code: 'UNAUTHENTICATED',
-      })
-      await expect(createRepository(() => 'revoked').list()).rejects.toMatchObject({
+    it('rejects a request without a Session with UNAUTHENTICATED', async () => {
+      await expect(createRepository(null).list()).rejects.toMatchObject({
         code: 'UNAUTHENTICATED',
       })
     })

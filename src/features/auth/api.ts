@@ -30,5 +30,8 @@ export const authRepository = selectRepository<AuthRepository>('auth', {
   }),
 })
 
-/** The Session that "Modo demo" opens for that account: sample data, no API behind it. */
+/**
+ * The Session that "Modo demo" opens for that account: sample data, no API behind it. Built by the
+ * mock, which only this file may import, so hooks and screens reach it here.
+ */
 export const createDemoSession = (account: DemoAccount): Session => createMockSession(account)

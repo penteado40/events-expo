@@ -39,6 +39,27 @@ describe('useEvents', () => {
       'Offsite Kora 2026',
     ])
   })
+
+  describe('in a Live session, while `events` is not live (answered by the mock)', () => {
+    const live = (user: User) =>
+      useSession.setState({ session: { token: 'a.real.jwt', user, live: true } })
+
+    it('shows a User who is a member of no Event an empty list', async () => {
+      live({ ...claudia, id: 4242, name: 'Nova Pessoa', email: 'nova@local.test' })
+      const { result } = await renderHook(() => useEvents(), { wrapper })
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+      expect(result.current.data).toEqual([])
+    })
+
+    it('shows a Super admin every sample Event', async () => {
+      live({ ...claudia, id: 4243, role: 'SUPER_ADMIN' })
+      const { result } = await renderHook(() => useEvents(), { wrapper })
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+      expect(result.current.data).toHaveLength(5)
+    })
+  })
 })
 
 describe('useEvent', () => {

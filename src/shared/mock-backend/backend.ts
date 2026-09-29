@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
+import { isSuperAdmin, type Membership } from '@/shared/domain/roles'
 import { ApiError, validationError } from '@/shared/lib/api-error'
-import type { Membership } from '@/shared/domain/roles'
 import type { User } from '@/shared/session'
 
 import { createDataset, type EventRow } from './data'
@@ -14,7 +14,7 @@ export const mockTokenFor = (user: Pick<User, 'id'>) => `${TOKEN_PREFIX}${user.i
 // The events-api's messages for these codes (its error catalog).
 const unauthenticated = () => new ApiError('UNAUTHENTICATED', 'Autenticação necessária.')
 const forbidden = () => new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.')
-const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
+export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
 
 const loginBody = z.object({ email: z.email(), password: z.string().min(1) })
 
@@ -26,6 +26,10 @@ export type MockBackend = ReturnType<typeof createMockBackend>
  * A fake events-api in memory (ADR-0002): the sample data and the API's rules (visibility,
  * FORBIDDEN, counts), answering with the API's JSON shapes. Features reach it only through their
  * `mock.ts`, which validates each answer with the feature's schemas.
+ *
+ * Auth takes the token, as the API does. Every other call takes the requester, the Session's
+ * User: a Live session's token means nothing here, yet its modules not live yet still use the
+ * mock. A User unknown to the sample data is simply a member of no Event.
  */
 export function createMockBackend({ latencyMs = 0 }: Options = {}) {
   const data = createDataset()
@@ -38,6 +42,11 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     const account = data.accounts.find((a) => token !== null && mockTokenFor(a.user) === token)
     if (!account) throw unauthenticated()
     return account.user
+  }
+
+  function requireRequester(requester: User | null): User {
+    if (!requester) throw unauthenticated()
+    return requester
   }
 
   const membershipOf = (event: EventRow, user: User): Membership | null => {
@@ -76,10 +85,10 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     },
 
     /** `GET /events`: every Event for the Super admin, only their own for anyone else. */
-    async listEvents(token: string | null) {
+    async listEvents(requester: User | null) {
       await delay()
-      const user = authenticate(token)
-      if (user.role === 'SUPER_ADMIN') return data.events.map((e) => eventJson(e, null))
+      const user = requireRequester(requester)
+      if (isSuperAdmin(user)) return data.events.map((e) => eventJson(e, null))
       return data.events
         .map((event) => ({ event, membership: membershipOf(event, user) }))
         .filter(({ membership }) => membership !== null)
@@ -90,12 +99,12 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
      * `GET /events/:id`. A non-member gets FORBIDDEN whether or not the Event exists, so ids
      * don't leak; only the Super admin gets NOT_FOUND.
      */
-    async getEvent(token: string | null, id: number) {
+    async getEvent(requester: User | null, id: number) {
       await delay()
-      const user = authenticate(token)
+      const user = requireRequester(requester)
       if (!Number.isInteger(id)) throw validationError()
       const event = data.events.find((e) => e.id === id)
-      if (user.role === 'SUPER_ADMIN') {
+      if (isSuperAdmin(user)) {
         if (!event) throw notFound()
         return eventJson(event, null)
       }

@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native'
 
 import { PressableGlass } from '@/shared/components/ui'
-import { eventPlace, formatEventDate, isArchived } from '@/shared/domain/events'
+import { formatEventDate, isArchived } from '@/shared/domain/events'
 import { roleLabel } from '@/shared/domain/roles'
 import { colors, fonts, radii, textStyles } from '@/shared/theme'
 
+import { eventPlace } from '../event-place'
 import type { Event } from '../schemas'
 
 /** An Event in the list (README "Eventos"): date, role, name, type and city, pending/archived chips. */
