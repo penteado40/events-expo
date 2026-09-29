@@ -25,6 +25,10 @@ export const colors = {
   secondaryButtonBg: 'rgba(255,255,255,.06)',
   secondaryButtonBorder: 'rgba(255,255,255,.16)',
   chipMutedBorder: 'rgba(255,255,255,.18)',
+  chipAccentBg: 'rgba(181,227,90,.16)',
+  chipAccentBorder: 'rgba(181,227,90,.35)',
+  heroSubtitle: 'rgba(255,255,255,.8)',
+  skeleton: 'rgba(255,255,255,.1)',
   orbBlue: '#4f7dff',
   orbViolet: '#b36bff',
   gridLine: 'rgba(255,255,255,.05)',
@@ -44,6 +48,7 @@ export const radii = {
   stat: 22,
   eventCard: 24,
   pillButton: 26,
+  backButton: 22,
   heroCard: 26,
   loginCard: 28,
   primaryButton: 28,
@@ -56,6 +61,8 @@ export const spacing = {
   screen: 16,
   cardGap: 12,
   cardPadding: 16,
+  /** Side padding of the Event detail's header. */
+  eventHeader: 22,
   /** Bottom padding that keeps scrolling content clear of the floating tab bar. */
   tabBarClearance: 120,
 } as const

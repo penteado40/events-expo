@@ -1,56 +1,30 @@
-import { createHttpClient } from '@/shared/lib/http'
+import { API_URL } from '@/shared/lib/api-client'
+import { createFakeApi } from '@/shared/mock-backend/fake-api'
 import { useSession } from '@/shared/session'
 
-import { createAuthRepository, createDemoSession } from '../api'
-import { BASE_URL, createFakeApi } from './fake-api'
+import { authRepository, createDemoSession } from '../api'
 
-function setup({ isDev }: { isDev: boolean }) {
-  const fetch = jest.fn(createFakeApi())
-  const http = createHttpClient({
-    baseUrl: BASE_URL,
-    getToken: () => useSession.getState().session?.token ?? null,
-    fetch,
-  })
-  return { repo: createAuthRepository({ isDev, http }), fetch }
-}
+// Which implementation answers is selectRepository's rule (shared/lib); this checks only the wiring.
+let fetchSpy: jest.SpyInstance
 
-const credentials = { email: 'admin@local.test', password: 'admin123' }
+beforeEach(() => {
+  useSession.setState({ session: null })
+  fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(createFakeApi({ baseUrl: API_URL }))
+})
 
-beforeEach(() => useSession.setState({ session: null }))
+afterEach(() => fetchSpy.mockRestore())
 
-describe('authRepository selection', () => {
-  it.each([true, false])('"Entrar" always calls the API (development build: %s)', async (isDev) => {
-    const { repo, fetch } = setup({ isDev })
+describe('authRepository', () => {
+  it('sends "Entrar" to the API, `auth` being live', async () => {
+    await authRepository.login({ email: 'admin@local.test', password: 'admin123' })
 
-    await expect(repo.login(credentials)).resolves.toMatchObject({
-      user: { email: credentials.email },
-    })
-    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/auth/login`, expect.anything())
+    expect(fetchSpy).toHaveBeenCalledWith(`${API_URL}/auth/login`, expect.anything())
   })
 
   it('answers me() from the mock in Demo mode, without the API', async () => {
-    const { repo, fetch } = setup({ isDev: true })
-    useSession.setState({ session: createDemoSession() })
+    useSession.setState({ session: createDemoSession('USER') })
 
-    await expect(repo.me()).resolves.toMatchObject({ email: 'admin@local.test' })
-    expect(fetch).not.toHaveBeenCalled()
-  })
-
-  it('answers me() from the API in a Live session', async () => {
-    const { repo, fetch } = setup({ isDev: true })
-    const { token } = await repo.login(credentials)
-    useSession.setState({ session: { ...createDemoSession(), token, live: true } })
-    fetch.mockClear()
-
-    await expect(repo.me()).resolves.toMatchObject({ email: 'admin@local.test' })
-    expect(fetch).toHaveBeenCalledWith(`${BASE_URL}/me`, expect.anything())
-  })
-
-  it('never uses the mock in a release build', async () => {
-    const { repo, fetch } = setup({ isDev: false })
-    useSession.setState({ session: createDemoSession() })
-
-    await repo.me()
-    expect(fetch).toHaveBeenCalled()
+    await expect(authRepository.me()).resolves.toMatchObject({ email: 'claudia.lima@gmail.com' })
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

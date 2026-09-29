@@ -6,7 +6,11 @@ import { useEffect } from 'react'
 
 import { useSessionCheck } from '@/features/auth'
 import { Background, BlurTargetProvider } from '@/shared/components/ui'
-import { clearCacheOnSignOut, createQueryClient } from '@/shared/lib/query-client'
+import {
+  clearCacheOnSignOut,
+  createQueryClient,
+  refetchOnAppFocus,
+} from '@/shared/lib/query-client'
 import { useLastEmail, useSession } from '@/shared/session'
 import { colors, useAppFonts } from '@/shared/theme'
 
@@ -14,6 +18,7 @@ SplashScreen.preventAutoHideAsync()
 
 const queryClient = createQueryClient()
 clearCacheOnSignOut(queryClient)
+refetchOnAppFocus()
 
 const theme = {
   ...DarkTheme,
@@ -50,6 +55,7 @@ export default function RootLayout() {
             </Stack.Protected>
             <Stack.Protected guard={signedIn}>
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="events/[id]" />
             </Stack.Protected>
           </Stack>
         </BlurTargetProvider>

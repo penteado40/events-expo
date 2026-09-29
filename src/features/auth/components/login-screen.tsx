@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import {
   KeyboardAvoidingView,
@@ -9,6 +10,7 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -17,6 +19,7 @@ import { validationError } from '@/shared/lib/api-error'
 import { useLastEmail } from '@/shared/session'
 import { colors, fonts, radii } from '@/shared/theme'
 
+import type { DemoAccount } from '../api'
 import { useEnterDemo } from '../hooks/use-enter-demo'
 import { useLogin } from '../hooks/use-login'
 import { loginInputSchema, type LoginInput } from '../schemas'
@@ -25,6 +28,7 @@ export function LoginScreen() {
   const insets = useSafeAreaInsets()
   const login = useLogin()
   const enterDemo = useEnterDemo()
+  const [choosingDemo, setChoosingDemo] = useState(false)
   const {
     control,
     handleSubmit,
@@ -102,18 +106,51 @@ export function LoginScreen() {
           >
             <Text style={styles.primaryText}>{login.isPending ? 'Entrando…' : 'Entrar'}</Text>
           </Pressable>
-          {__DEV__ && (
-            <Pressable
-              accessibilityRole="button"
-              onPress={enterDemo}
-              style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-            >
-              <Text style={styles.secondaryText}>Modo demo</Text>
-            </Pressable>
-          )}
+          {__DEV__ &&
+            (choosingDemo ? (
+              <View style={styles.demoChoices}>
+                {DEMO_ACCOUNTS.map(({ account, label }) => (
+                  <SecondaryButton
+                    key={account}
+                    label={label}
+                    onPress={() => enterDemo(account)}
+                    style={styles.flex}
+                  />
+                ))}
+              </View>
+            ) : (
+              <SecondaryButton label="Modo demo" onPress={() => setChoosingDemo(true)} />
+            ))}
         </Glass>
       </View>
     </KeyboardAvoidingView>
+  )
+}
+
+const DEMO_ACCOUNTS: { account: DemoAccount; label: string }[] = [
+  { account: 'SUPER_ADMIN', label: 'Super admin' },
+  { account: 'USER', label: 'Cláudia Lima · user' },
+]
+
+function SecondaryButton({
+  label,
+  onPress,
+  style,
+}: {
+  label: string
+  onPress: () => void
+  style?: ViewStyle
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.secondary, style, pressed && styles.pressed]}
+    >
+      <Text style={styles.secondaryText} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -159,8 +196,10 @@ const styles = StyleSheet.create({
     boxShadow: `inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -8px ${colors.accentGlow}`,
   },
   primaryText: { fontFamily: fonts.sans600, fontSize: 16, color: colors.onAccent },
+  demoChoices: { flexDirection: 'row', gap: 10 },
   secondary: {
     height: 48,
+    paddingHorizontal: 12,
     borderRadius: 24,
     backgroundColor: colors.secondaryButtonBg,
     borderWidth: 1,

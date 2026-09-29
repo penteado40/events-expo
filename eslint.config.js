@@ -13,7 +13,7 @@ const sameFeature = (files = '**') => ({
   },
 })
 
-// Module boundaries (docs/adr/0001-estrutura-por-feature.md).
+// Module boundaries (docs/adr/0001-estrutura-por-feature.md, 0002-mock-backend-compartilhado.md).
 module.exports = defineConfig([
   { ignores: ['dist/', '.expo/', 'coverage/', 'expo-env.d.ts'] },
   expoConfig,
@@ -29,6 +29,7 @@ module.exports = defineConfig([
         { type: 'test', pattern: 'src/**/__tests__' },
         { type: 'app', pattern: 'src/app' },
         { type: 'feature', pattern: 'src/features/*', capture: ['feature'] },
+        { type: 'mock-backend', pattern: 'src/shared/mock-backend' },
         { type: 'shared', pattern: 'src/shared' },
       ],
     },
@@ -42,10 +43,11 @@ module.exports = defineConfig([
           checkInternals: true,
           policies: [
             { allow: { to: { module: { origin: ['external', 'core'] } } } },
-            // Tests reach shared/ and, in a feature, that feature's files including its mock.
+            // Tests reach shared/ (the mock backend too) and, in a feature, that feature's files
+            // including its mock.
             {
               from: { element: { type: ['feature-test', 'test'] } },
-              allow: { to: { element: { type: ['shared', 'test'] } } },
+              allow: { to: { element: { type: ['shared', 'mock-backend', 'test'] } } },
             },
             {
               from: { element: { type: 'feature-test' } },
@@ -71,9 +73,18 @@ module.exports = defineConfig([
               from: { element: { type: 'feature', fileInternalPath: 'api.ts' } },
               allow: { to: sameFeature('mock.ts') },
             },
+            // The shared mock backend is reached only by features' mock.ts files (and tests).
             {
-              from: { element: { type: 'shared' } },
+              from: { element: { type: 'feature', fileInternalPath: 'mock.ts' } },
+              allow: { to: { element: { type: 'mock-backend' } } },
+            },
+            {
+              from: { element: { type: ['shared', 'mock-backend'] } },
               allow: { to: { element: { type: 'shared' } } },
+            },
+            {
+              from: { element: { type: 'mock-backend' } },
+              allow: { to: { element: { type: 'mock-backend' } } },
             },
           ],
         },

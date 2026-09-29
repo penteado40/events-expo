@@ -3,12 +3,12 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
 import { API_URL } from '@/shared/lib/api-client'
+import { createFakeApi } from '@/shared/mock-backend/fake-api'
 import { useLastEmail, useSession, type Session } from '@/shared/session'
 
 import { useEnterDemo } from '../hooks/use-enter-demo'
 import { useLogin } from '../hooks/use-login'
 import { checkSession } from '../hooks/use-session-check'
-import { createFakeApi } from './fake-api'
 
 let client: QueryClient
 let fetchSpy: jest.SpyInstance
@@ -30,7 +30,7 @@ beforeEach(() => {
   client = new QueryClient({ defaultOptions: { mutations: { retry: false, gcTime: Infinity } } })
   useSession.setState({ session: null })
   useLastEmail.setState({ email: '' })
-  fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(createFakeApi(API_URL))
+  fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(createFakeApi({ baseUrl: API_URL }))
 })
 
 afterEach(() => fetchSpy.mockRestore())
@@ -80,19 +80,22 @@ describe('useLogin', () => {
 })
 
 describe('useEnterDemo', () => {
-  it('opens a Session as the demo Super admin without touching the saved email', async () => {
-    useLastEmail.setState({ email: 'someone@local.test' })
-    const { result } = await renderHook(() => useEnterDemo(), { wrapper })
+  it.each([
+    ['SUPER_ADMIN', { id: 1, name: 'Admin Local', role: 'SUPER_ADMIN' }],
+    ['USER', { id: 7, name: 'Cláudia Lima', role: 'USER' }],
+  ] as const)(
+    'opens a Session as the demo %s without touching the saved email',
+    async (account, user) => {
+      useLastEmail.setState({ email: 'someone@local.test' })
+      const { result } = await renderHook(() => useEnterDemo(), { wrapper })
 
-    await act(() => result.current())
+      await act(() => result.current(account))
 
-    expect(useSession.getState().session).toMatchObject({
-      live: false,
-      user: { id: 1, name: 'Admin Local', role: 'SUPER_ADMIN' },
-    })
-    expect(useLastEmail.getState().email).toBe('someone@local.test')
-    expect(fetchSpy).not.toHaveBeenCalled()
-  })
+      expect(useSession.getState().session).toMatchObject({ live: false, user })
+      expect(useLastEmail.getState().email).toBe('someone@local.test')
+      expect(fetchSpy).not.toHaveBeenCalled()
+    },
+  )
 })
 
 describe('checkSession (background GET /me on startup)', () => {
