@@ -9,4 +9,5 @@ Como a maioria dos endpoints ainda não existe, cada feature fala com os dados p
 - Features não importam umas das outras; o que é comum sobe para `shared/`. A Session (store Zustand persistido no SecureStore, o último email digitado e o sinal de sessão expirada) fica em `src/shared/session/` porque todas as features dependem dela.
 - As fronteiras são fiscalizadas por `eslint-plugin-boundaries`, como na `events-api`: `app` importa `features` e `shared`; uma feature importa só a si mesma e `shared`; `shared` importa só `shared`; o `mock.ts` de uma feature só é importado pelo `api.ts` e pelos testes dela.
 - Trocar um módulo para HTTP é adicionar a implementação HTTP no `api.ts` e o nome em `LIVE_MODULES`; as telas não mudam. A mesma suíte de contrato roda contra o mock e contra o HTTP.
+- Uma feature pode ter módulos puros próprios na raiz (ex.: `account-rows.ts`), fora da lista acima. Regras usadas por mais de uma feature sobem para `src/shared/domain/`, um arquivo por conceito.
 - Regras de domínio que cruzam features (ex.: `canVerify`, que precisa do User da Session e do Event) têm de morar em `shared/`, e não em uma feature.
