@@ -99,6 +99,7 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - TypeScript strict, alias `@/` → `src/`. `expo lint` (eslint-config-expo, flat config) + Prettier using the backend's `.prettierrc.json`; `npm run lint` runs both. Module boundaries are enforced with `eslint-plugin-boundaries` (see Architecture).
 - All code, routes, file names and identifiers in English; only user-facing copy in pt-BR. Domain terms follow the events-api `CONTEXT.md` (Event, EventMember, RSVP, Registry item, Contribution, Receipt, Verification, Primary owner).
 - Dark mode only, portrait only.
+- Workflow: one `feat|fix/proj-<n>` branch per Jira ticket, PR to `main`. CI (`.github/workflows/ci.yml`, Node from `.nvmrc`) runs on every PR and push to `main`: `checks` (`npm ci`, typecheck, lint, test) and `gitleaks`, both required by the protection on `main` (admins included). `expo-doctor` runs as a separate job that is not required: it compares against the versions Expo recommends that day, so it can turn red with no code change; bumping flagged patches (`npx expo install --fix`) is a deliberate commit. Agents push only the ticket's branch and open the PR; the owner merges.
 - User-facing copy never exposes where data comes from or backend internals: no endpoints, hosts, API vs. mock, raw error codes, raw field names or raw values (e.g. `SUPER_ADMIN`, ISO dates). Codes stay on `ApiError` for logic and tests only. The one exception is the `demo` chip on Perfil, which exists only in development builds.
 
 **Architecture (ADR-0001)**
@@ -153,7 +154,7 @@ Data comes through repository interfaces that mirror the planned API contract. A
 - Retry policy on the `QueryClient` (`shouldRetry` in `shared/lib`): queries retry once, only on `NETWORK` or `INTERNAL_ERROR`; every other `ApiError` fails at once, then "Tentar de novo". Mutations (login, verify/reject) never retry automatically.
 
 **Domain module (second seam)**
-- Pure functions used by the screens; rules needed by more than one feature (e.g. `canVerify`, which needs the Session's User and the Event) live in `src/shared/`: `canVerify(viewer, event)` (Owner/Manager/Super admin), viewer role label (including "· principal" and "Super admin"), Contribution ordering (`PAID` first), counters (hero total across visible Events, per-Event pending count for the chip/dot, `VERIFIED` sum), archived handling, and the optimistic verify/reject reducer.
+- Pure functions used by the screens; rules needed by more than one feature (e.g. `canVerify`, which needs the Session's User and the Event) live in `src/shared/domain/`, one file per concept (`roles.ts`, `contributions.ts`, `events.ts`), no React. A rule used by one feature only stays in that feature, as a pure module at its root (e.g. `features/profile/account-rows.ts`), and moves to `shared/domain/` when a second feature needs it. The planned rules: `canVerify(viewer, event)` (Owner/Manager/Super admin), viewer role label (including "· principal" and "Super admin"), Contribution ordering (`PAID` first), counters (hero total across visible Events, per-Event pending count for the chip/dot, `VERIFIED` sum), archived handling, and the optimistic verify/reject reducer.
 
 ## Testing Decisions
 
@@ -166,7 +167,6 @@ Data comes through repository interfaces that mirror the planned API contract. A
 
 ## Out of Scope
 
-- Pushing (commits are local only until the owner says otherwise).
 - Validating on an Android emulator (no Android SDK installed yet): Android must compile and keep its fallback isolated in `Glass`, but "done" is the iOS simulator (iOS 26+ runtime, native glass).
 - Dev builds / EAS / store publishing.
 - Snapshot and E2E tests; component tests until a screen carries a rule.
