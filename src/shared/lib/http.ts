@@ -4,9 +4,6 @@ import { ApiError, internalError } from './api-error'
 
 const TIMEOUT_MS = 15_000
 
-/** `host:port` of a base URL, for Perfil and error messages. (RN's `URL` lacks `host`.) */
-export const apiHost = (baseUrl: string) => baseUrl.replace(/^[a-z]+:\/\//i, '').split('/')[0]
-
 const errorEnvelope = z.object({
   error: z.object({
     code: z.string().min(1),
@@ -69,7 +66,11 @@ export function createHttpClient({
       const text = await response.text()
       payload = parseJson(text)
     } catch (cause) {
-      throw new ApiError('NETWORK', `Não foi possível conectar a ${apiHost(baseUrl)}.`, { cause })
+      throw new ApiError(
+        'NETWORK',
+        'Não foi possível conectar. Verifique sua internet e tente de novo.',
+        { cause },
+      )
     } finally {
       clearTimeout(timer)
     }

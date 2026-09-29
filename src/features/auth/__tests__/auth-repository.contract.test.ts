@@ -112,12 +112,15 @@ describe('AuthRepository over HTTP', () => {
     await expect(repo.login(credentials)).rejects.toMatchObject({ code: 'INTERNAL_ERROR' })
   })
 
-  it('maps a fetch failure to NETWORK', async () => {
+  it('maps a fetch failure to NETWORK with a message that does not name the server', async () => {
     const { repo } = setup(async () => {
       throw new TypeError('Network request failed')
     })
 
-    await expect(repo.login(credentials)).rejects.toMatchObject({ code: 'NETWORK' })
+    await expect(repo.login(credentials)).rejects.toMatchObject({
+      code: 'NETWORK',
+      message: 'Não foi possível conectar. Verifique sua internet e tente de novo.',
+    })
   })
 
   it('maps an API that does not answer within 15 s to NETWORK', async () => {
@@ -134,7 +137,10 @@ describe('AuthRepository over HTTP', () => {
       await jest.advanceTimersByTimeAsync(14_999)
       await jest.advanceTimersByTimeAsync(1)
 
-      await expect(result).resolves.toMatchObject({ code: 'NETWORK' })
+      await expect(result).resolves.toMatchObject({
+        code: 'NETWORK',
+        message: 'Não foi possível conectar. Verifique sua internet e tente de novo.',
+      })
     } finally {
       jest.useRealTimers()
     }

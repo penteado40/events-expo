@@ -3,9 +3,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Glass, PressableGlass } from '@/shared/components/ui'
-import { API_HOST } from '@/shared/lib/api-client'
-import { useSession, type User } from '@/shared/session'
+import { useSession } from '@/shared/session'
 import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
+
+import { accountRows } from '../account-rows'
 
 const initials = (name: string) =>
   name
@@ -15,7 +16,7 @@ const initials = (name: string) =>
     .map((part) => part[0]!.toUpperCase())
     .join('')
 
-/** Perfil: who is signed in, the raw `GET /me` fields, and "Sair". */
+/** Perfil: who is signed in, their account, and "Sair". */
 export function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const session = useSession((state) => state.session)
@@ -23,14 +24,6 @@ export function ProfileScreen() {
   if (!session) return null
 
   const { user } = session
-  const source = session.live ? `API real · ${API_HOST}` : 'modo demo · dados locais'
-  const rows: [keyof User, string][] = [
-    ['id', String(user.id)],
-    ['name', user.name],
-    ['email', user.email],
-    ['role', user.role],
-    ['createdAt', user.createdAt],
-  ]
 
   return (
     <ScrollView
@@ -43,19 +36,25 @@ export function ProfileScreen() {
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials(user.name)}</Text>
         </View>
-        <View style={styles.flex}>
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.source}>{source}</Text>
+        <View style={styles.nameLine}>
+          <Text style={styles.name} numberOfLines={1}>
+            {user.name}
+          </Text>
+          {/* Demo mode exists only in development builds; a Live session shows no chip. */}
+          {!session.live && (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>demo</Text>
+            </View>
+          )}
         </View>
       </Glass>
 
-      <Text style={styles.endpoint}>GET /api/v1/me</Text>
       <Glass variant="card" radius={radii.stat} contentStyle={styles.fields}>
-        {rows.map(([key, value], index) => (
-          <Fragment key={key}>
+        {accountRows(user).map(({ label, value }, index) => (
+          <Fragment key={label}>
             {index > 0 && <View style={styles.divider} />}
             <View style={styles.row}>
-              <Text style={styles.key}>{key}</Text>
+              <Text style={styles.key}>{label}</Text>
               <Text style={styles.value} numberOfLines={1}>
                 {value}
               </Text>
@@ -92,13 +91,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { fontFamily: fonts.sans600, fontSize: 18, color: colors.onAccent },
-  name: { fontFamily: fonts.sans500, fontSize: 18, color: colors.text },
-  source: { ...textStyles.monoCaption, marginTop: 2 },
-  endpoint: { ...textStyles.monoCaption, marginTop: 6 },
+  nameLine: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: { flexShrink: 1, fontFamily: fonts.sans500, fontSize: 18, color: colors.text },
+  chip: {
+    borderRadius: radii.chip,
+    borderWidth: 1,
+    borderColor: colors.chipMutedBorder,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  chipText: { fontFamily: fonts.sans500, fontSize: 12, color: colors.textMuted },
   fields: { paddingHorizontal: 16, paddingVertical: 6 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 16, paddingVertical: 10 },
-  key: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted },
-  value: { flexShrink: 1, fontFamily: fonts.mono400, fontSize: 13, color: colors.text },
+  key: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
+  value: { flexShrink: 1, fontFamily: fonts.sans400, fontSize: 13, color: colors.text },
   divider: { height: 1, backgroundColor: colors.divider },
   signOut: {
     height: 52,

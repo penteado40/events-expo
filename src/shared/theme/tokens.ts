@@ -24,6 +24,7 @@ export const colors = {
   errorText: '#f3d6cf',
   secondaryButtonBg: 'rgba(255,255,255,.06)',
   secondaryButtonBorder: 'rgba(255,255,255,.16)',
+  chipMutedBorder: 'rgba(255,255,255,.18)',
   orbBlue: '#4f7dff',
   orbViolet: '#b36bff',
   gridLine: 'rgba(255,255,255,.05)',
