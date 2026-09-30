@@ -23,6 +23,3 @@ export const eventVenue = ({
   venueName: string | null
   city: string | null
 }) => [venueName, city].filter(Boolean).join(' · ') || null
-
-/** The Site card's URL, without the scheme or a trailing slash. */
-export const siteLabel = (siteUrl: string) => siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')

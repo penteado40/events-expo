@@ -17,7 +17,10 @@ type Props = {
   radius: number
   /** Stronger top highlight, used for press feedback. */
   pressed?: boolean
-  /** Overrides of the material for one element (e.g. the tab bar's .2 border, "Sair"'s red one). */
+  /**
+   * Overrides of the material for one element (e.g. the tab bar's .2 border, "Sair"'s red one,
+   * the accent stat's lighter tint).
+   */
   tint?: string
   borderColor?: string
   highlight?: string

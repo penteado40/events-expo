@@ -12,7 +12,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Glass, PressableGlass, QueryError, SkeletonBlock } from '@/shared/components/ui'
+import { Glass, PressableGlass, QueryError, SkeletonBlock, StatCard } from '@/shared/components/ui'
 import { formatEventDate, isArchived } from '@/shared/domain/events'
 import { roleLabel } from '@/shared/domain/roles'
 import { eventKey } from '@/shared/lib/query-keys'
@@ -25,7 +25,7 @@ import { SegmentedTabs } from './segmented-tabs'
 
 const BACK_SIZE = 44
 
-export type DetailTab = 'summary' | 'rsvps' | 'registry' | 'contributions'
+type DetailTab = 'summary' | 'rsvps' | 'registry' | 'contributions'
 
 /** A tab's content, built by the route from other features (ADR-0001) once the Event loads. */
 type Slot = (event: Event) => ReactNode
@@ -141,7 +141,7 @@ export function EventDetailScreen({ id, ...slots }: Props) {
         {!failed && (
           // Tall enough for the tabs to pin even over a short tab.
           <View style={[styles.content, { minHeight: viewportHeight - tabsHeight }]}>
-            {event.data && (slot ? slot(event.data) : <ComingSoon />)}
+            {!event.data ? <ContentSkeleton /> : slot ? slot(event.data) : <ComingSoon />}
           </View>
         )}
       </ScrollView>
@@ -189,6 +189,23 @@ function HeaderSkeleton() {
   )
 }
 
+/** The first load of the Event: glass shaped like the Resumo, before its blocks can start. */
+function ContentSkeleton() {
+  return (
+    <View style={styles.skeleton} accessibilityLabel="Carregando resumo">
+      {[0, 1].map((row) => (
+        <View key={row} style={styles.statRow}>
+          <StatCard label=" " />
+          <StatCard label=" " />
+        </View>
+      ))}
+      <Glass variant="card" radius={radii.stat} contentStyle={styles.soon}>
+        <SkeletonBlock width="60%" height={14} />
+      </Glass>
+    </View>
+  )
+}
+
 /** A tab whose slice isn't built yet. */
 function ComingSoon() {
   return (
@@ -211,6 +228,7 @@ const styles = StyleSheet.create({
   venue: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textSoft },
   archived: { marginTop: 4, fontFamily: fonts.mono400, fontSize: 12, color: colors.warning },
   skeleton: { gap: 10 },
+  statRow: { flexDirection: 'row', gap: 10 },
   tabs: { paddingHorizontal: spacing.screen, paddingBottom: 14 },
   content: { paddingHorizontal: spacing.screen, gap: 10 },
   soon: { paddingVertical: 20, alignItems: 'center' },

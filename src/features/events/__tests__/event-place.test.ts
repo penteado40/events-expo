@@ -1,4 +1,4 @@
-import { eventPlace, eventVenue, siteLabel } from '../event-place'
+import { eventPlace, eventVenue } from '../event-place'
 
 describe('eventPlace', () => {
   it('shows the type and the city', () => {
@@ -27,15 +27,5 @@ describe('eventVenue', () => {
 
   it('is null with neither, so the line is hidden', () => {
     expect(eventVenue({ venueName: null, city: null })).toBeNull()
-  })
-})
-
-describe('siteLabel', () => {
-  it.each([
-    ['https://anaerafael.com.br', 'anaerafael.com.br'],
-    ['http://offsite.kora.com.br/', 'offsite.kora.com.br'],
-    ['https://site.com.br/ana-e-rafael', 'site.com.br/ana-e-rafael'],
-  ])('%s → %s', (url, expected) => {
-    expect(siteLabel(url)).toBe(expected)
   })
 })

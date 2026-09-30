@@ -3,7 +3,7 @@ import { Linking, StyleSheet, Text } from 'react-native'
 import { PressableGlass } from '@/shared/components/ui'
 import { colors, fonts, radii } from '@/shared/theme'
 
-import { siteLabel } from '../event-place'
+import { siteLabel } from '../site-label'
 
 /** The Resumo's Site card: the public Site's address, opened in the browser on tap. */
 export function SiteCard({ siteUrl }: { siteUrl: string }) {

@@ -17,20 +17,23 @@ type Props = {
 export function ContributionStats({ eventId, currency, pending }: Props) {
   const contributions = useContributions(eventId)
 
-  if (contributions.isError && !contributions.data) {
-    return (
-      <QueryError message={contributions.error.message} onRetry={() => contributions.refetch()} />
-    )
-  }
+  // "Para conferir" comes from the Event, so it stays when the list fails; "Verificado" doesn't.
+  const failed = contributions.isError && !contributions.data
+  const verified = contributions.data
+    ? formatMoney(verifiedAmount(contributions.data), currency)
+    : failed
+      ? '—'
+      : undefined
   return (
-    <View style={styles.row}>
-      <StatCard
-        label="VERIFICADO"
-        money
-        value={contributions.data && formatMoney(verifiedAmount(contributions.data), currency)}
-      />
-      <StatCard label="PARA CONFERIR" accent value={String(pending)} />
-    </View>
+    <>
+      <View style={styles.row}>
+        <StatCard label="VERIFICADO" money value={verified} />
+        <StatCard label="PARA CONFERIR" accent value={String(pending)} />
+      </View>
+      {failed && (
+        <QueryError message={contributions.error.message} onRetry={() => contributions.refetch()} />
+      )}
+    </>
   )
 }
 
