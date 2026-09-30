@@ -18,6 +18,7 @@ type Props = {
   /** Stronger top highlight, used for press feedback. */
   pressed?: boolean
   /** Overrides of the material for one element (e.g. the tab bar's .2 border, "Sair"'s red one). */
+  tint?: string
   borderColor?: string
   highlight?: string
   shadow?: string
@@ -67,7 +68,7 @@ export function Glass({
       <View style={[outer, style]}>
         <GlassView
           glassEffectStyle="regular"
-          tintColor={material.tint}
+          tintColor={overrides.tint ?? material.tint}
           colorScheme="dark"
           style={[{ flexGrow: 1, borderRadius: radius }, contentStyle]}
         >
@@ -95,7 +96,9 @@ export function Glass({
     <View style={[outer, style]}>
       <View style={[{ flexGrow: 1, borderRadius: radius, overflow: 'hidden' }, contentStyle]}>
         {blur}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: material.tint }]} />
+        <View
+          style={[StyleSheet.absoluteFill, { backgroundColor: overrides.tint ?? material.tint }]}
+        />
         {children}
         {edge}
       </View>

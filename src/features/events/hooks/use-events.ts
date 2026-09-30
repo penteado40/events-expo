@@ -2,12 +2,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { sortEvents } from '@/shared/domain/events'
 import type { ApiError } from '@/shared/lib/api-error'
+import { eventKey } from '@/shared/lib/query-keys'
 
 import { eventsRepository } from '../api'
 import type { Event } from '../schemas'
 
 const eventsKey = ['events'] as const
-const eventKey = (id: number) => ['events', id] as const
 
 /** The Events the viewer can see, in the list's order (the app sorts, not the API). */
 export function useEvents() {

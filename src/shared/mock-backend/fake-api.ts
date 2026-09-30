@@ -1,4 +1,5 @@
 import { ApiError } from '@/shared/lib/api-error'
+import type { User } from '@/shared/session'
 
 import { createMockBackend, notFound, type MockBackend } from './backend'
 
@@ -26,6 +27,13 @@ export function createFakeApi({
   baseUrl = BASE_URL,
   backend = createMockBackend(),
 }: Options = {}): typeof fetch {
+  // `GET /events/:id/<collection>`.
+  const collections = new Map<string, (requester: User, eventId: number) => Promise<unknown>>([
+    ['members', backend.listMembers],
+    ['rsvps', backend.listRsvps],
+    ['contributions', backend.listContributions],
+  ])
+
   return async (input, init) => {
     const path = String(input).slice(baseUrl.length)
     const method = init?.method ?? 'GET'
@@ -45,6 +53,9 @@ export function createFakeApi({
       if (eventId !== undefined) {
         return json(200, { data: await backend.getEvent(requester, Number(eventId)) })
       }
+      const [, id, collection] = route.match(/^GET \/events\/([^/]+)\/([^/]+)$/) ?? []
+      const list = collection === undefined ? undefined : collections.get(collection)
+      if (list) return json(200, { data: await list(requester, Number(id)) })
       throw notFound()
     } catch (error) {
       if (!(error instanceof ApiError)) throw error

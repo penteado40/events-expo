@@ -46,6 +46,8 @@ export const radii = {
   chip: 10,
   input: 16,
   stat: 22,
+  segmentedTabs: 24,
+  segmentedTab: 19,
   eventCard: 24,
   pillButton: 26,
   backButton: 22,
@@ -116,6 +118,13 @@ export const materials: Record<GlassVariant, Material> = {
     shadow: '0 -10px 50px -10px rgba(0,0,0,.6)',
   },
 }
+
+/** The accent stat's overrides of the Card accent material (README: ".12 nos stats"). */
+export const accentStatGlass = {
+  tint: 'rgba(181,227,90,.12)',
+  borderColor: 'rgba(181,227,90,.32)',
+  highlight: 'rgba(255,255,255,.3)',
+} as const
 
 /** The tab bar's overrides of the Pill material (README "Materiais de vidro"). */
 export const tabBarGlass = {

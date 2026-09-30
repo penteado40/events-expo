@@ -14,3 +14,15 @@ export const eventTypeLabel = (type: EventType) => TYPE_LABELS[type]
 /** `Tipo · Cidade, UF`, or just the type when the Event has no city. */
 export const eventPlace = ({ type, city }: { type: EventType; city: string | null }) =>
   city ? `${eventTypeLabel(type)} · ${city}` : eventTypeLabel(type)
+
+/** The detail's venue line: `Local · Cidade, UF`, whichever exist; null hides the line. */
+export const eventVenue = ({
+  venueName,
+  city,
+}: {
+  venueName: string | null
+  city: string | null
+}) => [venueName, city].filter(Boolean).join(' · ') || null
+
+/** The Site card's URL, without the scheme or a trailing slash. */
+export const siteLabel = (siteUrl: string) => siteUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')

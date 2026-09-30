@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import type { ContributionStatus } from '@/shared/domain/contributions'
 import { isSuperAdmin, type Membership } from '@/shared/domain/roles'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
@@ -15,6 +16,8 @@ export const mockTokenFor = (user: Pick<User, 'id'>) => `${TOKEN_PREFIX}${user.i
 const unauthenticated = () => new ApiError('UNAUTHENTICATED', 'Autenticação necessária.')
 const forbidden = () => new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.')
 export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
+
+const LISTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED', 'REJECTED']
 
 const loginBody = z.object({ email: z.email(), password: z.string().min(1) })
 
@@ -54,9 +57,27 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     return member ? { role: member.role, isPrimaryOwner: member.isPrimaryOwner } : null
   }
 
+  /**
+   * The Event behind `/events/:id/...`, as the API's AccessPolicy finds it: a non-member gets
+   * FORBIDDEN whether or not the Event exists, so ids don't leak; only the Super admin gets
+   * NOT_FOUND.
+   */
+  function visibleEvent(requester: User | null, id: number) {
+    const user = requireRequester(requester)
+    if (!Number.isInteger(id)) throw validationError()
+    const event = data.events.find((e) => e.id === id)
+    if (isSuperAdmin(user)) {
+      if (!event) throw notFound()
+      return { event, membership: null }
+    }
+    const membership = event ? membershipOf(event, user) : null
+    if (!event || !membership) throw forbidden()
+    return { event, membership }
+  }
+
   // `GET /events` item: the Event, the requester's Membership and the pending Verification count.
   function eventJson(event: EventRow, membership: Membership | null) {
-    const { members: _members, contributions, ...fields } = event
+    const { members: _members, rsvps: _rsvps, contributions, ...fields } = event
     return {
       ...fields,
       membership,
@@ -95,22 +116,37 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         .map(({ event, membership }) => eventJson(event, membership))
     },
 
-    /**
-     * `GET /events/:id`. A non-member gets FORBIDDEN whether or not the Event exists, so ids
-     * don't leak; only the Super admin gets NOT_FOUND.
-     */
+    /** `GET /events/:id`. */
     async getEvent(requester: User | null, id: number) {
       await delay()
-      const user = requireRequester(requester)
-      if (!Number.isInteger(id)) throw validationError()
-      const event = data.events.find((e) => e.id === id)
-      if (isSuperAdmin(user)) {
-        if (!event) throw notFound()
-        return eventJson(event, null)
-      }
-      const membership = event ? membershipOf(event, user) : null
-      if (!event || !membership) throw forbidden()
+      const { event, membership } = visibleEvent(requester, id)
       return eventJson(event, membership)
+    },
+
+    /** `GET /events/:id/members`: each Event member with the User's name. */
+    async listMembers(requester: User | null, eventId: number) {
+      await delay()
+      const { event } = visibleEvent(requester, eventId)
+      return event.members.map(({ userId, role, isPrimaryOwner }) => ({
+        userId,
+        name: findUser(userId)?.name ?? '',
+        role,
+        isPrimaryOwner,
+      }))
+    },
+
+    /** `GET /events/:id/rsvps`. */
+    async listRsvps(requester: User | null, eventId: number) {
+      await delay()
+      return visibleEvent(requester, eventId).event.rsvps
+    },
+
+    /** `GET /events/:id/contributions`: only the ones a Guest marked paid, and their outcome. */
+    async listContributions(requester: User | null, eventId: number) {
+      await delay()
+      return visibleEvent(requester, eventId).event.contributions.filter((c) =>
+        LISTED_CONTRIBUTIONS.includes(c.status),
+      )
     },
 
     /** A sample User by id (e.g. the ones "Modo demo" enters as). */
