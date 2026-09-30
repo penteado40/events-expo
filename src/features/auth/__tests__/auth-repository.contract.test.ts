@@ -1,14 +1,16 @@
 import { ApiError } from '@/shared/lib/api-error'
 import { createHttpClient } from '@/shared/lib/http'
 
+import { createMockBackend } from '@/shared/mock-backend'
+import { BASE_URL, createFakeApi, json } from '@/shared/mock-backend/fake-api'
+
 import { createHttpAuthRepository, type AuthRepository } from '../api'
 import { createMockAuthRepository } from '../mock'
-import { BASE_URL, createFakeApi, json } from './fake-api'
 
 type GetToken = () => string | null
 
 const implementations: [string, (getToken: GetToken) => AuthRepository][] = [
-  ['mock', (getToken) => createMockAuthRepository({ getToken })],
+  ['mock', (getToken) => createMockAuthRepository({ getToken, backend: createMockBackend() })],
   [
     'HTTP',
     (getToken) =>

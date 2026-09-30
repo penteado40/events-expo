@@ -1,57 +1,41 @@
-import { ApiError, validationError } from '@/shared/lib/api-error'
-import { userSchema, type User } from '@/shared/session'
+import {
+  DEMO_USER_ID,
+  mockBackend,
+  mockTokenFor,
+  SUPER_ADMIN_ID,
+  type MockBackend,
+} from '@/shared/mock-backend'
+import { userSchema, type Session } from '@/shared/session'
 
 import type { AuthRepository } from './repository'
-import { loginInputSchema, loginResponseSchema } from './schemas'
-
-type MockAccount = { user: User; password: string }
-
-/** Demo users. Add rows here to explore other roles. */
-const ACCOUNTS: MockAccount[] = [
-  {
-    user: {
-      id: 1,
-      name: 'Admin Local',
-      email: 'admin@local.test',
-      role: 'SUPER_ADMIN',
-      createdAt: '2026-01-01T12:00:00.000Z',
-    },
-    password: 'admin123',
-  },
-]
-
-/** The User that "Modo demo" enters as. */
-export const DEMO_USER: User = ACCOUNTS[0].user
-
-const TOKEN_PREFIX = 'mock-token-'
-
-export const mockTokenFor = (user: User) => `${TOKEN_PREFIX}${user.id}`
+import { loginResponseSchema } from './schemas'
 
 type Options = {
   getToken: () => string | null
-  latencyMs?: number
+  backend?: MockBackend
 }
 
-export function createMockAuthRepository({ getToken, latencyMs = 0 }: Options): AuthRepository {
-  const delay = () => new Promise((resolve) => setTimeout(resolve, latencyMs))
-
+/** AuthRepository over the shared mock backend (ADR-0002), answers validated like HTTP's. */
+export function createMockAuthRepository({
+  getToken,
+  backend = mockBackend,
+}: Options): AuthRepository {
   return {
-    async login(input) {
-      await delay()
-      const parsed = loginInputSchema.safeParse(input)
-      if (!parsed.success) throw validationError(parsed.error.issues)
-      const { email, password } = parsed.data
-      const account = ACCOUNTS.find((a) => a.user.email === email && a.password === password)
-      if (!account) throw new ApiError('INVALID_CREDENTIALS', 'Email ou senha inválidos.')
-      return loginResponseSchema.parse({ token: mockTokenFor(account.user), user: account.user })
-    },
-
-    async me() {
-      await delay()
-      const token = getToken()
-      const account = ACCOUNTS.find((a) => token !== null && mockTokenFor(a.user) === token)
-      if (!account) throw new ApiError('UNAUTHENTICATED', 'Sessão inválida.')
-      return userSchema.parse(account.user)
-    },
+    login: async (input) => loginResponseSchema.parse(await backend.login(input)),
+    me: async () => userSchema.parse(await backend.me(getToken())),
   }
+}
+
+/** Who "Modo demo" can enter as: the demo Super admin or the demo User. */
+export type DemoAccount = 'SUPER_ADMIN' | 'USER'
+
+const DEMO_USER_IDS: Record<DemoAccount, number> = {
+  SUPER_ADMIN: SUPER_ADMIN_ID,
+  USER: DEMO_USER_ID,
+}
+
+/** A Demo mode Session as one of the sample Users, with the token the mock backend accepts. */
+export function createMockSession(account: DemoAccount): Session {
+  const user = mockBackend.user(DEMO_USER_IDS[account])
+  return { token: mockTokenFor(user), user, live: false }
 }
