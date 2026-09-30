@@ -1,5 +1,5 @@
 /** Every module with a repository; each gets a mock first and an HTTP implementation later. */
-export type DataModule = 'auth' | 'events'
+export type DataModule = 'auth' | 'events' | 'members' | 'rsvps' | 'contributions'
 
 /**
  * Modules whose repositories talk to the real events-api in a Live session.

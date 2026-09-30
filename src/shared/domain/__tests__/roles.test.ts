@@ -1,4 +1,4 @@
-import { platformRoleLabel, roleLabel, type Membership } from '../roles'
+import { memberRoleLabel, platformRoleLabel, roleLabel, type Membership } from '../roles'
 
 describe('roleLabel', () => {
   it.each<[Membership | null, string]>([
@@ -10,6 +10,17 @@ describe('roleLabel', () => {
     [null, 'Super admin'],
   ])('%j → %s', (membership, expected) => {
     expect(roleLabel(membership)).toBe(expected)
+  })
+})
+
+describe('memberRoleLabel', () => {
+  it.each<[Membership, string]>([
+    [{ role: 'OWNER', isPrimaryOwner: true }, 'Owner · principal'],
+    [{ role: 'OWNER', isPrimaryOwner: false }, 'Owner'],
+    [{ role: 'MANAGER', isPrimaryOwner: false }, 'Manager'],
+    [{ role: 'VIEWER', isPrimaryOwner: false }, 'Viewer'],
+  ])('%j → %s', (member, expected) => {
+    expect(memberRoleLabel(member)).toBe(expected)
   })
 })
 
