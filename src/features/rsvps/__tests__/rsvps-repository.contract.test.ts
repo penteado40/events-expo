@@ -39,19 +39,13 @@ describe.each(implementations)('RsvpsRepository contract (%s)', (_, createReposi
   const as = (userId: number) => createRepository(userId)
 
   describe('list(eventId)', () => {
-    it('gives a member every RSVP of the Event', async () => {
+    it('gives a member every RSVP of the Event: the Guests who confirmed', async () => {
       const rsvps = await as(CLAUDIA).list(14)
 
-      expect(rsvps.map((r) => [r.name, r.attending])).toEqual([
-        ['Rodrigo Pires', true],
-        ['Luana Dias', false],
-        ['Tiago Moura', true],
-        ['Paula Reis', true],
-      ])
+      expect(rsvps.map((r) => r.name)).toEqual(['Rodrigo Pires', 'Tiago Moura', 'Paula Reis'])
       expect(rsvps[0]).toEqual({
         name: 'Rodrigo Pires',
         email: 'rpires@gmail.com',
-        attending: true,
         createdAt: '2026-09-25T15:00:00.000Z',
       })
     })
@@ -66,8 +60,8 @@ describe.each(implementations)('RsvpsRepository contract (%s)', (_, createReposi
     })
 
     it("keeps an archived Event's RSVPs for its Owners and the Super admin", async () => {
-      await expect(as(CLAUDIA).list(OFFSITE_KORA)).resolves.toHaveLength(3)
-      await expect(as(SUPER_ADMIN).list(OFFSITE_KORA)).resolves.toHaveLength(3)
+      await expect(as(CLAUDIA).list(OFFSITE_KORA)).resolves.toHaveLength(2)
+      await expect(as(SUPER_ADMIN).list(OFFSITE_KORA)).resolves.toHaveLength(2)
     })
 
     it("refuses an archived Event's RSVPs to a Manager with FORBIDDEN", async () => {

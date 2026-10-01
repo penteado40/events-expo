@@ -11,7 +11,7 @@ const SKELETON_ROWS = 4
 
 type Props = { event: { id: number; timezone: string } & GuestDataScope }
 
-/** The RSVPs tab: one card per Guest's answer, most recent first. */
+/** The RSVPs tab: one card per Guest who confirmed, most recent first. */
 export function RsvpList({ event }: Props) {
   const rsvps = useRsvps(event)
 
@@ -31,11 +31,6 @@ export function RsvpList({ event }: Props) {
 function RsvpCard({ rsvp, timezone }: { rsvp: Rsvp; timezone: string }) {
   return (
     <Glass variant="card" radius={radii.rsvpCard} contentStyle={styles.card}>
-      <View
-        style={[styles.dot, rsvp.attending ? styles.attending : styles.notAttending]}
-        accessible
-        accessibilityLabel={rsvp.attending ? 'Vai' : 'Não vai'}
-      />
       <View style={styles.texts}>
         <Text style={styles.name} numberOfLines={1}>
           {rsvp.name}
@@ -52,7 +47,6 @@ function RsvpCard({ rsvp, timezone }: { rsvp: Rsvp; timezone: string }) {
 function RsvpSkeleton() {
   return (
     <Glass variant="card" radius={radii.rsvpCard} contentStyle={styles.card}>
-      <View style={[styles.dot, { backgroundColor: colors.skeleton }]} />
       <View style={styles.texts} accessibilityLabel="Carregando RSVPs">
         <SkeletonBlock width={140} height={14} />
         <SkeletonBlock width={180} height={11} />
@@ -70,9 +64,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  attending: { backgroundColor: colors.accent },
-  notAttending: { backgroundColor: colors.rsvpNo },
   texts: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontFamily: fonts.sans400, fontSize: 15, color: colors.text },
 })

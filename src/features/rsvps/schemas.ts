@@ -1,10 +1,12 @@
 import { z } from 'zod'
 
-/** An item of `GET /events/:id/rsvps` (events-api #10): a Guest's answer to the invitation. */
+/**
+ * An item of `GET /events/:id/rsvps` (events-api #10): a Guest's confirmation that they're going.
+ * There's no RSVP for not going (events-api ADR-0015).
+ */
 export const rsvpSchema = z.object({
   name: z.string(),
   email: z.string(),
-  attending: z.boolean(),
   createdAt: z.iso.datetime(),
 })
 

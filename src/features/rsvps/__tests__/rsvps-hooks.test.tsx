@@ -42,11 +42,7 @@ describe('useRsvps', () => {
     const { result } = await renderHook(() => useRsvps(offsiteKora('OWNER')), { wrapper })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(result.current.data?.map((r) => r.name)).toEqual([
-      'Jonas Lemos',
-      'Isabela Faria',
-      'Otávio Kern',
-    ])
+    expect(result.current.data?.map((r) => r.name)).toEqual(['Isabela Faria', 'Otávio Kern'])
   })
 
   it("doesn't ask for an archived Event's RSVPs when the viewer can't see its Guests", async () => {

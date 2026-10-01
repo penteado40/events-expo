@@ -30,7 +30,8 @@ export type RegistryItemRow = {
   contributionCount: number
 }
 
-export type RsvpRow = { name: string; email: string; attending: boolean; createdAt: string }
+/** A Guest's confirmation: there's no RSVP for not going (events-api ADR-0015). */
+export type RsvpRow = { name: string; email: string; createdAt: string }
 
 export type EventRow = {
   id: number
@@ -110,10 +111,13 @@ const contribution = (
   status: ContributionRow['status'],
 ): ContributionRow => ({ id, guestName, amount, paidAt, hasReceipt, status })
 
-/** An RSVP from the prototype: its `dd/mm` (2026) becomes noon in São Paulo. */
-const rsvp = (name: string, email: string, attending: boolean, dayMonth: string): RsvpRow => {
+/**
+ * An RSVP from the prototype: its `dd/mm` (2026) becomes noon in São Paulo. The prototype's "não
+ * vai" answers are gone: an RSVP is only a confirmation (events-api ADR-0015).
+ */
+const rsvp = (name: string, email: string, dayMonth: string): RsvpRow => {
   const [day, month] = dayMonth.split('/')
-  return { name, email, attending, createdAt: `2026-${month}-${day}T15:00:00.000Z` }
+  return { name, email, createdAt: `2026-${month}-${day}T15:00:00.000Z` }
 }
 
 /** A sample image per item (stable by seed); `null` for no image, `'missing'` for a 404. */
@@ -182,13 +186,11 @@ const EVENTS: EventRow[] = [
       member(4, 'VIEWER'),
     ],
     rsvps: [
-      rsvp('Beatriz Nogueira', 'bia.nogueira@gmail.com', true, '26/09'),
-      rsvp('Carlos Menezes', 'carlos.m@uol.com.br', true, '25/09'),
-      rsvp('Daniela Prado', 'dani.prado@gmail.com', false, '24/09'),
-      rsvp('Eduardo Tavares', 'edu.tavares@hotmail.com', true, '22/09'),
-      rsvp('Fernanda Ruiz', 'fe.ruiz@gmail.com', true, '20/09'),
-      rsvp('Gustavo Leal', 'gleal@outlook.com', false, '18/09'),
-      rsvp('Helena Costa', 'helena.costa@gmail.com', true, '15/09'),
+      rsvp('Beatriz Nogueira', 'bia.nogueira@gmail.com', '26/09'),
+      rsvp('Carlos Menezes', 'carlos.m@uol.com.br', '25/09'),
+      rsvp('Eduardo Tavares', 'edu.tavares@hotmail.com', '22/09'),
+      rsvp('Fernanda Ruiz', 'fe.ruiz@gmail.com', '20/09'),
+      rsvp('Helena Costa', 'helena.costa@gmail.com', '15/09'),
     ],
     registryItems: [
       registryItem(121, 'Jantar na lua de mel', 450, 3),
@@ -220,9 +222,9 @@ const EVENTS: EventRow[] = [
     city: 'Campinas, SP',
     members: [member(5, 'OWNER', true), member(7, 'VIEWER')],
     rsvps: [
-      rsvp('Marina Alves', 'marina.alves@gmail.com', true, '23/09'),
-      rsvp('Tatiane Rocha', 'tati.rocha@gmail.com', true, '21/09'),
-      rsvp('Sônia Martins', 'sonia.m@terra.com.br', true, '19/09'),
+      rsvp('Marina Alves', 'marina.alves@gmail.com', '23/09'),
+      rsvp('Tatiane Rocha', 'tati.rocha@gmail.com', '21/09'),
+      rsvp('Sônia Martins', 'sonia.m@terra.com.br', '19/09'),
     ],
     registryItems: [
       registryItem(151, 'Carrinho de bebê', 1800, 0),
@@ -244,10 +246,9 @@ const EVENTS: EventRow[] = [
     city: 'Pinheiros, SP',
     members: [member(6, 'OWNER', true), member(7, 'MANAGER')],
     rsvps: [
-      rsvp('Rodrigo Pires', 'rpires@gmail.com', true, '25/09'),
-      rsvp('Luana Dias', 'luana.dias@gmail.com', false, '24/09'),
-      rsvp('Tiago Moura', 'tiago.moura@gmail.com', true, '23/09'),
-      rsvp('Paula Reis', 'paula.reis@gmail.com', true, '20/09'),
+      rsvp('Rodrigo Pires', 'rpires@gmail.com', '25/09'),
+      rsvp('Tiago Moura', 'tiago.moura@gmail.com', '23/09'),
+      rsvp('Paula Reis', 'paula.reis@gmail.com', '20/09'),
     ],
     registryItems: [
       registryItem(141, 'Garrafa de single malt', 520, 1),
@@ -267,7 +268,7 @@ const EVENTS: EventRow[] = [
     startsAt: '2026-12-12T22:00:00.000Z',
     venueName: 'Colégio Vera Cruz',
     city: 'São Paulo, SP',
-    rsvps: [rsvp('Renata Gomes', 'renata.g@gmail.com', true, '27/09')],
+    rsvps: [rsvp('Renata Gomes', 'renata.g@gmail.com', '27/09')],
   }),
   event({
     id: 9,
@@ -282,9 +283,8 @@ const EVENTS: EventRow[] = [
     mapsUrl: 'https://maps.google.com/?q=Hotel+Boa+Vista,+Porto+Feliz,+SP',
     members: [member(7, 'OWNER', true), member(8, 'MANAGER')],
     rsvps: [
-      rsvp('Otávio Kern', 'otavio@kora.com.br', true, '01/09'),
-      rsvp('Isabela Faria', 'isabela@kora.com.br', true, '02/09'),
-      rsvp('Jonas Lemos', 'jonas@kora.com.br', false, '03/09'),
+      rsvp('Otávio Kern', 'otavio@kora.com.br', '01/09'),
+      rsvp('Isabela Faria', 'isabela@kora.com.br', '02/09'),
     ],
   }),
 ]

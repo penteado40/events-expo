@@ -12,7 +12,6 @@ export const colors = {
   danger: '#ff9a86',
   dangerBorder: 'rgba(255,154,134,.3)',
   warning: '#f0c24b',
-  rsvpNo: 'rgba(255,255,255,.4)',
   divider: 'rgba(255,255,255,.08)',
   dividerSheet: 'rgba(255,255,255,.12)',
   activePill: 'rgba(255,255,255,.88)',
