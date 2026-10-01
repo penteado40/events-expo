@@ -32,24 +32,20 @@ const implementations: [string, CreateRepository][] = [
 
 const SUPER_ADMIN = 1
 const CLAUDIA = 7
+const OTAVIO = 8
+const OFFSITE_KORA = 9 // archived: Cláudia is its Owner, Otávio its Manager
 
 describe.each(implementations)('RsvpsRepository contract (%s)', (_, createRepository) => {
   const as = (userId: number) => createRepository(userId)
 
   describe('list(eventId)', () => {
-    it('gives a member every RSVP of the Event', async () => {
+    it('gives a member every RSVP of the Event: the Guests who confirmed', async () => {
       const rsvps = await as(CLAUDIA).list(14)
 
-      expect(rsvps.map((r) => [r.name, r.attending])).toEqual([
-        ['Rodrigo Pires', true],
-        ['Luana Dias', false],
-        ['Tiago Moura', true],
-        ['Paula Reis', true],
-      ])
+      expect(rsvps.map((r) => r.name)).toEqual(['Rodrigo Pires', 'Tiago Moura', 'Paula Reis'])
       expect(rsvps[0]).toEqual({
         name: 'Rodrigo Pires',
         email: 'rpires@gmail.com',
-        attending: true,
         createdAt: '2026-09-25T15:00:00.000Z',
       })
     })
@@ -61,6 +57,15 @@ describe.each(implementations)('RsvpsRepository contract (%s)', (_, createReposi
     it('refuses a non-member with FORBIDDEN, even for a missing Event', async () => {
       await expect(as(CLAUDIA).list(16)).rejects.toMatchObject({ code: 'FORBIDDEN' })
       await expect(as(CLAUDIA).list(999)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+
+    it("keeps an archived Event's RSVPs for its Owners and the Super admin", async () => {
+      await expect(as(CLAUDIA).list(OFFSITE_KORA)).resolves.toHaveLength(2)
+      await expect(as(SUPER_ADMIN).list(OFFSITE_KORA)).resolves.toHaveLength(2)
+    })
+
+    it("refuses an archived Event's RSVPs to a Manager with FORBIDDEN", async () => {
+      await expect(as(OTAVIO).list(OFFSITE_KORA)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     })
 
     it('answers NOT_FOUND to the Super admin for a missing Event', async () => {

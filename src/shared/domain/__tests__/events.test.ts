@@ -1,4 +1,12 @@
-import { formatEventDate, pendingTotal, sortEvents, type EventStatus } from '../events'
+import type { Membership } from '../roles'
+import {
+  canSeeGuests,
+  formatEventDate,
+  formatEventDay,
+  pendingTotal,
+  sortEvents,
+  type EventStatus,
+} from '../events'
 
 describe('formatEventDate', () => {
   it.each([
@@ -53,5 +61,37 @@ describe('pendingTotal', () => {
 
   it('is zero without Events', () => {
     expect(pendingTotal([])).toBe(0)
+  })
+})
+
+describe('canSeeGuests', () => {
+  const OWNER: Membership = { role: 'OWNER', isPrimaryOwner: false }
+  const MANAGER: Membership = { role: 'MANAGER', isPrimaryOwner: false }
+  const VIEWER: Membership = { role: 'VIEWER', isPrimaryOwner: false }
+  const SUPER_ADMIN = null
+
+  // events-api ADR-0011: after archiving, Guest data stays only with Owners and the Super admin.
+  it.each([
+    ['ACTIVE', OWNER, true],
+    ['ACTIVE', MANAGER, true],
+    ['ACTIVE', VIEWER, true],
+    ['ACTIVE', SUPER_ADMIN, true],
+    ['ARCHIVED', OWNER, true],
+    ['ARCHIVED', MANAGER, false],
+    ['ARCHIVED', VIEWER, false],
+    ['ARCHIVED', SUPER_ADMIN, true],
+  ] as const)('%s Event, membership %j → %s', (status, membership, expected) => {
+    expect(canSeeGuests({ status, membership })).toBe(expected)
+  })
+})
+
+describe('formatEventDay', () => {
+  it.each([
+    ['2026-09-25T15:00:00.000Z', 'America/Sao_Paulo', '25/09'],
+    // 23:30 in São Paulo is already the next day in UTC and in Lisbon: the Event's day wins.
+    ['2026-09-26T02:30:00.000Z', 'America/Sao_Paulo', '25/09'],
+    ['2026-09-26T02:30:00.000Z', 'Europe/Lisbon', '26/09'],
+  ])('%s in %s → %s', (iso, timezone, expected) => {
+    expect(formatEventDay(iso, timezone)).toBe(expected)
   })
 })

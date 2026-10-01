@@ -83,6 +83,7 @@ describe('useEnterDemo', () => {
   it.each([
     ['SUPER_ADMIN', { id: 1, name: 'Admin Local', role: 'SUPER_ADMIN' }],
     ['USER', { id: 7, name: 'Cláudia Lima', role: 'USER' }],
+    ['MANAGER', { id: 8, name: 'Otávio Kern', role: 'USER' }],
   ] as const)(
     'opens a Session as the demo %s without touching the saved email',
     async (account, user) => {

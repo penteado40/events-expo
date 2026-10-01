@@ -1,4 +1,5 @@
 import {
+  DEMO_MANAGER_ID,
   DEMO_USER_ID,
   mockBackend,
   mockTokenFor,
@@ -26,12 +27,13 @@ export function createMockAuthRepository({
   }
 }
 
-/** Who "Modo demo" can enter as: the demo Super admin or the demo User. */
-export type DemoAccount = 'SUPER_ADMIN' | 'USER'
+/** Who "Modo demo" can enter as: the demo Super admin, User or Manager. */
+export type DemoAccount = 'SUPER_ADMIN' | 'USER' | 'MANAGER'
 
 const DEMO_USER_IDS: Record<DemoAccount, number> = {
   SUPER_ADMIN: SUPER_ADMIN_ID,
   USER: DEMO_USER_ID,
+  MANAGER: DEMO_MANAGER_ID,
 }
 
 /** A Demo mode Session as one of the sample Users, with the token the mock backend accepts. */

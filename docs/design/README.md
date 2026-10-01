@@ -23,12 +23,11 @@ Desenhado em 390×844 pt (iPhone 14/15). Status bar de 50 pt. Respeite safe area
 | `text` | `#f2f1ee` | texto principal |
 | `textMuted` | `rgba(255,255,255,.66)` | rótulos, metadados |
 | `textSoft` | `rgba(255,255,255,.78)` | endereço do evento |
-| `accent` | `#b5e35a` | lima: ação primária, pendentes, RSVP "vai" |
+| `accent` | `#b5e35a` | lima: ação primária, pendentes |
 | `onAccent` | `#0f1011` | texto sobre lima e sobre pílula ativa |
 | `verified` | `#9cc4ff` | status verificada |
 | `danger` | `#ff9a86` | rejeitada, erros, Sair |
 | `warning` | `#f0c24b` | arquivado, aviso Viewer |
-| `rsvpNo` | `rgba(255,255,255,.4)` | ponto de RSVP "não vai" |
 | `divider` | `rgba(255,255,255,.08)` | linhas dentro de cartões (`.12` dentro da folha) |
 
 ### Fundo (atrás de todo o vidro)
@@ -105,8 +104,8 @@ A interface nunca mostra de onde vêm os dados nem detalhes da API (endpoints, h
 - Barra: botão voltar circular 44 (Pill) com "←"; centro `#{id} · {papel}` (Mono 12, muted).
 - Header: nome, `{data} · {tipo}` (Mono 13, muted), local (14, 78%). Se arquivado: "ARQUIVADO · site não aceita escritas" (Mono 12, warning).
 - **Abas segmentadas** (Pill, sticky no topo ao rolar, grade 4 colunas, padding 5, radius 24): Resumo · RSVPs · Presentes · Conferir. Item 38 alto, radius 19; ativo = fundo `rgba(255,255,255,.88)` e texto `#0f1011`; inativo = transparente e muted. "Conferir" mostra um ponto lima de 6 px (com glow) quando há pendentes.
-- **Resumo:** grade 2×2 de stats (Card, radius 22): RSVP · VÃO, RSVP · NÃO VÃO, VERIFICADO (soma em R$ das Contributions `VERIFIED`), PARA CONFERIR (Card acento, número lima). Depois cartão "Site" com o `siteUrl` em Mono. Depois cartão de Membros: linhas nome + papel (Mono 12), divisores de 1 px.
-- **RSVPs:** cartões radius 20: ponto 8 px (lima = vai, 40% branco = não vai), nome (15), email (Mono 12, com reticências) e data `dd/mm` à direita.
+- **Resumo:** stats (Card, radius 22): CONFIRMADOS (número de RSVPs) em largura cheia; abaixo, lado a lado, VERIFICADO (soma em R$ das Contributions `VERIFIED`), PARA CONFERIR (Card acento, número lima). Depois cartão "Site" com o `siteUrl` em Mono. Depois cartão de Membros: linhas nome + papel (Mono 12), divisores de 1 px.
+- **RSVPs:** só quem confirmou presença (não há "não vai"). Cartões radius 20: nome (15), email (Mono 12, com reticências) e data `dd/mm` à direita. O protótipo ainda mostra o ponto lima/cinza e respostas "não vai"; o app não.
 - **Presentes:** cartões radius 22, padding 10: miniatura 48×48 radius 14 (placeholder listrado; no app, imagem do Registry item), nome, `N contribuições` / `nenhuma contribuição`, preço de referência em Mono 14/500. Sem itens: "Sem lista de presentes."
 - **Conferir:** Contributions ordenadas com `PAID` primeiro. Cartão radius 22: convidado + valor (Mono 16/500); abaixo nome do presente (reticências) e status `● pendente` (lima) / `● verificada` (#9cc4ff) / `● rejeitada` (#ff9a86). Se o papel é Viewer: aviso "VIEWER · somente leitura. A conferência cabe a Managers e Owners." (Mono 12, warning). Toque → folha de Contribuição.
 
@@ -147,7 +146,7 @@ Base `/api/v1`. Sucesso `{ data }`; erro `{ error: { code, message, details? } }
 Tipos sugeridos (pelo `CONTEXT.md`):
 - `Event { id, name, type: 'WEDDING'|'BIRTHDAY'|'CORPORATE'|'BABY_SHOWER'|'PARTY'|'OTHER', startsAt, venue, siteUrl, archived, members: EventMember[] }` (dados do protótipo; o contrato real está no `docs/spec.md`, com `venueName`, `venueAddress`, `city` e `mapsUrl` no lugar de `venue`)
 - `EventMember { userId, name, role: 'OWNER'|'MANAGER'|'VIEWER', isPrimaryOwner }`
-- `Rsvp { name, email, attending: boolean, createdAt }`
+- `Rsvp { name, email, createdAt }` (só confirmações: não há RSVP de quem não vai, events-api ADR-0015)
 - `RegistryItem { id, name, price, imageUrl, contributionCount }`
 - `Contribution { id, guestName, registryItemId, amount, status: 'PENDING'|'ABANDONED'|'PAID'|'VERIFIED'|'REJECTED', paidAt, hasReceipt }` (o app lista `PAID`, `VERIFIED`, `REJECTED`)
 

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { ContributionStatus } from '@/shared/domain/contributions'
+import { canSeeGuests } from '@/shared/domain/events'
 import { isSuperAdmin, type Membership } from '@/shared/domain/roles'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
@@ -75,9 +76,24 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     return { event, membership }
   }
 
+  /** Like `visibleEvent`, for Guest data: an archived Event keeps it from Managers and Viewers. */
+  function eventWithGuests(requester: User | null, id: number) {
+    const visible = visibleEvent(requester, id)
+    if (!canSeeGuests({ status: visible.event.status, membership: visible.membership })) {
+      throw forbidden()
+    }
+    return visible
+  }
+
   // `GET /events` item: the Event, the requester's Membership and the pending Verification count.
   function eventJson(event: EventRow, membership: Membership | null) {
-    const { members: _members, rsvps: _rsvps, contributions, ...fields } = event
+    const {
+      members: _members,
+      rsvps: _rsvps,
+      registryItems: _items,
+      contributions,
+      ...fields
+    } = event
     return {
       ...fields,
       membership,
@@ -135,10 +151,16 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       }))
     },
 
-    /** `GET /events/:id/rsvps`. */
+    /** `GET /events/:id/rsvps`: Guest data, so FORBIDDEN to an archived Event's non-Owners. */
     async listRsvps(requester: User | null, eventId: number) {
       await delay()
-      return visibleEvent(requester, eventId).event.rsvps
+      return eventWithGuests(requester, eventId).event.rsvps
+    },
+
+    /** `GET /events/:id/registry-items`: no Guest data, so visible on archived Events too. */
+    async listRegistryItems(requester: User | null, eventId: number) {
+      await delay()
+      return visibleEvent(requester, eventId).event.registryItems
     },
 
     /** `GET /events/:id/contributions`: only the ones a Guest marked paid, and their outcome. */
