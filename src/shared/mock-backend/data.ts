@@ -18,6 +18,18 @@ export type ContributionRow = {
   hasReceipt: boolean
 }
 
+/**
+ * `contributionCount` is fixed from the prototype (the API counts `PAID` + `VERIFIED`) until
+ * Contributions carry their `registryItemId`.
+ */
+export type RegistryItemRow = {
+  id: number
+  name: string
+  price: number
+  imageUrl: string | null
+  contributionCount: number
+}
+
 export type RsvpRow = { name: string; email: string; attending: boolean; createdAt: string }
 
 export type EventRow = {
@@ -40,6 +52,7 @@ export type EventRow = {
   updatedAt: string
   members: MemberRow[]
   rsvps: RsvpRow[]
+  registryItems: RegistryItemRow[]
   contributions: ContributionRow[]
 }
 
@@ -55,6 +68,8 @@ const user = (id: number, name: string, email: string, createdAt: string): User 
 
 export const SUPER_ADMIN_ID = 1
 export const DEMO_USER_ID = 7
+/** The archived Offsite Kora's Manager: shows an archived Event without its Guest data. */
+export const DEMO_MANAGER_ID = 8
 
 const ACCOUNTS: Account[] = [
   {
@@ -75,7 +90,7 @@ const ACCOUNTS: Account[] = [
   {
     user: user(DEMO_USER_ID, 'Cláudia Lima', 'claudia.lima@gmail.com', '2026-09-27T22:58:10.000Z'),
   },
-  { user: user(8, 'Otávio Kern', 'otavio@kora.com.br', '2026-07-20T12:00:00.000Z') },
+  { user: user(DEMO_MANAGER_ID, 'Otávio Kern', 'otavio@kora.com.br', '2026-07-20T12:00:00.000Z') },
   // A member of no Event: the empty Events list.
   { user: user(9, 'Laura Mendes', 'laura.mendes@gmail.com', '2026-09-28T12:00:00.000Z') },
 ]
@@ -101,11 +116,35 @@ const rsvp = (name: string, email: string, attending: boolean, dayMonth: string)
   return { name, email, attending, createdAt: `2026-${month}-${day}T15:00:00.000Z` }
 }
 
+/** A sample image per item (stable by seed); `null` for no image, `'missing'` for a 404. */
+const registryItem = (
+  id: number,
+  name: string,
+  price: number,
+  contributionCount: number,
+  image: 'seed' | 'missing' | null = 'seed',
+): RegistryItemRow => {
+  const slug = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+  const imageUrl =
+    image === 'seed'
+      ? `https://picsum.photos/seed/${slug}/96`
+      : image === 'missing'
+        ? `https://picsum.photos/missing/${slug}.jpg`
+        : null
+  return { id, name, price, imageUrl, contributionCount }
+}
+
 type EventSeed = Pick<
   EventRow,
   'id' | 'type' | 'name' | 'slug' | 'siteUrl' | 'startsAt' | 'venueName' | 'city'
 > &
-  Partial<Pick<EventRow, 'status' | 'mapsUrl' | 'members' | 'rsvps' | 'contributions'>>
+  Partial<
+    Pick<EventRow, 'status' | 'mapsUrl' | 'members' | 'rsvps' | 'registryItems' | 'contributions'>
+  >
 
 const event = (seed: EventSeed): EventRow => ({
   status: 'ACTIVE',
@@ -119,6 +158,7 @@ const event = (seed: EventSeed): EventRow => ({
   updatedAt: '2026-08-01T12:00:00.000Z',
   members: [],
   rsvps: [],
+  registryItems: [],
   contributions: [],
   ...seed,
 })
@@ -150,6 +190,13 @@ const EVENTS: EventRow[] = [
       rsvp('Gustavo Leal', 'gleal@outlook.com', false, '18/09'),
       rsvp('Helena Costa', 'helena.costa@gmail.com', true, '15/09'),
     ],
+    registryItems: [
+      registryItem(121, 'Jantar na lua de mel', 450, 3),
+      registryItem(122, 'Jogo de panelas', 890, 1),
+      registryItem(123, 'Passeio de barco em Ilhabela', 620, 2),
+      registryItem(124, 'Cafeteira espresso', 1290, 0, null),
+      registryItem(125, 'Cota da viagem', 200, 11),
+    ],
     contributions: [
       contribution(301, 'Beatriz Nogueira', 450, '2026-09-27T00:14:00.000Z', true, 'PAID'),
       contribution(302, 'Carlos Menezes', 200, '2026-09-26T13:02:00.000Z', false, 'PAID'),
@@ -177,6 +224,10 @@ const EVENTS: EventRow[] = [
       rsvp('Tatiane Rocha', 'tati.rocha@gmail.com', true, '21/09'),
       rsvp('Sônia Martins', 'sonia.m@terra.com.br', true, '19/09'),
     ],
+    registryItems: [
+      registryItem(151, 'Carrinho de bebê', 1800, 0),
+      registryItem(152, 'Kit fraldas M', 180, 6, 'missing'),
+    ],
     contributions: [
       contribution(412, 'Marina Alves', 180, '2026-09-24T12:20:00.000Z', true, 'PAID'),
       contribution(413, 'Tatiane Rocha', 180, '2026-09-22T21:45:00.000Z', false, 'PAID'),
@@ -197,6 +248,10 @@ const EVENTS: EventRow[] = [
       rsvp('Luana Dias', 'luana.dias@gmail.com', false, '24/09'),
       rsvp('Tiago Moura', 'tiago.moura@gmail.com', true, '23/09'),
       rsvp('Paula Reis', 'paula.reis@gmail.com', true, '20/09'),
+    ],
+    registryItems: [
+      registryItem(141, 'Garrafa de single malt', 520, 1),
+      registryItem(142, 'Cota do churrasco', 100, 4),
     ],
     contributions: [
       contribution(388, 'Tiago Moura', 100, '2026-09-26T01:10:00.000Z', false, 'PAID'),

@@ -110,12 +110,7 @@ export function LoginScreen() {
             (choosingDemo ? (
               <View style={styles.demoChoices}>
                 {DEMO_ACCOUNTS.map(({ account, label }) => (
-                  <SecondaryButton
-                    key={account}
-                    label={label}
-                    onPress={() => enterDemo(account)}
-                    style={styles.flex}
-                  />
+                  <SecondaryButton key={account} label={label} onPress={() => enterDemo(account)} />
                 ))}
               </View>
             ) : (
@@ -130,6 +125,7 @@ export function LoginScreen() {
 const DEMO_ACCOUNTS: { account: DemoAccount; label: string }[] = [
   { account: 'SUPER_ADMIN', label: 'Super admin' },
   { account: 'USER', label: 'Cláudia Lima · user' },
+  { account: 'MANAGER', label: 'Otávio Kern · manager' },
 ]
 
 function SecondaryButton({
@@ -196,7 +192,8 @@ const styles = StyleSheet.create({
     boxShadow: `inset 0 1px 0 rgba(255,255,255,.6), 0 8px 24px -8px ${colors.accentGlow}`,
   },
   primaryText: { fontFamily: fonts.sans600, fontSize: 16, color: colors.onAccent },
-  demoChoices: { flexDirection: 'row', gap: 10 },
+  // Stacked: three names don't fit side by side.
+  demoChoices: { gap: 10 },
   secondary: {
     height: 48,
     paddingHorizontal: 12,

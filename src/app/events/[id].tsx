@@ -3,7 +3,8 @@ import { useLocalSearchParams } from 'expo-router'
 import { ContributionStats } from '@/features/contributions'
 import { EventDetailScreen, SiteCard } from '@/features/events'
 import { MembersCard } from '@/features/members'
-import { RsvpStats } from '@/features/rsvps'
+import { RegistryList } from '@/features/registry'
+import { RsvpList, RsvpStats } from '@/features/rsvps'
 
 export default function EventDetailRoute() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -14,7 +15,7 @@ export default function EventDetailRoute() {
       id={eventId}
       summary={(event) => (
         <>
-          <RsvpStats eventId={eventId} />
+          <RsvpStats event={event} />
           <ContributionStats
             eventId={eventId}
             currency={event.currency}
@@ -24,6 +25,8 @@ export default function EventDetailRoute() {
           <MembersCard eventId={eventId} />
         </>
       )}
+      rsvps={(event) => <RsvpList event={event} />}
+      registry={(event) => <RegistryList eventId={eventId} currency={event.currency} />}
     />
   )
 }

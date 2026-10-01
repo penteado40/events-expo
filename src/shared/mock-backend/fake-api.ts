@@ -31,6 +31,7 @@ export function createFakeApi({
   const collections = new Map<string, (requester: User, eventId: number) => Promise<unknown>>([
     ['members', backend.listMembers],
     ['rsvps', backend.listRsvps],
+    ['registry-items', backend.listRegistryItems],
     ['contributions', backend.listContributions],
   ])
 
