@@ -14,10 +14,11 @@ export function EmptyText({ children }: { children: string }) {
 
 const styles = StyleSheet.create({
   notice: {
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingHorizontal: 6,
     fontFamily: fonts.mono400,
     fontSize: 12,
+    lineHeight: 18,
     color: colors.warning,
   },
   empty: {

@@ -27,7 +27,7 @@ export function createMockAuthRepository({
   }
 }
 
-/** Who "Modo demo" can enter as: the demo Super admin or the demo User. */
+/** Who "Modo demo" can enter as: the demo Super admin, User or Manager. */
 export type DemoAccount = 'SUPER_ADMIN' | 'USER' | 'MANAGER'
 
 const DEMO_USER_IDS: Record<DemoAccount, number> = {

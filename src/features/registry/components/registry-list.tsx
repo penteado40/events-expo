@@ -11,11 +11,11 @@ import { ItemThumbnail } from './item-thumbnail'
 
 const SKELETON_ROWS = 3
 
-type Props = { eventId: number; currency: string }
+type Props = { event: { id: number; currency: string } }
 
 /** The Presentes tab: one card per Registry item, with its image, Contributions and price. */
-export function RegistryList({ eventId, currency }: Props) {
-  const items = useRegistryItems(eventId)
+export function RegistryList({ event }: Props) {
+  const items = useRegistryItems(event.id)
 
   if (items.isError && !items.data) {
     return <QueryError message={items.error.message} onRetry={() => items.refetch()} />
@@ -24,7 +24,7 @@ export function RegistryList({ eventId, currency }: Props) {
     return Array.from({ length: SKELETON_ROWS }, (_, index) => <ItemSkeleton key={index} />)
   }
   if (items.data.length === 0) return <EmptyText>Sem lista de presentes.</EmptyText>
-  return items.data.map((item) => <ItemCard key={item.id} item={item} currency={currency} />)
+  return items.data.map((item) => <ItemCard key={item.id} item={item} currency={event.currency} />)
 }
 
 function ItemCard({ item, currency }: { item: RegistryItem; currency: string }) {

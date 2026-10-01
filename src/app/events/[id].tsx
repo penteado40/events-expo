@@ -26,7 +26,7 @@ export default function EventDetailRoute() {
         </>
       )}
       rsvps={(event) => <RsvpList event={event} />}
-      registry={(event) => <RegistryList eventId={eventId} currency={event.currency} />}
+      registry={(event) => <RegistryList event={event} />}
     />
   )
 }
