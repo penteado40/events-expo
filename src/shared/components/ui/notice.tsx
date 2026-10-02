@@ -7,6 +7,14 @@ export function Notice({ children }: { children: string }) {
   return <Text style={styles.notice}>{children}</Text>
 }
 
+/**
+ * In place of an archived Event's Guest data, for a Manager or Viewer (events-api ADR-0011: after
+ * archiving only Owners and the Super admin still see it).
+ */
+export function ArchivedGuestsNotice() {
+  return <Notice>ARQUIVADO · só Owners veem os convidados.</Notice>
+}
+
 /** A tab's empty state ("Nenhum RSVP.", "Sem lista de presentes."). */
 export function EmptyText({ children }: { children: string }) {
   return <Text style={styles.empty}>{children}</Text>

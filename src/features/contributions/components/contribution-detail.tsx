@@ -1,18 +1,26 @@
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { EmptyText, ErrorBox, Notice, QueryError, SkeletonBlock } from '@/shared/components/ui'
-import { canSeeGuests, formatEventDayTime, type GuestDataScope } from '@/shared/domain/events'
+import {
+  ArchivedGuestsNotice,
+  EmptyText,
+  ErrorBox,
+  Notice,
+  QueryError,
+  SkeletonBlock,
+} from '@/shared/components/ui'
+import { canSeeGuests, formatEventDayTime } from '@/shared/domain/events'
 import { formatMoney } from '@/shared/domain/money'
 import { colors, fonts } from '@/shared/theme'
 
+import type { ContributionEvent } from '../contribution-event'
 import { contributionStatus } from '../contribution-status'
 import { useContributions } from '../hooks/use-contributions'
 import { useOpenReceipt } from '../hooks/use-receipt'
 import { registryItemName, type RegistryItemNames } from '../registry-item-name'
 import type { Contribution } from '../schemas'
 
-type DetailEvent = { id: number; currency: string; timezone: string } & GuestDataScope
+type DetailEvent = ContributionEvent & { timezone: string }
 
 type Props = {
   event: DetailEvent
@@ -29,7 +37,7 @@ type Props = {
 export function ContributionDetail({ event, contributionId, registryItemNames }: Props) {
   const contributions = useContributions(event)
 
-  if (!canSeeGuests(event)) return <Notice>ARQUIVADO · só Owners veem os convidados.</Notice>
+  if (!canSeeGuests(event)) return <ArchivedGuestsNotice />
   if (contributions.isError && !contributions.data) {
     return (
       <QueryError message={contributions.error.message} onRetry={() => contributions.refetch()} />

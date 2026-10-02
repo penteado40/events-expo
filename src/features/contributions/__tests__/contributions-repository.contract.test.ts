@@ -119,6 +119,12 @@ describe.each(implementations)('ContributionsRepository contract (%s)', (_, crea
       await expect(as(CLAUDIA).getReceiptUrl(12, 999)).rejects.toMatchObject({ code: 'NOT_FOUND' })
     })
 
+    it("refuses an archived Event's Receipts to a Manager with FORBIDDEN", async () => {
+      await expect(as(OTAVIO).getReceiptUrl(OFFSITE_KORA, 1)).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      })
+    })
+
     it('refuses a non-member with FORBIDDEN', async () => {
       await expect(as(CLAUDIA).getReceiptUrl(16, 301)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     })

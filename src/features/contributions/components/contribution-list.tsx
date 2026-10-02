@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router'
 import { StyleSheet, Text, View } from 'react-native'
 
 import {
+  ArchivedGuestsNotice,
   EmptyText,
   Glass,
   Notice,
@@ -9,10 +10,11 @@ import {
   QueryError,
   SkeletonBlock,
 } from '@/shared/components/ui'
-import { canSeeGuests, type GuestDataScope } from '@/shared/domain/events'
+import { canSeeGuests } from '@/shared/domain/events'
 import { formatMoney } from '@/shared/domain/money'
 import { colors, fonts, radii } from '@/shared/theme'
 
+import type { ContributionEvent } from '../contribution-event'
 import { contributionStatus } from '../contribution-status'
 import { useContributions } from '../hooks/use-contributions'
 import { registryItemName, type RegistryItemNames } from '../registry-item-name'
@@ -21,7 +23,7 @@ import type { Contribution } from '../schemas'
 const SKELETON_ROWS = 3
 
 type Props = {
-  event: { id: number; currency: string } & GuestDataScope
+  event: ContributionEvent
   /** The Event's Registry item names by id, from the route (ADR-0001); undefined while loading. */
   registryItemNames: RegistryItemNames | undefined
 }
@@ -34,7 +36,7 @@ export function ContributionList({ event, registryItemNames }: Props) {
   const router = useRouter()
   const contributions = useContributions(event)
 
-  if (!canSeeGuests(event)) return <Notice>ARQUIVADO · só Owners veem os convidados.</Notice>
+  if (!canSeeGuests(event)) return <ArchivedGuestsNotice />
   const viewerNotice = event.membership?.role === 'VIEWER' && (
     <Notice>VIEWER · somente leitura. A conferência cabe a Managers e Owners.</Notice>
   )

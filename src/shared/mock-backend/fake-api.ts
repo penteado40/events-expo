@@ -57,12 +57,12 @@ export function createFakeApi({
       const [, id, collection] = route.match(/^GET \/events\/([^/]+)\/([^/]+)$/) ?? []
       const list = collection === undefined ? undefined : collections.get(collection)
       if (list) return json(200, { data: await list(requester, Number(id)) })
-      const [, eventOf, contributionId] =
+      const [, receiptEventId, contributionId] =
         route.match(/^GET \/events\/([^/]+)\/contributions\/([^/]+)\/receipt$/) ?? []
       if (contributionId !== undefined) {
         const receipt = await backend.getReceiptUrl(
           requester,
-          Number(eventOf),
+          Number(receiptEventId),
           Number(contributionId),
         )
         return json(200, { data: receipt })
