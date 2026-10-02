@@ -1,4 +1,5 @@
 import { isArchived, type GuestDataScope } from './events'
+import { sumMoney } from './money'
 
 export const CONTRIBUTION_STATUSES = [
   'PENDING',
@@ -14,10 +15,7 @@ export type ContributionStatus = (typeof CONTRIBUTION_STATUSES)[number]
 export function verifiedAmount(
   contributions: readonly { amount: number; status: ContributionStatus }[],
 ) {
-  const centavos = contributions
-    .filter((c) => c.status === 'VERIFIED')
-    .reduce((total, c) => total + Math.round(c.amount * 100), 0)
-  return centavos / 100
+  return sumMoney(contributions.filter((c) => c.status === 'VERIFIED').map((c) => c.amount))
 }
 
 /**
@@ -105,8 +103,6 @@ export type VerificationCaches<
   contributions: readonly C[] | undefined
 }
 
-const toCentavos = (amount: number) => Math.round(amount * 100)
-
 /**
  * The optimistic Verification (and, with `undoStatusChange`, its rollback). The Contribution
  * changes only if it is still in `from`, so a rollback never undoes a later change. The Event
@@ -124,14 +120,14 @@ export function applyStatusChange<
   const delta = (status: ContributionStatus) =>
     (change.to === status ? 1 : 0) - (change.from === status ? 1 : 0)
   const paid = delta('PAID')
-  const verified = delta('VERIFIED') * toCentavos(change.amount)
+  const verified = delta('VERIFIED')
   const update = (event: E): E => {
     if (event.id !== eventId || (paid === 0 && verified === 0)) return event
-    const centavos = Math.max(0, toCentavos(event.summary.verifiedAmount) + verified)
+    const verifiedAmount = sumMoney([event.summary.verifiedAmount, verified * change.amount])
     return {
       ...event,
       paidContributionCount: Math.max(0, event.paidContributionCount + paid),
-      summary: { ...event.summary, verifiedAmount: centavos / 100 },
+      summary: { ...event.summary, verifiedAmount: Math.max(0, verifiedAmount) },
     }
   }
   const contribution = (c: C): C =>

@@ -1,4 +1,5 @@
 import { isArchived, type EventStatus } from '@/shared/domain/events'
+import { sumMoney } from '@/shared/domain/money'
 
 import type { Event } from './schemas'
 
@@ -25,8 +26,7 @@ export function homeSummary(events: readonly Summed[]): HomeSummary {
     active: active.length,
     archived: events.length - active.length,
     rsvps: sum((event) => event.summary.rsvpCount),
-    // Summed in centavos, so 0.1 + 0.2 is 0.3.
-    verified: sum((event) => Math.round(event.summary.verifiedAmount * 100)) / 100,
+    verified: sumMoney(active.map((event) => event.summary.verifiedAmount)),
     registryItems: sum((event) => event.summary.registryItemCount),
   }
 }

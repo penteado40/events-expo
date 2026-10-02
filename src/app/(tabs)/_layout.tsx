@@ -7,6 +7,8 @@ export default function TabsLayout() {
     <Tabs
       // Início, in the middle, is where a Session lands.
       initialRouteName="index"
+      // Back from another tab returns to Início, not to the first tab (Eventos).
+      backBehavior="initialRoute"
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
