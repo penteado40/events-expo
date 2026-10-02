@@ -83,7 +83,7 @@ export const undoStatusChange = ({ from, to, ...change }: StatusChange): StatusC
  * An Event as far as a Verification changes it: its count of PAID Contributions and its Event
  * summary's verified amount.
  */
-export type CountedEvent = {
+export type VerificationEvent = {
   id: number
   paidContributionCount: number
   summary: { verifiedAmount: number }
@@ -95,7 +95,7 @@ export type CountedEvent = {
  * undefined when not cached, and stays so.
  */
 export type VerificationCaches<
-  E extends CountedEvent,
+  E extends VerificationEvent,
   C extends { id: number; status: ContributionStatus },
 > = {
   events: readonly E[] | undefined
@@ -110,7 +110,7 @@ export type VerificationCaches<
  * VERIFIED adds the amount to its Event summary, leaving VERIFIED takes it out.
  */
 export function applyStatusChange<
-  E extends CountedEvent,
+  E extends VerificationEvent,
   C extends { id: number; status: ContributionStatus },
 >(
   state: VerificationCaches<E, C>,
@@ -121,7 +121,7 @@ export function applyStatusChange<
     (change.to === status ? 1 : 0) - (change.from === status ? 1 : 0)
   const paid = delta('PAID')
   const verified = delta('VERIFIED')
-  const update = (event: E): E => {
+  const moveEvent = (event: E): E => {
     if (event.id !== eventId || (paid === 0 && verified === 0)) return event
     const verifiedAmount = sumMoney([event.summary.verifiedAmount, verified * change.amount])
     return {
@@ -138,8 +138,8 @@ export function applyStatusChange<
 
   if (!applies) return state
   return {
-    events: state.events?.map(update),
-    event: state.event && update(state.event),
+    events: state.events?.map(moveEvent),
+    event: state.event && moveEvent(state.event),
     contributions: state.contributions?.map(contribution),
   }
 }

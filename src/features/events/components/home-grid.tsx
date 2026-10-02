@@ -1,13 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native'
 
 import { Glass, PressableGlass, SkeletonBlock } from '@/shared/components/ui'
-import { formatMoney, formatWholeMoney } from '@/shared/domain/money'
+import { formatMoney } from '@/shared/domain/money'
 import { colors, fonts, radii } from '@/shared/theme'
 
-import type { HomeSummary } from '../home-summary'
-
-/** One currency (BRL) for now. */
-const CURRENCY = 'BRL'
+import { HOME_CURRENCY, type HomeSummary } from '../home-summary'
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 
@@ -32,10 +29,10 @@ function cards({ active, archived, rsvps, verified, registryItems }: HomeSummary
     },
     {
       label: 'VERIFICADO',
-      // Whole reais fit half the screen; the label keeps the centavos.
-      value: formatWholeMoney(verified, CURRENCY),
+      // Always with centavos, like every amount in the app; the font shrinks if it doesn't fit.
+      value: formatMoney(verified, HOME_CURRENCY),
       subtitle: 'em contribuições',
-      accessibilityLabel: `${formatMoney(verified, CURRENCY)} verificados em contribuições`,
+      accessibilityLabel: `${formatMoney(verified, HOME_CURRENCY)} verificados em contribuições`,
     },
     {
       label: 'PRESENTES',

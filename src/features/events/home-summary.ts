@@ -3,7 +3,10 @@ import { sumMoney } from '@/shared/domain/money'
 
 import type { Event } from './schemas'
 
-type Summed = { status: EventStatus; summary: Event['summary'] }
+/** Início's amounts: one currency for now, so the verified amounts add up as is. */
+export const HOME_CURRENCY = 'BRL'
+
+type SummedEvent = { status: EventStatus; summary: Event['summary'] }
 
 /** Início's numbers: the active Events' Event summaries added up, and how many are archived. */
 export type HomeSummary = {
@@ -16,11 +19,11 @@ export type HomeSummary = {
 
 /**
  * Início's grid, from the Events list (ADR-0003): every number is about the active Events; the
- * archived ones are only counted. One currency (BRL) for now, so the verified amounts add up as is.
+ * archived ones are only counted.
  */
-export function homeSummary(events: readonly Summed[]): HomeSummary {
+export function homeSummary(events: readonly SummedEvent[]): HomeSummary {
   const active = events.filter((event) => !isArchived(event))
-  const sum = (amount: (event: Summed) => number) =>
+  const sum = (amount: (event: SummedEvent) => number) =>
     active.reduce((total, event) => total + amount(event), 0)
   return {
     active: active.length,

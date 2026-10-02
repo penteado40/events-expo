@@ -1,4 +1,4 @@
-import { formatMoney, formatWholeMoney } from '../money'
+import { formatMoney, sumMoney } from '../money'
 
 // Intl separates "R$" from the amount with a no-break space.
 const nbsp = (text: string) => text.replace(/ /g, ' ')
@@ -19,14 +19,16 @@ describe('formatMoney', () => {
   })
 })
 
-describe('formatWholeMoney', () => {
-  it.each<[number, string]>([
-    [0, 'R$ 0'],
-    [1090, 'R$ 1.090'],
-    // Rounded down: never more than was verified.
-    [1090.99, 'R$ 1.090'],
-    [123456.5, 'R$ 123.456'],
-  ])('%d BRL → %s', (amount, expected) => {
-    expect(formatWholeMoney(amount, 'BRL')).toBe(nbsp(expected))
+describe('sumMoney', () => {
+  it('adds up in centavos, so 0.1 + 0.2 is 0.3', () => {
+    expect(sumMoney([0.1, 0.2])).toBe(0.3)
+  })
+
+  it('takes amounts out, too', () => {
+    expect(sumMoney([650, -450])).toBe(200)
+  })
+
+  it('is zero with nothing to add', () => {
+    expect(sumMoney([])).toBe(0)
   })
 })

@@ -9,7 +9,7 @@ import {
 import {
   applyStatusChange,
   undoStatusChange,
-  type CountedEvent,
+  type VerificationEvent,
   type StatusChange,
   type VerificationOutcome,
 } from '@/shared/domain/contributions'
@@ -32,8 +32,8 @@ type Variables = {
 function patchCaches(client: QueryClient, eventId: number, change: StatusChange) {
   const contributionsKey = eventCollectionKey(eventId, 'contributions')
   const before = {
-    events: client.getQueryData<CountedEvent[]>(eventsKey),
-    event: client.getQueryData<CountedEvent>(eventKey(eventId)),
+    events: client.getQueryData<VerificationEvent[]>(eventsKey),
+    event: client.getQueryData<VerificationEvent>(eventKey(eventId)),
     contributions: client.getQueryData<Contribution[]>(contributionsKey),
   }
   const after = applyStatusChange(before, eventId, change)

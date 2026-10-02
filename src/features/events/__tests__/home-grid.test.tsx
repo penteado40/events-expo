@@ -28,7 +28,7 @@ describe('HomeGrid', () => {
     expect(screen.getByText('EVENTOS ATIVOS')).toBeOnTheScreen()
     expect(screen.getByText('4')).toBeOnTheScreen()
     expect(screen.getByText('15')).toBeOnTheScreen()
-    expect(screen.getByText(nbsp('R$ 1.960'))).toBeOnTheScreen()
+    expect(screen.getByText(nbsp('R$ 1.960,50'))).toBeOnTheScreen()
     expect(screen.getByText('12')).toBeOnTheScreen()
     expect(screen.getByText('nos eventos ativos')).toBeOnTheScreen()
     expect(screen.getByText('em contribuições')).toBeOnTheScreen()

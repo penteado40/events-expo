@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import {
   verifiedAmount,
   type ContributionStatus,
-  type CountedEvent,
+  type VerificationEvent,
 } from '@/shared/domain/contributions'
 import { ApiError } from '@/shared/lib/api-error'
 import { eventCollectionKey, eventKey, eventsKey } from '@/shared/lib/query-keys'
@@ -55,11 +55,11 @@ afterEach(() => jest.restoreAllMocks())
 
 /** What the screen shows: Início's "Verificado", the Event's dot/chip count and Conferir's "Verificado". */
 const screen = () => ({
-  home: (client.getQueryData<CountedEvent[]>(eventsKey) ?? []).reduce(
+  home: (client.getQueryData<VerificationEvent[]>(eventsKey) ?? []).reduce(
     (total, event) => total + event.summary.verifiedAmount,
     0,
   ),
-  badge: client.getQueryData<CountedEvent>(eventKey(12))?.paidContributionCount,
+  badge: client.getQueryData<VerificationEvent>(eventKey(12))?.paidContributionCount,
   verified: verifiedAmount(client.getQueryData<Contribution[]>(contributionsKey) ?? []),
 })
 

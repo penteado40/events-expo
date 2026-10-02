@@ -3,16 +3,17 @@ import { useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Glass, QueryError } from '@/shared/components/ui'
+import { QueryError } from '@/shared/components/ui'
 import { isSuperAdmin } from '@/shared/domain/roles'
 import { useSession } from '@/shared/session'
-import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
+import { colors, fonts, spacing, textStyles } from '@/shared/theme'
 
 import { useEvents } from '../hooks/use-events'
 import type { Event } from '../schemas'
 import type { DetailTab } from '../detail-tab'
 import { EventCard } from './event-card'
 import { EventsSkeleton } from './events-skeleton'
+import { NoEvents } from './no-events'
 
 /** Eventos: the Events the viewer can see, a card per Event. */
 export function EventsScreen() {
@@ -57,7 +58,7 @@ export function EventsScreen() {
       ) : events.isError && !events.data ? (
         <QueryError message={events.error.message} onRetry={() => events.refetch()} />
       ) : events.data.length === 0 ? (
-        <EmptyState />
+        <NoEvents superAdmin={superAdmin} />
       ) : (
         <EventList
           events={events.data}
@@ -89,16 +90,6 @@ function EventList({
   )
 }
 
-/** A User who is a member of no Event: why the list is empty. */
-function EmptyState() {
-  return (
-    <Glass variant="card" radius={radii.eventCard} contentStyle={styles.empty}>
-      <Text style={styles.emptyTitle}>Nenhum evento ainda.</Text>
-      <Text style={styles.emptyText}>Um Super admin precisa te adicionar como membro.</Text>
-    </Glass>
-  )
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { paddingHorizontal: spacing.screen, paddingBottom: spacing.tabBarClearance, gap: 14 },
@@ -109,7 +100,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   scope: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted },
-  empty: { paddingVertical: 20, paddingHorizontal: 18, gap: 6 },
-  emptyTitle: { fontFamily: fonts.sans500, fontSize: 17, color: colors.text },
-  emptyText: { fontFamily: fonts.sans400, fontSize: 14, lineHeight: 20, color: colors.textMuted },
 })
