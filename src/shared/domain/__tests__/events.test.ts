@@ -3,6 +3,7 @@ import {
   canSeeGuests,
   formatEventDate,
   formatEventDay,
+  formatEventDayTime,
   pendingTotal,
   sortEvents,
   type EventStatus,
@@ -93,5 +94,15 @@ describe('formatEventDay', () => {
     ['2026-09-26T02:30:00.000Z', 'Europe/Lisbon', '26/09'],
   ])('%s in %s → %s', (iso, timezone, expected) => {
     expect(formatEventDay(iso, timezone)).toBe(expected)
+  })
+})
+
+describe('formatEventDayTime', () => {
+  it.each([
+    ['2026-09-27T00:14:00.000Z', 'America/Sao_Paulo', '26/09 21:14'],
+    ['2026-09-26T13:02:00.000Z', 'America/Sao_Paulo', '26/09 10:02'],
+    ['2026-09-26T13:02:00.000Z', 'Europe/Lisbon', '26/09 14:02'],
+  ])('%s in %s → %s', (iso, timezone, expected) => {
+    expect(formatEventDayTime(iso, timezone)).toBe(expected)
   })
 })

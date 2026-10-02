@@ -19,6 +19,10 @@ const forbidden = () => new ApiError('FORBIDDEN', 'Você não tem permissão par
 export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
 
 const LISTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED', 'REJECTED']
+const COUNTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED']
+
+const listedContributions = (event: EventRow) =>
+  event.contributions.filter((c) => LISTED_CONTRIBUTIONS.includes(c.status))
 
 const loginBody = z.object({ email: z.email(), password: z.string().min(1) })
 
@@ -157,18 +161,40 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       return eventWithGuests(requester, eventId).event.rsvps
     },
 
-    /** `GET /events/:id/registry-items`: no Guest data, so visible on archived Events too. */
+    /**
+     * `GET /events/:id/registry-items`: no Guest data, so visible on archived Events too. Each item
+     * counts its Contributions a Guest marked paid and nobody rejected (`PAID` + `VERIFIED`).
+     */
     async listRegistryItems(requester: User | null, eventId: number) {
       await delay()
-      return visibleEvent(requester, eventId).event.registryItems
+      const { event } = visibleEvent(requester, eventId)
+      return event.registryItems.map((item) => ({
+        ...item,
+        contributionCount: event.contributions.filter(
+          (c) => c.registryItemId === item.id && COUNTED_CONTRIBUTIONS.includes(c.status),
+        ).length,
+      }))
     },
 
-    /** `GET /events/:id/contributions`: only the ones a Guest marked paid, and their outcome. */
+    /**
+     * `GET /events/:id/contributions`: only the ones a Guest marked paid, and their outcome. Guest
+     * data, so FORBIDDEN to an archived Event's non-Owners.
+     */
     async listContributions(requester: User | null, eventId: number) {
       await delay()
-      return visibleEvent(requester, eventId).event.contributions.filter((c) =>
-        LISTED_CONTRIBUTIONS.includes(c.status),
-      )
+      return listedContributions(eventWithGuests(requester, eventId).event)
+    },
+
+    /**
+     * `GET /events/:id/contributions/:cid/receipt`: a short-lived URL to the Receipt. NOT_FOUND
+     * without a Receipt, or for a Contribution the members' list doesn't have.
+     */
+    async getReceiptUrl(requester: User | null, eventId: number, contributionId: number) {
+      await delay()
+      const { event } = eventWithGuests(requester, eventId)
+      const contribution = listedContributions(event).find((c) => c.id === contributionId)
+      if (!contribution?.hasReceipt) throw notFound()
+      return { url: `https://picsum.photos/seed/receipt-${contribution.id}/600/900` }
     },
 
     /** A sample User by id (e.g. the ones "Modo demo" enters as). */

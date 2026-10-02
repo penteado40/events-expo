@@ -39,6 +39,20 @@ export function formatEventDay(iso: string, timezone: string): string {
   }).format(new Date(iso))
 }
 
+/** `dd/mm HH:MM` in the Event's timezone: when a Guest marked a Contribution paid (the sheet). */
+export function formatEventDayTime(iso: string, timezone: string): string {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value
+  return `${part('day')}/${part('month')} ${part('hour')}:${part('minute')}`
+}
+
 export const isArchived = (event: { status: EventStatus }) => event.status === 'ARCHIVED'
 
 /** What decides who sees an Event's Guest data: its status and the viewer's Membership. */

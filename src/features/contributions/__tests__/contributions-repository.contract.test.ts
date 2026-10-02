@@ -32,6 +32,8 @@ const implementations: [string, CreateRepository][] = [
 
 const SUPER_ADMIN = 1
 const CLAUDIA = 7
+const OTAVIO = 8
+const OFFSITE_KORA = 9 // archived: Cláudia is its Owner, Otávio its Manager
 
 describe.each(implementations)('ContributionsRepository contract (%s)', (_, createRepository) => {
   const as = (userId: number) => createRepository(userId)
@@ -56,6 +58,7 @@ describe.each(implementations)('ContributionsRepository contract (%s)', (_, crea
       expect(contributions[0]).toEqual({
         id: 301,
         guestName: 'Beatriz Nogueira',
+        registryItemId: 121,
         amount: 450,
         status: 'PAID',
         paidAt: '2026-09-27T00:14:00.000Z',
@@ -71,6 +74,15 @@ describe.each(implementations)('ContributionsRepository contract (%s)', (_, crea
       await expect(as(SUPER_ADMIN).list(16)).resolves.toEqual([])
     })
 
+    it("keeps an archived Event's Contributions for its Owners and the Super admin", async () => {
+      await expect(as(CLAUDIA).list(OFFSITE_KORA)).resolves.toEqual([])
+      await expect(as(SUPER_ADMIN).list(OFFSITE_KORA)).resolves.toEqual([])
+    })
+
+    it("refuses an archived Event's Contributions to a Manager with FORBIDDEN", async () => {
+      await expect(as(OTAVIO).list(OFFSITE_KORA)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+
     it('refuses a non-member with FORBIDDEN, even for a missing Event', async () => {
       await expect(as(CLAUDIA).list(16)).rejects.toMatchObject({ code: 'FORBIDDEN' })
       await expect(as(CLAUDIA).list(999)).rejects.toMatchObject({ code: 'FORBIDDEN' })
@@ -84,6 +96,37 @@ describe.each(implementations)('ContributionsRepository contract (%s)', (_, crea
       await expect(createRepository(null).list(12)).rejects.toMatchObject({
         code: 'UNAUTHENTICATED',
       })
+    })
+  })
+
+  describe('getReceiptUrl(eventId, contributionId)', () => {
+    it('gives a member a URL to the Receipt of a Contribution that has one', async () => {
+      const url = await as(CLAUDIA).getReceiptUrl(12, 301)
+
+      expect(url).toMatch(/^https:\/\//)
+    })
+
+    it('gives a Viewer the Receipt too (it is visible to every member)', async () => {
+      await expect(as(CLAUDIA).getReceiptUrl(15, 412)).resolves.toMatch(/^https:\/\//)
+    })
+
+    it('answers NOT_FOUND for a Contribution without a Receipt', async () => {
+      await expect(as(CLAUDIA).getReceiptUrl(12, 302)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it("answers NOT_FOUND for a Contribution the members' list doesn't have", async () => {
+      await expect(as(CLAUDIA).getReceiptUrl(12, 304)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+      await expect(as(CLAUDIA).getReceiptUrl(12, 999)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it("refuses an archived Event's Receipts to a Manager with FORBIDDEN", async () => {
+      await expect(as(OTAVIO).getReceiptUrl(OFFSITE_KORA, 1)).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      })
+    })
+
+    it('refuses a non-member with FORBIDDEN', async () => {
+      await expect(as(CLAUDIA).getReceiptUrl(16, 301)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     })
   })
 })

@@ -11,6 +11,7 @@ export type MemberRow = { userId: number; role: EventRole; isPrimaryOwner: boole
 export type ContributionRow = {
   id: number
   guestName: string
+  registryItemId: number
   amount: number
   status: ContributionStatus
   /** Null until the Guest marks it paid (PENDING, ABANDONED). */
@@ -18,17 +19,8 @@ export type ContributionRow = {
   hasReceipt: boolean
 }
 
-/**
- * `contributionCount` is fixed from the prototype (the API counts `PAID` + `VERIFIED`) until
- * Contributions carry their `registryItemId`.
- */
-export type RegistryItemRow = {
-  id: number
-  name: string
-  price: number
-  imageUrl: string | null
-  contributionCount: number
-}
+/** The API counts each item's Contributions (`contributionCount`) from the Contributions. */
+export type RegistryItemRow = { id: number; name: string; price: number; imageUrl: string | null }
 
 /** A Guest's confirmation: there's no RSVP for not going (events-api ADR-0015). */
 export type RsvpRow = { name: string; email: string; createdAt: string }
@@ -105,11 +97,12 @@ const member = (userId: number, role: EventRole, isPrimaryOwner = false): Member
 const contribution = (
   id: number,
   guestName: string,
+  registryItemId: number,
   amount: number,
   paidAt: string | null,
   hasReceipt: boolean,
   status: ContributionRow['status'],
-): ContributionRow => ({ id, guestName, amount, paidAt, hasReceipt, status })
+): ContributionRow => ({ id, guestName, registryItemId, amount, paidAt, hasReceipt, status })
 
 /**
  * An RSVP from the prototype: its `dd/mm` (2026) becomes noon in São Paulo. The prototype's "não
@@ -125,7 +118,6 @@ const registryItem = (
   id: number,
   name: string,
   price: number,
-  contributionCount: number,
   image: 'seed' | 'missing' | null = 'seed',
 ): RegistryItemRow => {
   const slug = name
@@ -139,7 +131,7 @@ const registryItem = (
       : image === 'missing'
         ? `https://picsum.photos/missing/${slug}.jpg`
         : null
-  return { id, name, price, imageUrl, contributionCount }
+  return { id, name, price, imageUrl }
 }
 
 type EventSeed = Pick<
@@ -193,22 +185,22 @@ const EVENTS: EventRow[] = [
       rsvp('Helena Costa', 'helena.costa@gmail.com', '15/09'),
     ],
     registryItems: [
-      registryItem(121, 'Jantar na lua de mel', 450, 3),
-      registryItem(122, 'Jogo de panelas', 890, 1),
-      registryItem(123, 'Passeio de barco em Ilhabela', 620, 2),
-      registryItem(124, 'Cafeteira espresso', 1290, 0, null),
-      registryItem(125, 'Cota da viagem', 200, 11),
+      registryItem(121, 'Jantar na lua de mel', 450),
+      registryItem(122, 'Jogo de panelas', 890),
+      registryItem(123, 'Passeio de barco em Ilhabela', 620),
+      registryItem(124, 'Cafeteira espresso', 1290, null),
+      registryItem(125, 'Cota da viagem', 200),
     ],
     contributions: [
-      contribution(301, 'Beatriz Nogueira', 450, '2026-09-27T00:14:00.000Z', true, 'PAID'),
-      contribution(302, 'Carlos Menezes', 200, '2026-09-26T13:02:00.000Z', false, 'PAID'),
-      contribution(303, 'Helena Costa', 620, '2026-09-25T22:40:00.000Z', true, 'PAID'),
-      contribution(298, 'Eduardo Tavares', 200, '2026-09-21T11:30:00.000Z', true, 'VERIFIED'),
-      contribution(295, 'Fernanda Ruiz', 890, '2026-09-19T18:12:00.000Z', true, 'VERIFIED'),
-      contribution(290, 'Gustavo Leal', 450, '2026-09-17T15:00:00.000Z', false, 'REJECTED'),
+      contribution(301, 'Beatriz Nogueira', 121, 450, '2026-09-27T00:14:00.000Z', true, 'PAID'),
+      contribution(302, 'Carlos Menezes', 125, 200, '2026-09-26T13:02:00.000Z', false, 'PAID'),
+      contribution(303, 'Helena Costa', 123, 620, '2026-09-25T22:40:00.000Z', true, 'PAID'),
+      contribution(298, 'Eduardo Tavares', 125, 200, '2026-09-21T11:30:00.000Z', true, 'VERIFIED'),
+      contribution(295, 'Fernanda Ruiz', 122, 890, '2026-09-19T18:12:00.000Z', true, 'VERIFIED'),
+      contribution(290, 'Gustavo Leal', 121, 450, '2026-09-17T15:00:00.000Z', false, 'REJECTED'),
       // Never marked paid: the API keeps them out of the members' list.
-      contribution(304, 'Igor Santos', 300, null, false, 'PENDING'),
-      contribution(296, 'Daniela Prado', 150, null, false, 'ABANDONED'),
+      contribution(304, 'Igor Santos', 125, 300, null, false, 'PENDING'),
+      contribution(296, 'Daniela Prado', 125, 150, null, false, 'ABANDONED'),
     ],
   }),
   event({
@@ -227,12 +219,12 @@ const EVENTS: EventRow[] = [
       rsvp('Sônia Martins', 'sonia.m@terra.com.br', '19/09'),
     ],
     registryItems: [
-      registryItem(151, 'Carrinho de bebê', 1800, 0),
-      registryItem(152, 'Kit fraldas M', 180, 6, 'missing'),
+      registryItem(151, 'Carrinho de bebê', 1800),
+      registryItem(152, 'Kit fraldas M', 180, 'missing'),
     ],
     contributions: [
-      contribution(412, 'Marina Alves', 180, '2026-09-24T12:20:00.000Z', true, 'PAID'),
-      contribution(413, 'Tatiane Rocha', 180, '2026-09-22T21:45:00.000Z', false, 'PAID'),
+      contribution(412, 'Marina Alves', 152, 180, '2026-09-24T12:20:00.000Z', true, 'PAID'),
+      contribution(413, 'Tatiane Rocha', 152, 180, '2026-09-22T21:45:00.000Z', false, 'PAID'),
     ],
   }),
   event({
@@ -251,12 +243,12 @@ const EVENTS: EventRow[] = [
       rsvp('Paula Reis', 'paula.reis@gmail.com', '20/09'),
     ],
     registryItems: [
-      registryItem(141, 'Garrafa de single malt', 520, 1),
-      registryItem(142, 'Cota do churrasco', 100, 4),
+      registryItem(141, 'Garrafa de single malt', 520),
+      registryItem(142, 'Cota do churrasco', 100),
     ],
     contributions: [
-      contribution(388, 'Tiago Moura', 100, '2026-09-26T01:10:00.000Z', false, 'PAID'),
-      contribution(380, 'Rodrigo Pires', 520, '2026-09-20T14:00:00.000Z', true, 'VERIFIED'),
+      contribution(388, 'Tiago Moura', 142, 100, '2026-09-26T01:10:00.000Z', false, 'PAID'),
+      contribution(380, 'Rodrigo Pires', 141, 520, '2026-09-20T14:00:00.000Z', true, 'VERIFIED'),
     ],
   }),
   event({

@@ -56,9 +56,18 @@ describe.each(implementations)('RegistryRepository contract (%s)', (_, createRep
           name: 'Cota do churrasco',
           price: 100,
           imageUrl: 'https://picsum.photos/seed/cota-do-churrasco/96',
-          contributionCount: 4,
+          contributionCount: 1,
         },
       ])
+    })
+
+    it('counts the PAID and VERIFIED Contributions of each item, not the others', async () => {
+      const items = await as(CLAUDIA).list(12)
+      const count = (name: string) => items.find((i) => i.name === name)?.contributionCount
+
+      expect(count('Jantar na lua de mel')).toBe(1) // one PAID, one REJECTED
+      expect(count('Cota da viagem')).toBe(2) // PAID, VERIFIED, PENDING and ABANDONED
+      expect(count('Cafeteira espresso')).toBe(0)
     })
 
     it('sends a Registry item without an image as null', async () => {

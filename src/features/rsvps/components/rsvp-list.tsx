@@ -1,6 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native'
 
-import { EmptyText, Glass, Notice, QueryError, SkeletonBlock } from '@/shared/components/ui'
+import {
+  ArchivedGuestsNotice,
+  EmptyText,
+  Glass,
+  QueryError,
+  SkeletonBlock,
+} from '@/shared/components/ui'
 import { canSeeGuests, formatEventDay, type GuestDataScope } from '@/shared/domain/events'
 import { colors, fonts, radii, textStyles } from '@/shared/theme'
 
@@ -15,7 +21,7 @@ type Props = { event: { id: number; timezone: string } & GuestDataScope }
 export function RsvpList({ event }: Props) {
   const rsvps = useRsvps(event)
 
-  if (!canSeeGuests(event)) return <Notice>ARQUIVADO · só Owners veem os convidados.</Notice>
+  if (!canSeeGuests(event)) return <ArchivedGuestsNotice />
   if (rsvps.isError && !rsvps.data) {
     return <QueryError message={rsvps.error.message} onRetry={() => rsvps.refetch()} />
   }

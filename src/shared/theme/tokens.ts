@@ -49,6 +49,7 @@ export const radii = {
   stat: 22,
   rsvpCard: 20,
   registryCard: 22,
+  contributionCard: 22,
   thumbnail: 14,
   segmentedTabs: 24,
   segmentedTab: 19,

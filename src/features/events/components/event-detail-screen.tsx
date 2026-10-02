@@ -97,7 +97,8 @@ export function EventDetailScreen({ id, ...slots }: Props) {
             <PressableGlass
               variant="pill"
               radius={radii.backButton}
-              onPress={() => router.back()}
+              // Opened by a link with nothing underneath, there's no back: go to the Events list.
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/events'))}
               accessibilityLabel="Voltar"
               contentStyle={styles.back}
             >
