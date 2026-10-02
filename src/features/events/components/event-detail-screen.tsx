@@ -30,13 +30,21 @@ type DetailTab = 'summary' | 'rsvps' | 'registry' | 'contributions'
 /** A tab's content, built by the route from other features (ADR-0001) once the Event loads. */
 type Slot = (event: Event) => ReactNode
 
-type Props = { id: number } & { summary: Slot } & Partial<Record<DetailTab, Slot>>
+type Props = {
+  id: number
+  summary: Slot
+  /**
+   * Above the tabs and pinned with them, whatever the tab and however far the content scrolled
+   * (e.g. a failed Verification). Usually renders nothing.
+   */
+  notice?: ReactNode
+} & Partial<Record<DetailTab, Slot>>
 
 /**
  * The Event detail: top bar, header and sticky segmented tabs over the active tab's content.
  * Pulling refreshes the Event and whatever of it is on screen.
  */
-export function EventDetailScreen({ id, ...slots }: Props) {
+export function EventDetailScreen({ id, notice, ...slots }: Props) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const client = useQueryClient()
@@ -122,20 +130,23 @@ export function EventDetailScreen({ id, ...slots }: Props) {
 
         {!failed && (
           <View style={styles.tabs} onLayout={(e) => setTabsHeight(e.nativeEvent.layout.height)}>
-            <SegmentedTabs
-              active={tab}
-              onChange={selectTab}
-              tabs={[
-                { key: 'summary', label: 'Resumo' },
-                { key: 'rsvps', label: 'RSVPs' },
-                { key: 'registry', label: 'Presentes' },
-                {
-                  key: 'contributions',
-                  label: 'Conferir',
-                  dot: (event.data?.paidContributionCount ?? 0) > 0,
-                },
-              ]}
-            />
+            <View style={styles.stack}>
+              {notice}
+              <SegmentedTabs
+                active={tab}
+                onChange={selectTab}
+                tabs={[
+                  { key: 'summary', label: 'Resumo' },
+                  { key: 'rsvps', label: 'RSVPs' },
+                  { key: 'registry', label: 'Presentes' },
+                  {
+                    key: 'contributions',
+                    label: 'Conferir',
+                    dot: (event.data?.paidContributionCount ?? 0) > 0,
+                  },
+                ]}
+              />
+            </View>
           </View>
         )}
 
@@ -231,6 +242,10 @@ const styles = StyleSheet.create({
   skeleton: { gap: 10 },
   statRow: { flexDirection: 'row', gap: 10 },
   tabs: { paddingHorizontal: spacing.screen, paddingBottom: 14 },
+  // Inside the sticky child: ScrollView moves that child's own style to its sticky wrapper, so a
+  // gap there wouldn't reach the notice. The gap only shows with one: a notice that renders
+  // nothing adds no view.
+  stack: { gap: 14 },
   content: { paddingHorizontal: spacing.screen, gap: 10 },
   soon: { paddingVertical: 20, alignItems: 'center' },
   soonText: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textMuted },

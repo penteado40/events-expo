@@ -11,6 +11,7 @@ export const colors = {
   verified: '#9cc4ff',
   danger: '#ff9a86',
   dangerBorder: 'rgba(255,154,134,.3)',
+  dangerFill: 'rgba(255,154,134,.08)',
   warning: '#f0c24b',
   divider: 'rgba(255,255,255,.08)',
   dividerSheet: 'rgba(255,255,255,.12)',

@@ -5,7 +5,7 @@ import { useSession } from '@/shared/session'
 
 import { createMockContributionsRepository } from './mock'
 import type { ContributionsRepository } from './repository'
-import { contributionListSchema, receiptUrlSchema } from './schemas'
+import { contributionListSchema, contributionSchema, receiptUrlSchema } from './schemas'
 
 export type { ContributionsRepository } from './repository'
 
@@ -19,6 +19,14 @@ export function createHttpContributionsRepository(http: HttpClient): Contributio
           schema: receiptUrlSchema,
         })
       ).url,
+    verify: (eventId, contributionId) =>
+      http.patch(`/events/${eventId}/contributions/${contributionId}/verify`, {
+        schema: contributionSchema,
+      }),
+    reject: (eventId, contributionId) =>
+      http.patch(`/events/${eventId}/contributions/${contributionId}/reject`, {
+        schema: contributionSchema,
+      }),
   }
 }
 
