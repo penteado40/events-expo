@@ -58,7 +58,7 @@ IBM Plex Sans (UI) e IBM Plex Mono (dados, rótulos, valores, endpoints).
 | Título de tela (Eventos, Perfil) | Plex Sans | 600 | 32 |
 | Título do login | Plex Sans | 500 | 34 / 1.12, tracking −.01em |
 | Título do evento (detalhe) | Plex Sans | 600 | 30 / 1.12 |
-| Nome do evento (cartão) | Plex Sans | 500 | 20 / 1.2 |
+| Nome do evento (cartão) | Plex Sans | 500 | 22 / 1.2 |
 | Corpo | Plex Sans | 400–500 | 14–15 |
 | Botões | Plex Sans | 600 primário / 500 | 15–16 |
 | Metadados, rótulos | Plex Mono | 400 | 12–13 |

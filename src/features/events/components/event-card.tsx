@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   body: { alignItems: 'flex-end' },
   details: { flex: 1, gap: 12 },
-  name: { fontFamily: fonts.sans500, fontSize: 20, lineHeight: 24, color: colors.text },
+  name: { fontFamily: fonts.sans500, fontSize: 22, lineHeight: 26, color: colors.text },
   place: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
   chips: { alignItems: 'flex-end', gap: 8 },
   chip: { borderRadius: radii.chip, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9 },
