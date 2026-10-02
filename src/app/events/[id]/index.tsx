@@ -6,18 +6,19 @@ import {
   VerificationError,
   type ContributionEvent,
 } from '@/features/contributions'
-import { EventDetailScreen, SiteCard } from '@/features/events'
+import { EventDetailScreen, parseDetailTab, SiteCard } from '@/features/events'
 import { MembersCard } from '@/features/members'
 import { RegistryList, useRegistryItemNames } from '@/features/registry'
 import { RsvpList, RsvpStats } from '@/features/rsvps'
 
 export default function EventDetailRoute() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>()
   const eventId = Number(id)
 
   return (
     <EventDetailScreen
       id={eventId}
+      initialTab={parseDetailTab(tab)}
       notice={<VerificationError eventId={eventId} />}
       summary={(event) => (
         <>

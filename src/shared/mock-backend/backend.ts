@@ -98,19 +98,21 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     return visible
   }
 
-  // `GET /events` item: the Event, the requester's Membership and the pending Verification count.
+  // `GET /events` item: the Event, the requester's Membership, the pending Verification count and
+  // the Event summary (events-api PROJ-100).
   function eventJson(event: EventRow, membership: Membership | null) {
-    const {
-      members: _members,
-      rsvps: _rsvps,
-      registryItems: _items,
-      contributions,
-      ...fields
-    } = event
+    const { members: _members, rsvps, registryItems, contributions, ...fields } = event
     return {
       ...fields,
       membership,
       paidContributionCount: contributions.filter((c) => c.status === 'PAID').length,
+      summary: {
+        rsvpCount: rsvps.length,
+        verifiedAmount: contributions
+          .filter((c) => c.status === 'VERIFIED')
+          .reduce((sum, c) => sum + c.amount, 0),
+        registryItemCount: registryItems.length,
+      },
     }
   }
 

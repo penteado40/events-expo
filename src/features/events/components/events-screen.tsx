@@ -11,6 +11,7 @@ import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
 
 import { useEvents } from '../hooks/use-events'
 import type { Event } from '../schemas'
+import type { DetailTab } from '../detail-tab'
 import { EventCard } from './event-card'
 import { EventsSkeleton } from './events-skeleton'
 
@@ -61,14 +62,25 @@ export function EventsScreen() {
       ) : (
         <EventList
           events={events.data}
-          onOpen={(id) => router.push({ pathname: '/events/[id]', params: { id } })}
+          onOpen={(id, tab) =>
+            router.push({
+              pathname: '/events/[id]',
+              params: tab === 'summary' ? { id } : { id, tab },
+            })
+          }
         />
       )}
     </ScrollView>
   )
 }
 
-function EventList({ events, onOpen }: { events: Event[]; onOpen: (id: number) => void }) {
+function EventList({
+  events,
+  onOpen,
+}: {
+  events: Event[]
+  onOpen: (id: number, tab: DetailTab) => void
+}) {
   return (
     <>
       <Glass variant="accent" radius={radii.heroCard} contentStyle={styles.hero}>
@@ -79,7 +91,7 @@ function EventList({ events, onOpen }: { events: Event[]; onOpen: (id: number) =
         <Text style={styles.heroCount}>{pendingTotal(events)}</Text>
       </Glass>
       {events.map((event) => (
-        <EventCard key={event.id} event={event} onPress={() => onOpen(event.id)} />
+        <EventCard key={event.id} event={event} onOpen={(tab) => onOpen(event.id, tab)} />
       ))}
     </>
   )

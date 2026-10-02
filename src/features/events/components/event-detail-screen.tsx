@@ -18,6 +18,7 @@ import { roleLabel } from '@/shared/domain/roles'
 import { eventKey } from '@/shared/lib/query-keys'
 import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
 
+import type { DetailTab } from '../detail-tab'
 import { eventTypeLabel, eventVenue } from '../event-place'
 import { useEvent } from '../hooks/use-events'
 import type { Event } from '../schemas'
@@ -25,13 +26,13 @@ import { SegmentedTabs } from './segmented-tabs'
 
 const BACK_SIZE = 44
 
-type DetailTab = 'summary' | 'rsvps' | 'registry' | 'contributions'
-
 /** A tab's content, built by the route from other features (ADR-0001) once the Event loads. */
 type Slot = (event: Event) => ReactNode
 
 type Props = {
   id: number
+  /** The tab it opens on (`?tab=`); changing tabs afterwards doesn't touch the URL. */
+  initialTab?: DetailTab
   summary: Slot
   /**
    * Above the tabs and pinned with them, whatever the tab and however far the content scrolled
@@ -44,12 +45,12 @@ type Props = {
  * The Event detail: top bar, header and sticky segmented tabs over the active tab's content.
  * Pulling refreshes the Event and whatever of it is on screen.
  */
-export function EventDetailScreen({ id, notice, ...slots }: Props) {
+export function EventDetailScreen({ id, initialTab = 'summary', notice, ...slots }: Props) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const client = useQueryClient()
   const event = useEvent(id)
-  const [tab, setTab] = useState<DetailTab>('summary')
+  const [tab, setTab] = useState<DetailTab>(initialTab)
   // Only a pull shows the spinner; background refetches (focus, remount) stay silent.
   const [pulling, setPulling] = useState(false)
 

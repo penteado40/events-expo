@@ -93,11 +93,11 @@ A interface nunca mostra de onde vêm os dados nem detalhes da API (endpoints, h
 - Header: "Eventos" + à direita `{n} · super admin` ou `{n} · seus eventos` (Mono 13, muted).
 - **Hero "Para conferir"** (Card acento, radius 26, padding 18/20): à esquerda "PARA CONFERIR" (Mono 12/500, lima, tracking .06em) e "contribuições marcadas como pagas" (14, 80% branco); à direita o total de Contributions `PAID` em todos os eventos visíveis (Mono 50, lima).
 - Lista de **cartões de evento** (ativos por data, o mais próximo primeiro; arquivados no fim, o mais recente primeiro) (Card, radius 24, padding 16/18, gap 10):
-  - Linha 1: data `dd.mm.aa · HH:MM` e papel (`Owner`, `Manager`, `Viewer`, `Super admin`; + ` · principal` se Primary owner; o papel de membro prevalece, e `Super admin` só aparece onde ele não é membro). Mono 12, muted.
+  - Linha 1: chip `arquivado` (só em evento arquivado; muted, borda `rgba(255,255,255,.18)`) antes da data, data `dd.mm.aa · HH:MM` e papel (`Owner`, `Manager`, `Viewer`, `Super admin`; + ` · principal` se Primary owner; o papel de membro prevalece, e `Super admin` só aparece onde ele não é membro). Mono 12, muted.
   - Nome do evento.
-  - Linha 3: `Tipo · Cidade, UF` (13, muted; a cidade vem do campo `city` do Event, e sem ela só o tipo) e chip à direita: `N pendentes` (lima em `rgba(181,227,90,.16)`, borda `.35`) ou `arquivado` (muted, borda `rgba(255,255,255,.18)`).
+  - Linha 3: `Tipo · Cidade, UF` (13, muted; a cidade vem do campo `city` do Event, e sem ela só o tipo), alinhada com o chip de baixo, e à direita uma coluna de chips (alinhados à direita, gap 6): `N confirmados` / `1 confirmado` sempre, inclusive 0 (Mono 12/500, `#f2f1ee`, fundo `rgba(255,255,255,.08)`, borda `.22`, pressionado `.16`; neutro para não competir com o lima) e, abaixo, `N pendentes` quando houver (lima em `rgba(181,227,90,.16)`, borda `.35`, pressionado `.28`). Não está no protótipo HTML (PROJ-106).
   - Evento arquivado: cartão com opacidade .55.
-- Toque no cartão → Detalhe (aba Resumo).
+- Toque no cartão → Detalhe (aba Resumo); no chip `confirmados` → aba RSVPs; no chip `pendentes` → aba Conferir.
 - Padding inferior de 120 para não ficar sob a tab bar.
 
 ### 3. Detalhe do evento

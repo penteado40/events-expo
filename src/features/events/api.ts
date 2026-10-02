@@ -16,7 +16,7 @@ export function createHttpEventsRepository(http: HttpClient): EventsRepository {
   }
 }
 
-/** The feature's only door to its data. `events` joins LIVE_MODULES once PROJ-67 lands. */
+/** The feature's only door to its data. `events` joins LIVE_MODULES once PROJ-67 and PROJ-100 land. */
 export const eventsRepository = selectRepository<EventsRepository>('events', {
   http: createHttpEventsRepository(apiClient),
   mock: createMockEventsRepository({
