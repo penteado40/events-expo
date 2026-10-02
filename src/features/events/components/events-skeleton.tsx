@@ -43,6 +43,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   heroText: { gap: 8 },
-  card: { paddingVertical: 16, paddingHorizontal: 18, gap: 12 },
+  card: { paddingVertical: 20, paddingHorizontal: 22, gap: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 })

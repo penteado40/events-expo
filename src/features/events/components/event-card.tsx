@@ -12,9 +12,9 @@ import type { Event } from '../schemas'
 const confirmedText = (n: number) => (n === 1 ? '1 confirmado' : `${n} confirmados`)
 const pendingText = (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`)
 
-// The chips are ~24pt tall: reach 44pt outwards, but only 3pt (half the gap) towards the other.
+// The chips are ~24pt tall: reach 44pt outwards, but only 4pt (half the gap) towards the other.
 const OUTER_SLOP = 10
-const INNER_SLOP = 3
+const INNER_SLOP = 4
 const SIDE_SLOP = 8
 
 /**
@@ -143,14 +143,14 @@ function Chip({
 
 const styles = StyleSheet.create({
   archived: { opacity: 0.55 },
-  card: { paddingVertical: 16, paddingHorizontal: 18, gap: 10 },
+  card: { paddingVertical: 20, paddingHorizontal: 22, gap: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   body: { alignItems: 'flex-end' },
-  details: { flex: 1, gap: 10 },
+  details: { flex: 1, gap: 12 },
   name: { fontFamily: fonts.sans500, fontSize: 20, lineHeight: 24, color: colors.text },
   place: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
-  chips: { alignItems: 'flex-end', gap: 6 },
+  chips: { alignItems: 'flex-end', gap: 8 },
   chip: { borderRadius: radii.chip, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9 },
   chipNeutral: { backgroundColor: colors.chipNeutralBg, borderColor: colors.chipNeutralBorder },
   chipNeutralPressed: { backgroundColor: colors.chipNeutralPressedBg },
