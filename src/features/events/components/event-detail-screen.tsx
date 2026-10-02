@@ -34,8 +34,8 @@ type Props = {
   id: number
   summary: Slot
   /**
-   * Between the header and the tabs, whatever the tab (e.g. a failed Verification). Often renders
-   * nothing, so it brings its own space below.
+   * Above the tabs and pinned with them, whatever the tab and however far the content scrolled
+   * (e.g. a failed Verification). Usually renders nothing.
    */
   notice?: ReactNode
 } & Partial<Record<DetailTab, Slot>>
@@ -126,11 +126,11 @@ export function EventDetailScreen({ id, notice, ...slots }: Props) {
               <HeaderSkeleton />
             )}
           </View>
-          <View style={styles.notice}>{notice}</View>
         </View>
 
         {!failed && (
           <View style={styles.tabs} onLayout={(e) => setTabsHeight(e.nativeEvent.layout.height)}>
+            {notice}
             <SegmentedTabs
               active={tab}
               onChange={selectTab}
@@ -236,11 +236,11 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.sans600, fontSize: 30, lineHeight: 34, color: colors.text },
   meta: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted },
   venue: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textSoft },
-  notice: { paddingHorizontal: spacing.screen },
   archived: { marginTop: 4, fontFamily: fonts.mono400, fontSize: 12, color: colors.warning },
   skeleton: { gap: 10 },
   statRow: { flexDirection: 'row', gap: 10 },
-  tabs: { paddingHorizontal: spacing.screen, paddingBottom: 14 },
+  // The gap only shows with a notice: one that renders nothing adds no view.
+  tabs: { paddingHorizontal: spacing.screen, paddingBottom: 14, gap: 10 },
   content: { paddingHorizontal: spacing.screen, gap: 10 },
   soon: { paddingVertical: 20, alignItems: 'center' },
   soonText: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textMuted },

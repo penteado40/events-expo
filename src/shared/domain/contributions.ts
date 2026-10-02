@@ -80,14 +80,15 @@ export const undoStatusChange = ({ contributionId, from, to }: StatusChange): St
   to: from,
 })
 
-type CountedEvent = { id: number; paidContributionCount: number }
+/** An Event as far as a Verification changes it: its count of PAID Contributions. */
+export type CountedEvent = { id: number; paidContributionCount: number }
 
 /**
  * What a Verification changes on screen before the API answers: the Event's list (hero total,
  * card chip), the Event itself ("Conferir" dot, "Para conferir") and its Contributions (Conferir,
  * "Verificado"). Each is undefined when not cached, and stays so.
  */
-export type VerificationState<
+export type VerificationCaches<
   E extends CountedEvent,
   C extends { id: number; status: ContributionStatus },
 > = {
@@ -104,7 +105,11 @@ export type VerificationState<
 export function applyStatusChange<
   E extends CountedEvent,
   C extends { id: number; status: ContributionStatus },
->(state: VerificationState<E, C>, eventId: number, change: StatusChange): VerificationState<E, C> {
+>(
+  state: VerificationCaches<E, C>,
+  eventId: number,
+  change: StatusChange,
+): VerificationCaches<E, C> {
   const delta = (change.to === 'PAID' ? 1 : 0) - (change.from === 'PAID' ? 1 : 0)
   const count = (event: E): E =>
     event.id === eventId && delta !== 0

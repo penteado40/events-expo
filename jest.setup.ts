@@ -18,3 +18,8 @@ beforeEach(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('expo-secure-store').__keychain.clear()
 })
+
+// Reanimated (the UI kit's skeletons and tab bar) needs its native worklets runtime: use its mocks,
+// so component tests can render screens.
+jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'))
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))

@@ -1,9 +1,9 @@
-import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { colors, fonts, radii } from '@/shared/theme'
 
 import { useFailedVerification } from '../hooks/use-verification'
+import { VERIFICATION_OUTCOMES } from '../verification-outcome'
 
 /**
  * The Event detail's banner for a failed Verification, already rolled back: which one, and the
@@ -11,24 +11,22 @@ import { useFailedVerification } from '../hooks/use-verification'
  */
 export function VerificationError({ eventId }: { eventId: number }) {
   const failed = useFailedVerification(eventId)
-  const [dismissed, setDismissed] = useState<number | null>(null)
 
-  if (!failed?.error || !failed.variables || failed.submittedAt === dismissed) return null
+  if (!failed?.error || !failed.variables) return null
   const { contribution, outcome } = failed.variables
-  const verb = outcome === 'VERIFIED' ? 'verificar' : 'rejeitar'
 
   return (
     <View style={styles.box} accessibilityRole="alert">
       <View style={styles.text}>
         <Text style={styles.title}>
-          Não foi possível {verb} a contribuição #{contribution.id}.
+          Não foi possível {VERIFICATION_OUTCOMES[outcome].verb} a contribuição #{contribution.id}.
         </Text>
         <Text style={styles.detail}>
           {failed.error.code} · {failed.error.message}
         </Text>
       </View>
       <Pressable
-        onPress={() => setDismissed(failed.submittedAt)}
+        onPress={failed.dismiss}
         accessibilityRole="button"
         accessibilityLabel="Fechar aviso"
         hitSlop={10}
@@ -50,8 +48,6 @@ const styles = StyleSheet.create({
     borderColor: colors.errorBorder,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    // The Event detail leaves the space below to its notice (it's usually empty).
-    marginBottom: 14,
   },
   text: { flex: 1, gap: 4 },
   title: { fontFamily: fonts.sans400, fontSize: 14, lineHeight: 20, color: colors.errorText },

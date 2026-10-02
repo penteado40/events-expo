@@ -23,11 +23,11 @@ export function createMockContributionsRepository({
         .url,
     verify: async (eventId, contributionId) =>
       contributionSchema.parse(
-        await backend.decideContribution(getRequester(), eventId, contributionId, 'VERIFIED'),
+        await backend.recordVerification(getRequester(), eventId, contributionId, 'VERIFIED'),
       ),
     reject: async (eventId, contributionId) =>
       contributionSchema.parse(
-        await backend.decideContribution(getRequester(), eventId, contributionId, 'REJECTED'),
+        await backend.recordVerification(getRequester(), eventId, contributionId, 'REJECTED'),
       ),
   }
 }

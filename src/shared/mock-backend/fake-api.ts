@@ -71,13 +71,13 @@ export function createFakeApi({
         )
         return json(200, { data: receipt })
       }
-      const [, decisionEventId, decisionId, action] =
+      const [, verificationEventId, verifiedContributionId, action] =
         route.match(/^PATCH \/events\/([^/]+)\/contributions\/([^/]+)\/(verify|reject)$/) ?? []
       if (action === 'verify' || action === 'reject') {
-        const contribution = await backend.decideContribution(
+        const contribution = await backend.recordVerification(
           requester,
-          Number(decisionEventId),
-          Number(decisionId),
+          Number(verificationEventId),
+          Number(verifiedContributionId),
           OUTCOMES[action],
         )
         return json(200, { data: contribution })

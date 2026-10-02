@@ -2,11 +2,12 @@ import { z } from 'zod'
 
 import {
   canVerify,
+  verificationOutcomes,
   type ContributionStatus,
   type VerificationOutcome,
 } from '@/shared/domain/contributions'
 import { canSeeGuests } from '@/shared/domain/events'
-import { isSuperAdmin, type Membership } from '@/shared/domain/roles'
+import { isSuperAdmin, isViewer, type Membership } from '@/shared/domain/roles'
 import { ApiError, internalError, validationError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
 
@@ -28,8 +29,6 @@ const contributionNotPaid = () =>
 
 const LISTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED', 'REJECTED']
 const COUNTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED']
-/** Where each Verification outcome can come from: PAID, or a revision of the other (ADR-0004). */
-const DECIDABLE_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED', 'REJECTED']
 
 const listedContributions = (event: EventRow) =>
   event.contributions.filter((c) => LISTED_CONTRIBUTIONS.includes(c.status))
@@ -212,7 +211,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
      * The role before the state (events-api ADR-0011): a Viewer gets FORBIDDEN, an archived
      * Event's Manager EVENT_ARCHIVED. Asking for the status it already has changes nothing.
      */
-    async decideContribution(
+    async recordVerification(
       requester: User | null,
       eventId: number,
       contributionId: number,
@@ -220,11 +219,12 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     ) {
       await delay()
       const { event, membership } = visibleEvent(requester, eventId)
-      if (membership?.role === 'VIEWER') throw forbidden()
+      if (isViewer(membership)) throw forbidden()
       if (!canVerify({ status: event.status, membership })) throw eventArchived()
       const contribution = event.contributions.find((c) => c.id === contributionId)
       if (!contribution) throw notFound()
-      if (!DECIDABLE_CONTRIBUTIONS.includes(contribution.status)) throw contributionNotPaid()
+      // Nothing to verify until a Guest marks it paid; the status it already has changes nothing.
+      if (verificationOutcomes(contribution.status).length === 0) throw contributionNotPaid()
       // The sample's way to show a failed Verification and its rollback (Demo mode).
       if (FAILING_VERIFICATIONS.includes(contribution.id)) throw internalError()
       contribution.status = outcome

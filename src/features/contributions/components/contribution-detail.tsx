@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import {
@@ -25,6 +25,7 @@ import { contributionStatus } from '../contribution-status'
 import { useContributions } from '../hooks/use-contributions'
 import { useOpenReceipt } from '../hooks/use-open-receipt'
 import { useVerification } from '../hooks/use-verification'
+import { VERIFICATION_OUTCOMES } from '../verification-outcome'
 import { registryItemName, type RegistryItemNames } from '../registry-item-name'
 import type { Contribution } from '../schemas'
 import { ItemName } from './item-name'
@@ -45,6 +46,9 @@ type Props = {
  */
 export function ContributionDetail({ event, contributionId, registryItemNames }: Props) {
   const contributions = useContributions(event)
+  // Once a Verification closes the sheet, it keeps showing the Contribution as it was decided on,
+  // not the optimistic change landing underneath while it animates away.
+  const [closing, setClosing] = useState<Contribution | null>(null)
 
   if (!canSeeGuests(event)) return <ArchivedGuestsNotice />
   if (contributions.isError && !contributions.data) {
@@ -53,7 +57,7 @@ export function ContributionDetail({ event, contributionId, registryItemNames }:
     )
   }
   if (!contributions.data) return <ContributionDetailSkeleton />
-  const contribution = contributions.data.find((c) => c.id === contributionId)
+  const contribution = closing ?? contributions.data.find((c) => c.id === contributionId)
   if (!contribution) return <EmptyText>Contribuição não encontrada.</EmptyText>
 
   return (
@@ -61,6 +65,8 @@ export function ContributionDetail({ event, contributionId, registryItemNames }:
       event={event}
       contribution={contribution}
       itemName={registryItemName(registryItemNames, contribution.registryItemId)}
+      closing={closing !== null}
+      onRecorded={() => setClosing(contribution)}
     />
   )
 }
@@ -70,9 +76,15 @@ type DetailsProps = {
   contribution: Contribution
   /** Undefined while the Registry loads. */
   itemName: string | undefined
+} & VerificationProps
+
+type VerificationProps = {
+  /** A Verification was recorded and the sheet is closing: nothing more to tap. */
+  closing: boolean
+  onRecorded: () => void
 }
 
-function Details({ event, contribution, itemName }: DetailsProps) {
+function Details({ event, contribution, itemName, closing, onRecorded }: DetailsProps) {
   const status = contributionStatus(contribution.status)
   const receipt = useOpenReceipt(event.id, contribution.id)
 
@@ -115,7 +127,14 @@ function Details({ event, contribution, itemName }: DetailsProps) {
       {contribution.status === 'PAID' && isViewer(event.membership) && (
         <Notice>Viewers não fazem a conferência.</Notice>
       )}
-      {canVerify(event) && <Verification event={event} contribution={contribution} />}
+      {canVerify(event) && (
+        <Verification
+          event={event}
+          contribution={contribution}
+          closing={closing}
+          onRecorded={onRecorded}
+        />
+      )}
     </>
   )
 }
@@ -125,13 +144,18 @@ function Details({ event, contribution, itemName }: DetailsProps) {
  * discreet link to revise it to the other outcome. Rejecting asks first. Each closes the sheet at
  * once: the screen underneath updates optimistically, and a failure shows on the Event detail.
  */
-function Verification({ event, contribution }: { event: DetailEvent; contribution: Contribution }) {
-  const verify = useVerification(event.id)
+function Verification({
+  event,
+  contribution,
+  closing,
+  onRecorded,
+}: { event: DetailEvent; contribution: Contribution } & VerificationProps) {
+  const recordVerification = useVerification(event.id)
   const closeSheet = useCloseSheet()
-  const outcomes = verificationOutcomes(contribution.status)
 
   const decide = (outcome: VerificationOutcome) => {
-    verify(contribution, outcome)
+    onRecorded()
+    recordVerification(contribution, outcome)
     closeSheet()
   }
   const confirmReject = () => {
@@ -153,6 +177,7 @@ function Verification({ event, contribution }: { event: DetailEvent; contributio
       <View style={styles.buttons}>
         <Pressable
           onPress={confirmReject}
+          disabled={closing}
           accessibilityRole="button"
           style={({ pressed }) => [styles.button, styles.reject, pressed && styles.pressed]}
         >
@@ -160,6 +185,7 @@ function Verification({ event, contribution }: { event: DetailEvent; contributio
         </Pressable>
         <Pressable
           onPress={() => decide('VERIFIED')}
+          disabled={closing}
           accessibilityRole="button"
           style={({ pressed }) => [styles.button, styles.verify, pressed && styles.pressed]}
         >
@@ -169,20 +195,17 @@ function Verification({ event, contribution }: { event: DetailEvent; contributio
     )
   }
 
-  const [revision] = outcomes
+  const [revision] = verificationOutcomes(contribution.status)
   if (!revision) return null
   return (
     <Pressable
-      onPress={revision === 'REJECTED' ? confirmReject : () => decide('VERIFIED')}
+      onPress={revision === 'REJECTED' ? confirmReject : () => decide(revision)}
+      disabled={closing}
       accessibilityRole="button"
       hitSlop={8}
       style={styles.revise}
     >
-      <Text style={styles.reviseText}>
-        {revision === 'REJECTED'
-          ? 'rever · marcar como rejeitada'
-          : 'rever · marcar como verificada'}
-      </Text>
+      <Text style={styles.reviseText}>{VERIFICATION_OUTCOMES[revision].revision}</Text>
     </Pressable>
   )
 }
@@ -238,7 +261,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderColor: colors.errorBorder,
-    backgroundColor: 'rgba(255,154,134,.08)',
+    backgroundColor: colors.dangerFill,
   },
   rejectText: { fontFamily: fonts.sans500, fontSize: 15, color: colors.danger },
   verify: {

@@ -9,6 +9,7 @@ import {
 import {
   applyStatusChange,
   undoStatusChange,
+  type CountedEvent,
   type StatusChange,
   type VerificationOutcome,
 } from '@/shared/domain/contributions'
@@ -17,14 +18,12 @@ import { eventCollectionKey, eventKey, eventsKey } from '@/shared/lib/query-keys
 
 import { contributionsRepository } from '../api'
 import type { Contribution } from '../schemas'
+import { VERIFICATION_OUTCOMES } from '../verification-outcome'
 
 /** An Event's Verifications, as mutations: the sheet starts them, the Event detail shows their failure. */
 const verificationKey = (eventId: number) => [...eventKey(eventId), 'verification'] as const
 
 type Variables = { contribution: Pick<Contribution, 'id' | 'status'>; outcome: VerificationOutcome }
-
-/** What the Events list and the Event cache that a Verification changes. */
-type CountedEvent = { id: number; paidContributionCount: number }
 
 /** Applies a status change to every cache on screen that shows it (hero, chip, dot, Conferir). */
 function patchCaches(client: QueryClient, eventId: number, change: StatusChange) {
@@ -41,21 +40,31 @@ function patchCaches(client: QueryClient, eventId: number, change: StatusChange)
   if (after.contributions) client.setQueryData(contributionsKey, after.contributions)
 }
 
+/** The Event's settled Verifications: what a new one replaces, so their failures go with them. */
+const settledVerifications = (client: QueryClient, eventId: number) =>
+  client.getMutationCache().findAll({
+    mutationKey: verificationKey(eventId),
+    predicate: (mutation) => mutation.state.status !== 'pending',
+  })
+
 /**
- * Verifies or rejects a Contribution (or revises the outcome), optimistically: the hero total, the
- * card's chip, the "Conferir" dot and "Verificado" change at once, and a failure rolls them back.
- * Its callbacks outlive the sheet that starts it. Once the last one settles, the Event refetches
- * (the Registry's counts with it), so the screen ends on the API's word.
+ * Records a Verification (or revises one), optimistically: the hero total, the card's chip, the
+ * "Conferir" dot and "Verificado" change at once, and a failure rolls them back. Its callbacks
+ * outlive the sheet that starts it. Once the last one settles, the Event refetches (the Registry's
+ * counts with it), so the screen ends on the API's word.
  */
 export function useVerification(eventId: number) {
   const client = useQueryClient()
   const mutation = useMutation<Contribution, ApiError, Variables, StatusChange>({
     mutationKey: verificationKey(eventId),
+    // Kept until the next Verification or "×": a failure must outlive the sheet, however long.
+    gcTime: Infinity,
     mutationFn: ({ contribution, outcome }) =>
-      outcome === 'VERIFIED'
-        ? contributionsRepository.verify(eventId, contribution.id)
-        : contributionsRepository.reject(eventId, contribution.id),
+      contributionsRepository[VERIFICATION_OUTCOMES[outcome].call](eventId, contribution.id),
     onMutate: async ({ contribution, outcome }) => {
+      settledVerifications(client, eventId).forEach((settled) =>
+        client.getMutationCache().remove(settled),
+      )
       // A refetch landing now would overwrite the optimistic change with the old state.
       await Promise.all([
         client.cancelQueries({ queryKey: eventsKey, exact: true }),
@@ -83,17 +92,32 @@ export function useVerification(eventId: number) {
     mutation.mutate({ contribution, outcome })
 }
 
-type VerificationState = MutationState<Contribution, ApiError, Variables, StatusChange>
+type FailedVerification = {
+  mutationId: number
+  state: MutationState<Contribution, ApiError, Variables, StatusChange>
+}
 
 /**
- * The Event's latest Verification, when it failed: the sheet has closed by then, so the Event
- * detail shows it. The next Verification replaces it, success or not.
+ * The Event's most recent failed Verification since the last one started, if any: the sheet has
+ * closed by then, so the Event detail shows it until `dismiss` or the next Verification.
  */
 export function useFailedVerification(eventId: number) {
-  const states = useMutationState<VerificationState>({
-    filters: { mutationKey: verificationKey(eventId) },
-    select: (mutation) => mutation.state as VerificationState,
+  const client = useQueryClient()
+  const failures = useMutationState<FailedVerification>({
+    filters: { mutationKey: verificationKey(eventId), status: 'error' },
+    select: (mutation) => ({
+      mutationId: mutation.mutationId,
+      // The cache doesn't know this key's types; `useVerification` is its only writer.
+      state: mutation.state as unknown as FailedVerification['state'],
+    }),
   })
-  const latest = states.at(-1)
-  return latest?.status === 'error' ? latest : undefined
+  const latest = failures.at(-1)
+  if (!latest) return undefined
+
+  const dismiss = () => {
+    const cache = client.getMutationCache()
+    const mutation = cache.getAll().find((m) => m.mutationId === latest.mutationId)
+    if (mutation) cache.remove(mutation)
+  }
+  return { ...latest.state, dismiss }
 }
