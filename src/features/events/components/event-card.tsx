@@ -18,8 +18,8 @@ const INNER_SLOP = 3
 const SIDE_SLOP = 8
 
 /**
- * An Event in the list (README "Eventos"): archived chip, date and role; name; city and, stacked on
- * the right, how many Guests confirmed and how many Contributions await Verification. The card
+ * An Event in the list (README "Eventos"): archived chip, date and role; name and city with, stacked
+ * on their right, how many Guests confirmed and how many Contributions await Verification. The card
  * opens Resumo, each chip its tab. A screen reader hears one button with the counts in its label
  * and reaches the chips' tabs through its actions.
  */
@@ -69,11 +69,13 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen: (tab: Detai
         </View>
         <Text style={textStyles.monoCaption}>{roleLabel(event.membership)}</Text>
       </View>
-      <Text style={styles.name}>{event.name}</Text>
-      <View style={[styles.row, styles.bottom]}>
-        <Text style={styles.place} numberOfLines={1}>
-          {eventPlace(event)}
-        </Text>
+      <View style={[styles.row, styles.body]}>
+        <View style={styles.details}>
+          <Text style={styles.name}>{event.name}</Text>
+          <Text style={styles.place} numberOfLines={1}>
+            {eventPlace(event)}
+          </Text>
+        </View>
         <View style={styles.chips}>
           <Chip
             testID="chip-confirmed"
@@ -144,9 +146,10 @@ const styles = StyleSheet.create({
   card: { paddingVertical: 16, paddingHorizontal: 18, gap: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bottom: { alignItems: 'flex-end' },
+  body: { alignItems: 'flex-end' },
+  details: { flex: 1, gap: 10 },
   name: { fontFamily: fonts.sans500, fontSize: 20, lineHeight: 24, color: colors.text },
-  place: { flex: 1, fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
+  place: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
   chips: { alignItems: 'flex-end', gap: 6 },
   chip: { borderRadius: radii.chip, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9 },
   chipNeutral: { backgroundColor: colors.chipNeutralBg, borderColor: colors.chipNeutralBorder },
