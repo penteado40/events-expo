@@ -66,27 +66,35 @@ export function verificationOutcomes(status: ContributionStatus): VerificationOu
   }
 }
 
-/** One Contribution's status change: the optimistic Verification, or its rollback. */
+/** One Contribution's status change (its amount moves "Verificado"): the Verification, or its rollback. */
 export type StatusChange = {
   contributionId: number
+  amount: number
   from: ContributionStatus
   to: ContributionStatus
 }
 
 /** The change that undoes this one (the rollback of a failed Verification). */
-export const undoStatusChange = ({ contributionId, from, to }: StatusChange): StatusChange => ({
-  contributionId,
+export const undoStatusChange = ({ from, to, ...change }: StatusChange): StatusChange => ({
+  ...change,
   from: to,
   to: from,
 })
 
-/** An Event as far as a Verification changes it: its count of PAID Contributions. */
-export type CountedEvent = { id: number; paidContributionCount: number }
+/**
+ * An Event as far as a Verification changes it: its count of PAID Contributions and its Event
+ * summary's verified amount.
+ */
+export type CountedEvent = {
+  id: number
+  paidContributionCount: number
+  summary: { verifiedAmount: number }
+}
 
 /**
- * What a Verification changes on screen before the API answers: the Event's list (hero total,
- * card chip), the Event itself ("Conferir" dot, "Para conferir") and its Contributions (Conferir,
- * "Verificado"). Each is undefined when not cached, and stays so.
+ * What a Verification changes on screen before the API answers: the Event's list (Início, card
+ * chip), the Event itself ("Conferir" dot) and its Contributions (Conferir, "Verificado"). Each is
+ * undefined when not cached, and stays so.
  */
 export type VerificationCaches<
   E extends CountedEvent,
@@ -97,10 +105,13 @@ export type VerificationCaches<
   contributions: readonly C[] | undefined
 }
 
+const toCentavos = (amount: number) => Math.round(amount * 100)
+
 /**
  * The optimistic Verification (and, with `undoStatusChange`, its rollback). The Contribution
- * changes only if it is still in `from`, so a rollback never undoes a later change; the PAID count
- * follows the change: leaving PAID is one less, coming back (a rollback) one more.
+ * changes only if it is still in `from`, so a rollback never undoes a later change. The Event
+ * follows the change: leaving PAID is one less to verify, coming back (a rollback) one more; becoming
+ * VERIFIED adds the amount to its Event summary, leaving VERIFIED takes it out.
  */
 export function applyStatusChange<
   E extends CountedEvent,
@@ -110,11 +121,19 @@ export function applyStatusChange<
   eventId: number,
   change: StatusChange,
 ): VerificationCaches<E, C> {
-  const delta = (change.to === 'PAID' ? 1 : 0) - (change.from === 'PAID' ? 1 : 0)
-  const count = (event: E): E =>
-    event.id === eventId && delta !== 0
-      ? { ...event, paidContributionCount: Math.max(0, event.paidContributionCount + delta) }
-      : event
+  const delta = (status: ContributionStatus) =>
+    (change.to === status ? 1 : 0) - (change.from === status ? 1 : 0)
+  const paid = delta('PAID')
+  const verified = delta('VERIFIED') * toCentavos(change.amount)
+  const update = (event: E): E => {
+    if (event.id !== eventId || (paid === 0 && verified === 0)) return event
+    const centavos = Math.max(0, toCentavos(event.summary.verifiedAmount) + verified)
+    return {
+      ...event,
+      paidContributionCount: Math.max(0, event.paidContributionCount + paid),
+      summary: { ...event.summary, verifiedAmount: centavos / 100 },
+    }
+  }
   const contribution = (c: C): C =>
     c.id === change.contributionId && c.status === change.from ? { ...c, status: change.to } : c
   const applies =
@@ -123,8 +142,8 @@ export function applyStatusChange<
 
   if (!applies) return state
   return {
-    events: state.events?.map(count),
-    event: state.event && count(state.event),
+    events: state.events?.map(update),
+    event: state.event && update(state.event),
     contributions: state.contributions?.map(contribution),
   }
 }
