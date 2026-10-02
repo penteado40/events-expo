@@ -33,6 +33,8 @@ const implementations: [string, CreateRepository][] = [
 const SUPER_ADMIN = 1
 const CLAUDIA = 7
 const NO_EVENTS = 9
+/** Manager of Offsite Kora (9), which is archived. */
+const KORA_MANAGER = 8
 
 describe.each(implementations)('EventsRepository contract (%s)', (_, createRepository) => {
   const as = (userId: number) => createRepository(userId)
@@ -70,6 +72,24 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
         16: 0,
         9: 0,
       })
+    })
+
+    it("sums up each Event: its RSVPs, its VERIFIED Contributions' amount, its Registry items", async () => {
+      const events = await as(SUPER_ADMIN).list()
+
+      expect(Object.fromEntries(events.map((e) => [e.id, e.summary]))).toEqual({
+        12: { rsvpCount: 5, verifiedAmount: 1090, registryItemCount: 5 },
+        15: { rsvpCount: 3, verifiedAmount: 0, registryItemCount: 2 },
+        14: { rsvpCount: 3, verifiedAmount: 520, registryItemCount: 2 },
+        16: { rsvpCount: 1, verifiedAmount: 0, registryItemCount: 0 },
+        9: { rsvpCount: 2, verifiedAmount: 150, registryItemCount: 1 },
+      })
+    })
+
+    it("gives a Manager an archived Event's summary, though not its Guests", async () => {
+      const events = await as(KORA_MANAGER).list()
+
+      expect(events.find((e) => e.id === 9)?.summary.rsvpCount).toBe(2)
     })
 
     it('describes each Event as the API does', async () => {

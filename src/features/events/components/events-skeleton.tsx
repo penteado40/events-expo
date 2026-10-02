@@ -22,7 +22,7 @@ export function EventsSkeleton() {
             <SkeletonBlock width={120} height={12} />
             <SkeletonBlock width={60} height={12} />
           </View>
-          <SkeletonBlock width="70%" height={22} radius={8} />
+          <SkeletonBlock width="70%" height={24} radius={8} />
           <View style={styles.row}>
             <SkeletonBlock width={150} height={13} />
             <SkeletonBlock width={84} height={22} radius={radii.chip} />
@@ -43,6 +43,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   heroText: { gap: 8 },
-  card: { paddingVertical: 16, paddingHorizontal: 18, gap: 12 },
+  card: { paddingVertical: 20, paddingHorizontal: 22, gap: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 })
