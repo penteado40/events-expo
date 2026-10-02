@@ -3,19 +3,19 @@ import { useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Glass, QueryError } from '@/shared/components/ui'
-import { pendingTotal } from '@/shared/domain/events'
+import { QueryError } from '@/shared/components/ui'
 import { isSuperAdmin } from '@/shared/domain/roles'
 import { useSession } from '@/shared/session'
-import { colors, fonts, radii, spacing, textStyles } from '@/shared/theme'
+import { colors, fonts, spacing, textStyles } from '@/shared/theme'
 
 import { useEvents } from '../hooks/use-events'
 import type { Event } from '../schemas'
 import type { DetailTab } from '../detail-tab'
 import { EventCard } from './event-card'
 import { EventsSkeleton } from './events-skeleton'
+import { NoEvents } from './no-events'
 
-/** Eventos: the Events the viewer can see, the "Para conferir" total and a card per Event. */
+/** Eventos: the Events the viewer can see, a card per Event. */
 export function EventsScreen() {
   const insets = useSafeAreaInsets()
   const router = useRouter()
@@ -58,7 +58,7 @@ export function EventsScreen() {
       ) : events.isError && !events.data ? (
         <QueryError message={events.error.message} onRetry={() => events.refetch()} />
       ) : events.data.length === 0 ? (
-        <EmptyState />
+        <NoEvents superAdmin={superAdmin} />
       ) : (
         <EventList
           events={events.data}
@@ -83,27 +83,10 @@ function EventList({
 }) {
   return (
     <>
-      <Glass variant="accent" radius={radii.heroCard} contentStyle={styles.hero}>
-        <View style={styles.heroText}>
-          <Text style={styles.heroLabel}>PARA CONFERIR</Text>
-          <Text style={styles.heroSubtitle}>contribuições marcadas como pagas</Text>
-        </View>
-        <Text style={styles.heroCount}>{pendingTotal(events)}</Text>
-      </Glass>
       {events.map((event) => (
         <EventCard key={event.id} event={event} onOpen={(tab) => onOpen(event.id, tab)} />
       ))}
     </>
-  )
-}
-
-/** A User who is a member of no Event: why the list is empty, and no hero. */
-function EmptyState() {
-  return (
-    <Glass variant="card" radius={radii.eventCard} contentStyle={styles.empty}>
-      <Text style={styles.emptyTitle}>Nenhum evento ainda.</Text>
-      <Text style={styles.emptyText}>Um Super admin precisa te adicionar como membro.</Text>
-    </Glass>
   )
 }
 
@@ -117,24 +100,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   scope: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted },
-  hero: {
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 12,
-  },
-  heroText: { flexShrink: 1, gap: 4 },
-  heroLabel: {
-    fontFamily: fonts.mono500,
-    fontSize: 12,
-    letterSpacing: 0.72,
-    color: colors.accent,
-  },
-  heroSubtitle: { fontFamily: fonts.sans400, fontSize: 14, color: colors.heroSubtitle },
-  heroCount: { fontFamily: fonts.mono500, fontSize: 50, lineHeight: 50, color: colors.accent },
-  empty: { paddingVertical: 20, paddingHorizontal: 18, gap: 6 },
-  emptyTitle: { fontFamily: fonts.sans500, fontSize: 17, color: colors.text },
-  emptyText: { fontFamily: fonts.sans400, fontSize: 14, lineHeight: 20, color: colors.textMuted },
 })

@@ -5,17 +5,10 @@ import { radii } from '@/shared/theme'
 
 const CARDS = 3
 
-/** The first load: glass shaped like the hero and the Event cards, so nothing jumps on arrival. */
+/** The first load: glass shaped like the Event cards, so nothing jumps on arrival. */
 export function EventsSkeleton() {
   return (
     <View style={styles.list} accessibilityLabel="Carregando eventos">
-      <Glass variant="accent" radius={radii.heroCard} contentStyle={styles.hero}>
-        <View style={styles.heroText}>
-          <SkeletonBlock width={110} height={12} />
-          <SkeletonBlock width={210} height={14} />
-        </View>
-        <SkeletonBlock width={44} height={50} radius={12} />
-      </Glass>
       {Array.from({ length: CARDS }, (_, index) => (
         <Glass key={index} variant="card" radius={radii.eventCard} contentStyle={styles.card}>
           <View style={styles.row}>
@@ -35,14 +28,6 @@ export function EventsSkeleton() {
 
 const styles = StyleSheet.create({
   list: { gap: 14 },
-  hero: {
-    paddingVertical: 18,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  heroText: { gap: 8 },
   card: { paddingVertical: 20, paddingHorizontal: 22, gap: 14 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 })

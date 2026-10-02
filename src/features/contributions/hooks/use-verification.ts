@@ -9,7 +9,7 @@ import {
 import {
   applyStatusChange,
   undoStatusChange,
-  type CountedEvent,
+  type VerificationEvent,
   type StatusChange,
   type VerificationOutcome,
 } from '@/shared/domain/contributions'
@@ -23,14 +23,17 @@ import { VERIFICATION_OUTCOMES } from '../verification-outcome'
 /** An Event's Verifications, as mutations: the sheet starts them, the Event detail shows their failure. */
 const verificationKey = (eventId: number) => [...eventKey(eventId), 'verification'] as const
 
-type Variables = { contribution: Pick<Contribution, 'id' | 'status'>; outcome: VerificationOutcome }
+type Variables = {
+  contribution: Pick<Contribution, 'id' | 'status' | 'amount'>
+  outcome: VerificationOutcome
+}
 
-/** Applies a status change to every cache on screen that shows it (hero, chip, dot, Conferir). */
+/** Applies a status change to every cache on screen that shows it (Início, chip, dot, Conferir). */
 function patchCaches(client: QueryClient, eventId: number, change: StatusChange) {
   const contributionsKey = eventCollectionKey(eventId, 'contributions')
   const before = {
-    events: client.getQueryData<CountedEvent[]>(eventsKey),
-    event: client.getQueryData<CountedEvent>(eventKey(eventId)),
+    events: client.getQueryData<VerificationEvent[]>(eventsKey),
+    event: client.getQueryData<VerificationEvent>(eventKey(eventId)),
     contributions: client.getQueryData<Contribution[]>(contributionsKey),
   }
   const after = applyStatusChange(before, eventId, change)
@@ -48,7 +51,7 @@ const settledVerifications = (client: QueryClient, eventId: number) =>
   })
 
 /**
- * Records a Verification (or revises one), optimistically: the hero total, the card's chip, the
+ * Records a Verification (or revises one), optimistically: Início's numbers, the card's chip, the
  * "Conferir" dot and "Verificado" change at once, and a failure rolls them back. Its callbacks
  * outlive the sheet that starts it. Once the last one settles, the Event refetches (the Registry's
  * counts with it), so the screen ends on the API's word.
@@ -71,7 +74,12 @@ export function useVerification(eventId: number) {
         client.cancelQueries({ queryKey: eventKey(eventId), exact: true }),
         client.cancelQueries({ queryKey: eventCollectionKey(eventId, 'contributions') }),
       ])
-      const change = { contributionId: contribution.id, from: contribution.status, to: outcome }
+      const change = {
+        contributionId: contribution.id,
+        amount: contribution.amount,
+        from: contribution.status,
+        to: outcome,
+      }
       patchCaches(client, eventId, change)
       return change
     },

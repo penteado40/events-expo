@@ -9,7 +9,7 @@ import { Glass } from './glass'
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0]
 
-const WIDTH = 220
+const WIDTH = 300
 const PADDING = 5
 const GAP = 4
 

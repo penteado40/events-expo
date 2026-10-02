@@ -5,9 +5,8 @@ import type { ReactNode } from 'react'
 import {
   verifiedAmount,
   type ContributionStatus,
-  type CountedEvent,
+  type VerificationEvent,
 } from '@/shared/domain/contributions'
-import { pendingTotal } from '@/shared/domain/events'
 import { ApiError } from '@/shared/lib/api-error'
 import { eventCollectionKey, eventKey, eventsKey } from '@/shared/lib/query-keys'
 
@@ -37,10 +36,14 @@ const contributionsKey = eventCollectionKey(12, 'contributions')
 beforeEach(() => {
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   client.setQueryData(eventsKey, [
-    { id: 12, paidContributionCount: 2 },
-    { id: 15, paidContributionCount: 2 },
+    { id: 12, paidContributionCount: 2, summary: { verifiedAmount: 200 } },
+    { id: 15, paidContributionCount: 2, summary: { verifiedAmount: 1500 } },
   ])
-  client.setQueryData(eventKey(12), { id: 12, paidContributionCount: 2 })
+  client.setQueryData(eventKey(12), {
+    id: 12,
+    paidContributionCount: 2,
+    summary: { verifiedAmount: 200 },
+  })
   client.setQueryData(contributionsKey, [
     contribution(301, 450, 'PAID'),
     contribution(302, 200, 'PAID'),
@@ -50,10 +53,13 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks())
 
-/** What the screen shows: the hero total, the Event's dot/chip count and "Verificado". */
+/** What the screen shows: Início's "Verificado", the Event's dot/chip count and Conferir's "Verificado". */
 const screen = () => ({
-  hero: pendingTotal(client.getQueryData<CountedEvent[]>(eventsKey) ?? []),
-  badge: client.getQueryData<CountedEvent>(eventKey(12))?.paidContributionCount,
+  home: (client.getQueryData<VerificationEvent[]>(eventsKey) ?? []).reduce(
+    (total, event) => total + event.summary.verifiedAmount,
+    0,
+  ),
+  badge: client.getQueryData<VerificationEvent>(eventKey(12))?.paidContributionCount,
   verified: verifiedAmount(client.getQueryData<Contribution[]>(contributionsKey) ?? []),
 })
 
@@ -74,14 +80,14 @@ const render = () =>
   })
 
 describe('useVerification', () => {
-  it('updates the hero, the badge and "Verificado" before the API answers', async () => {
+  it('updates Início, the badge and "Verificado" before the API answers', async () => {
     const answer = deferred<Contribution>()
     jest.spyOn(contributionsRepository, 'verify').mockReturnValue(answer.promise)
     const { result } = await render()
 
     await act(async () => result.current.record(contribution(301, 450, 'PAID'), 'VERIFIED'))
 
-    await waitFor(() => expect(screen()).toEqual({ hero: 3, badge: 1, verified: 650 }))
+    await waitFor(() => expect(screen()).toEqual({ home: 2150, badge: 1, verified: 650 }))
     await act(async () => answer.resolve(contribution(301, 450, 'VERIFIED')))
   })
 
@@ -94,7 +100,7 @@ describe('useVerification', () => {
     await act(async () => result.current.record(contribution(301, 450, 'PAID'), 'REJECTED'))
 
     await waitFor(() => expect(result.current.failed).toBeDefined())
-    expect(screen()).toEqual({ hero: 4, badge: 2, verified: 200 })
+    expect(screen()).toEqual({ home: 1700, badge: 2, verified: 200 })
     expect(client.getQueryData<Contribution[]>(contributionsKey)?.[0].status).toBe('PAID')
     expect(result.current.failed?.error?.code).toBe('FORBIDDEN')
     expect(result.current.failed?.variables).toMatchObject({
@@ -142,7 +148,7 @@ describe('useVerification', () => {
     await act(async () => result.current.record(contribution(302, 200, 'PAID'), 'VERIFIED'))
     await waitFor(() => expect(result.current.failed).toBeDefined())
 
-    expect(screen()).toEqual({ hero: 3, badge: 1, verified: 650 })
+    expect(screen()).toEqual({ home: 2150, badge: 1, verified: 650 })
     // Still on its way: the failure's settling doesn't refetch it away.
     expect(client.getQueryState(contributionsKey)?.isInvalidated).toBe(false)
     await act(async () => first.resolve(contribution(301, 450, 'VERIFIED')))

@@ -9,7 +9,7 @@ import type { ContributionEvent } from '../contribution-event'
 import { useContributions } from '../hooks/use-contributions'
 
 type Props = {
-  /** `paidContributionCount` is "Para conferir": the same number as the "Conferir" dot and the hero. */
+  /** `paidContributionCount` is "Para conferir": the same number as the "Conferir" dot and the card's chip. */
   event: ContributionEvent & { paidContributionCount: number }
 }
 

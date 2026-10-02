@@ -31,7 +31,6 @@ export const colors = {
   chipNeutralBg: 'rgba(255,255,255,.08)',
   chipNeutralBorder: 'rgba(255,255,255,.22)',
   chipNeutralPressedBg: 'rgba(255,255,255,.16)',
-  heroSubtitle: 'rgba(255,255,255,.8)',
   skeleton: 'rgba(255,255,255,.1)',
   stripeLight: 'rgba(255,255,255,.1)',
   stripeDark: 'rgba(255,255,255,.04)',

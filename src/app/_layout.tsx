@@ -55,7 +55,6 @@ export default function RootLayout() {
                 contentStyle: { backgroundColor: 'transparent' },
               }}
             >
-              <Stack.Screen name="index" />
               <Stack.Protected guard={!signedIn}>
                 <Stack.Screen name="(auth)/login" />
               </Stack.Protected>
