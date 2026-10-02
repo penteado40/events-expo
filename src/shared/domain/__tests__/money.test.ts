@@ -1,4 +1,4 @@
-import { formatMoney } from '../money'
+import { formatMoney, formatWholeMoney } from '../money'
 
 // Intl separates "R$" from the amount with a no-break space.
 const nbsp = (text: string) => text.replace(/ /g, ' ')
@@ -16,5 +16,17 @@ describe('formatMoney', () => {
 
   it('uses the Event’s currency', () => {
     expect(formatMoney(50, 'USD')).toBe(nbsp('US$ 50,00'))
+  })
+})
+
+describe('formatWholeMoney', () => {
+  it.each<[number, string]>([
+    [0, 'R$ 0'],
+    [1090, 'R$ 1.090'],
+    // Rounded down: never more than was verified.
+    [1090.99, 'R$ 1.090'],
+    [123456.5, 'R$ 123.456'],
+  ])('%d BRL → %s', (amount, expected) => {
+    expect(formatWholeMoney(amount, 'BRL')).toBe(nbsp(expected))
   })
 })

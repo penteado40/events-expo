@@ -126,6 +126,12 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
       expect(fromList?.membership).toEqual({ role: 'MANAGER', isPrimaryOwner: false })
     })
 
+    it("gives a Manager an archived Event's summary", async () => {
+      await expect(as(KORA_MANAGER).get(9)).resolves.toMatchObject({
+        summary: { rsvpCount: 2, verifiedAmount: 150, registryItemCount: 1 },
+      })
+    })
+
     it('gives the Super admin any Event, with no Membership', async () => {
       await expect(as(SUPER_ADMIN).get(16)).resolves.toMatchObject({
         name: 'Festa de fim de ano Vera Cruz',
