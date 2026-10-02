@@ -140,18 +140,31 @@ const registryItem = (
   return { id, name, price, imageUrl }
 }
 
+/** Every sample Event's timezone: their dates are local times in São Paulo. */
+const SAMPLE_TIMEZONE = 'America/Sao_Paulo'
+
 type EventSeed = Pick<
   EventRow,
   'id' | 'type' | 'name' | 'slug' | 'siteUrl' | 'startsAt' | 'venueName' | 'city'
 > &
   Partial<
-    Pick<EventRow, 'status' | 'mapsUrl' | 'members' | 'rsvps' | 'registryItems' | 'contributions'>
+    Pick<
+      EventRow,
+      | 'status'
+      | 'mapsUrl'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'members'
+      | 'rsvps'
+      | 'registryItems'
+      | 'contributions'
+    >
   >
 
 const event = (seed: EventSeed): EventRow => ({
   status: 'ACTIVE',
   endsAt: null,
-  timezone: 'America/Sao_Paulo',
+  timezone: SAMPLE_TIMEZONE,
   locale: 'pt-BR',
   currency: 'BRL',
   venueAddress: null,
@@ -166,6 +179,7 @@ const event = (seed: EventSeed): EventRow => ({
 })
 
 // The prototype's EVENTS (docs/design): its local times, stored as UTC for America/Sao_Paulo.
+// These are the dates on SAMPLE_DATE; `createDataset` moves them to the day the mock loads.
 const EVENTS: EventRow[] = [
   event({
     id: 12,
@@ -292,6 +306,91 @@ const EVENTS: EventRow[] = [
   }),
 ]
 
-/** A fresh copy of the sample data, so each backend's writes stay its own. */
-export const createDataset = (): Dataset =>
-  JSON.parse(JSON.stringify({ accounts: ACCOUNTS, events: EVENTS }))
+const HOUR_MS = 3_600_000
+const DAY_MS = 24 * HOUR_MS
+
+/** The day the sample dates above were written for: loaded on it, the mock keeps them as they are. */
+export const SAMPLE_DATE = new Date('2026-10-01T15:00:00.000Z')
+
+/** `YYYY-MM-DD` of a moment in São Paulo. */
+function saoPauloDay(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: SAMPLE_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+
+/** Midnight in São Paulo, which has had no daylight saving time since 2019 (always UTC-3). */
+const startOfSaoPauloDay = (date: Date) => new Date(`${saoPauloDay(date)}T00:00:00.000-03:00`)
+
+/** Whole days from SAMPLE_DATE to `now`, counted on São Paulo's calendar. */
+const daysSinceSampleDate = (now: Date) =>
+  Math.round((Date.parse(saoPauloDay(now)) - Date.parse(saoPauloDay(SAMPLE_DATE))) / DAY_MS)
+
+const shift = (iso: string, ms: number) => new Date(Date.parse(iso) + ms).toISOString()
+
+/** The Event with every date moved by `ms`: whole days keep each one's time of day. */
+const shiftEvent = (row: EventRow, ms: number): EventRow => ({
+  ...row,
+  startsAt: shift(row.startsAt, ms),
+  endsAt: row.endsAt && shift(row.endsAt, ms),
+  createdAt: shift(row.createdAt, ms),
+  updatedAt: shift(row.updatedAt, ms),
+  rsvps: row.rsvps.map((r) => ({ ...r, createdAt: shift(r.createdAt, ms) })),
+  contributions: row.contributions.map((c) => ({ ...c, paidAt: c.paidAt && shift(c.paidAt, ms) })),
+})
+
+/**
+ * Cláudia's birthday, happening when the mock loads: it started 2 h earlier, but never before
+ * today's midnight, since an Event without `endsAt` lasts until the end of its day.
+ */
+function happeningEvent(now: Date): EventRow {
+  const startsAt = Math.max(now.getTime() - 2 * HOUR_MS, startOfSaoPauloDay(now).getTime())
+  const before = (days: number, hours = 0) =>
+    new Date(startsAt - days * DAY_MS - hours * HOUR_MS).toISOString()
+  return event({
+    id: 17,
+    type: 'BIRTHDAY',
+    name: 'Aniversário da Cláudia',
+    slug: 'aniversario-da-claudia',
+    siteUrl: 'https://aniversariodaclaudia.com.br',
+    startsAt: before(0),
+    venueName: 'Empório Alto de Pinheiros',
+    city: 'São Paulo, SP',
+    mapsUrl: 'https://maps.google.com/?q=Emporio+Alto+de+Pinheiros,+Sao+Paulo,+SP',
+    createdAt: before(30),
+    updatedAt: before(30),
+    members: [member(DEMO_USER_ID, 'OWNER', true), member(2, 'VIEWER')],
+    rsvps: [
+      { name: 'Rita Campos', email: 'rita.campos@gmail.com', createdAt: before(1, 4) },
+      { name: 'Bruno Lacerda', email: 'bruno.lacerda@gmail.com', createdAt: before(3, 2) },
+      { name: 'Juliana Prates', email: 'ju.prates@hotmail.com', createdAt: before(5, 6) },
+      { name: 'Vinícius Arantes', email: 'vini.arantes@gmail.com', createdAt: before(8, 1) },
+    ],
+    registryItems: [
+      registryItem(171, 'Vinho do Porto', 280),
+      registryItem(172, 'Kit de jardinagem', 350),
+      registryItem(173, 'Cota do bolo', 120),
+    ],
+    contributions: [
+      contribution(504, 'Rita Campos', 171, 280, before(0, 20), true, 'PAID'),
+      contribution(503, 'Bruno Lacerda', 173, 120, before(2, 5), false, 'PAID'),
+      contribution(502, 'Juliana Prates', 172, 350, before(4, 3), true, 'VERIFIED'),
+      contribution(501, 'Vinícius Arantes', 173, 120, before(7, 2), false, 'REJECTED'),
+    ],
+  })
+}
+
+/**
+ * A fresh copy of the sample data, so each backend's writes stay its own. Its dates are relative to
+ * `now`: the sample Events keep their distance from SAMPLE_DATE, and Cláudia's birthday is on.
+ */
+export function createDataset(now: Date): Dataset {
+  const ms = daysSinceSampleDate(now) * DAY_MS
+  const events = [...EVENTS.map((row) => shiftEvent(row, ms)), happeningEvent(now)]
+  return JSON.parse(JSON.stringify({ accounts: ACCOUNTS, events }))
+}

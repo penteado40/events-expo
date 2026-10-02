@@ -11,7 +11,7 @@ import { isSuperAdmin, isViewer, type Membership } from '@/shared/domain/roles'
 import { ApiError, internalError, validationError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
 
-import { createDataset, FAILING_VERIFICATIONS, type EventRow } from './data'
+import { createDataset, FAILING_VERIFICATIONS, SAMPLE_DATE, type EventRow } from './data'
 
 const TOKEN_PREFIX = 'mock-token-'
 
@@ -35,7 +35,8 @@ const listedContributions = (event: EventRow) =>
 
 const loginBody = z.object({ email: z.email(), password: z.string().min(1) })
 
-type Options = { latencyMs?: number }
+/** `now` dates the sample data: tests pin it to SAMPLE_DATE, so they pass on any day. */
+type Options = { latencyMs?: number; now?: Date }
 
 export type MockBackend = ReturnType<typeof createMockBackend>
 
@@ -48,8 +49,11 @@ export type MockBackend = ReturnType<typeof createMockBackend>
  * User: a Live session's token means nothing here, yet its modules not live yet still use the
  * mock. A User unknown to the sample data is simply a member of no Event.
  */
-export function createMockBackend({ latencyMs = 0 }: Options = {}) {
-  const data = createDataset()
+export function createMockBackend({
+  latencyMs = 0,
+  now = process.env.NODE_ENV === 'test' ? SAMPLE_DATE : new Date(),
+}: Options = {}) {
+  const data = createDataset(now)
   const delay = () => new Promise((resolve) => setTimeout(resolve, latencyMs))
 
   const findUser = (id: number) => data.accounts.find((a) => a.user.id === id)?.user
