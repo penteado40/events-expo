@@ -56,7 +56,12 @@ export function ContributionDetail({ event, contributionId, registryItemNames }:
   )
 }
 
-type DetailsProps = { event: DetailEvent; contribution: Contribution; itemName: string }
+type DetailsProps = {
+  event: DetailEvent
+  contribution: Contribution
+  /** Undefined while the Registry loads. */
+  itemName: string | undefined
+}
 
 function Details({ event, contribution, itemName }: DetailsProps) {
   const status = contributionStatus(contribution.status)
@@ -72,7 +77,13 @@ function Details({ event, contribution, itemName }: DetailsProps) {
 
       <View style={styles.table}>
         <Row label="Convidado" value={contribution.guestName} />
-        <Row label="Presente" value={itemName} />
+        {itemName === undefined ? (
+          <Row label="Presente">
+            <SkeletonBlock width={150} height={14} />
+          </Row>
+        ) : (
+          <Row label="Presente" value={itemName} />
+        )}
         <Row label="Marcada paga" value={formatEventDayTime(contribution.paidAt, event.timezone)} />
         <Row label="Comprovante" last>
           {contribution.hasReceipt ? (

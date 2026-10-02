@@ -78,7 +78,8 @@ export function ContributionList({ event, registryItemNames }: Props) {
 type CardProps = {
   contribution: Contribution
   currency: string
-  itemName: string
+  /** Undefined while the Registry loads. */
+  itemName: string | undefined
   onPress: () => void
 }
 
@@ -99,9 +100,15 @@ function ContributionCard({ contribution, currency, itemName, onPress }: CardPro
         <Text style={styles.amount}>{formatMoney(contribution.amount, currency)}</Text>
       </View>
       <View style={[styles.row, styles.bottomRow]}>
-        <Text style={styles.item} numberOfLines={1}>
-          {itemName}
-        </Text>
+        {itemName === undefined ? (
+          <View style={styles.flex}>
+            <SkeletonBlock width={140} height={11} />
+          </View>
+        ) : (
+          <Text style={styles.item} numberOfLines={1}>
+            {itemName}
+          </Text>
+        )}
         <Text style={[styles.status, { color: status.color }]}>{status.label}</Text>
       </View>
     </PressableGlass>
@@ -130,5 +137,6 @@ const styles = StyleSheet.create({
   amount: { fontFamily: fonts.mono500, fontSize: 16, color: colors.text },
   item: { flex: 1, fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
   bottomRow: { gap: 10 },
+  flex: { flex: 1 },
   status: { fontFamily: fonts.mono400, fontSize: 12 },
 })
