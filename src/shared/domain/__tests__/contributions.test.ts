@@ -1,10 +1,14 @@
 import {
+  applyStatusChange,
   canVerify,
   sortContributions,
+  undoStatusChange,
+  verificationOutcomes,
   verifiedAmount,
   type ContributionStatus,
+  type StatusChange,
 } from '../contributions'
-import type { EventStatus } from '../events'
+import { pendingTotal, type EventStatus } from '../events'
 import type { EventRole } from '../roles'
 
 const c = (amount: number, status: ContributionStatus) => ({ amount, status })
@@ -80,5 +84,117 @@ describe('sortContributions', () => {
     sortContributions(list)
 
     expect(list.map((c) => c.id)).toEqual([1, 2])
+  })
+})
+
+describe('verificationOutcomes', () => {
+  it.each<[ContributionStatus, string[]]>([
+    ['PAID', ['REJECTED', 'VERIFIED']],
+    // A decided one can be revised to the other, never back to PAID.
+    ['VERIFIED', ['REJECTED']],
+    ['REJECTED', ['VERIFIED']],
+    // Not marked paid: nothing to verify.
+    ['PENDING', []],
+    ['ABANDONED', []],
+  ])('%s → %j', (status, outcomes) => {
+    expect(verificationOutcomes(status)).toEqual(outcomes)
+  })
+})
+
+describe('applyStatusChange', () => {
+  // Ana & Rafael (12) and Chá da Júlia (15), as the Events list and Conferir cache them.
+  const state = () => ({
+    events: [
+      { id: 12, paidContributionCount: 3 },
+      { id: 15, paidContributionCount: 2 },
+    ],
+    event: { id: 12, paidContributionCount: 3 },
+    contributions: [
+      { id: 301, amount: 450, status: 'PAID' as ContributionStatus },
+      { id: 298, amount: 200, status: 'VERIFIED' as ContributionStatus },
+      { id: 290, amount: 450, status: 'REJECTED' as ContributionStatus },
+    ],
+  })
+  const screen = (s: ReturnType<typeof state>) => ({
+    hero: pendingTotal(s.events),
+    badge: s.event.paidContributionCount,
+    verified: verifiedAmount(s.contributions),
+  })
+  const apply = (change: StatusChange, before = state()) => {
+    const after = applyStatusChange(before, 12, change)
+    return after as ReturnType<typeof state>
+  }
+
+  it('verifying a PAID one: hero and badge one less, its amount into "Verificado"', () => {
+    const after = apply({ contributionId: 301, from: 'PAID', to: 'VERIFIED' })
+
+    expect(screen(state())).toEqual({ hero: 5, badge: 3, verified: 200 })
+    expect(screen(after)).toEqual({ hero: 4, badge: 2, verified: 650 })
+    expect(after.contributions[0].status).toBe('VERIFIED')
+  })
+
+  it('rejecting a PAID one: hero and badge one less, "Verificado" unchanged', () => {
+    const after = apply({ contributionId: 301, from: 'PAID', to: 'REJECTED' })
+
+    expect(screen(after)).toEqual({ hero: 4, badge: 2, verified: 200 })
+  })
+
+  it('revising leaves the counts and moves only "Verificado"', () => {
+    expect(screen(apply({ contributionId: 290, from: 'REJECTED', to: 'VERIFIED' }))).toEqual({
+      hero: 5,
+      badge: 3,
+      verified: 650,
+    })
+    expect(screen(apply({ contributionId: 298, from: 'VERIFIED', to: 'REJECTED' }))).toEqual({
+      hero: 5,
+      badge: 3,
+      verified: 0,
+    })
+  })
+
+  it('touches only the Event it belongs to', () => {
+    const after = apply({ contributionId: 301, from: 'PAID', to: 'VERIFIED' })
+
+    expect(after.events[1]).toEqual({ id: 15, paidContributionCount: 2 })
+  })
+
+  it('rolls back to exactly where it started', () => {
+    const change: StatusChange = { contributionId: 301, from: 'PAID', to: 'REJECTED' }
+
+    expect(apply(undoStatusChange(change), apply(change))).toEqual(state())
+  })
+
+  it("doesn't undo a later change: a rollback applies only while the Contribution is as left", () => {
+    const verified = apply({ contributionId: 301, from: 'PAID', to: 'VERIFIED' })
+    // A refetch brought it back as REJECTED (someone else revised it) before the failure arrived.
+    verified.contributions[0] = { ...verified.contributions[0], status: 'REJECTED' }
+
+    const rolledBack = apply(
+      undoStatusChange({ contributionId: 301, from: 'PAID', to: 'VERIFIED' }),
+      verified,
+    )
+
+    expect(rolledBack).toBe(verified)
+  })
+
+  it('updates the counts even when the Contributions are not cached (from the Events list)', () => {
+    const after = applyStatusChange({ ...state(), contributions: undefined }, 12, {
+      contributionId: 301,
+      from: 'PAID',
+      to: 'VERIFIED',
+    })
+
+    expect(pendingTotal(after.events ?? [])).toBe(4)
+    expect(after.event?.paidContributionCount).toBe(2)
+  })
+
+  it('leaves what is not cached uncached', () => {
+    const after = applyStatusChange(
+      { events: undefined, event: undefined, contributions: undefined },
+      12,
+      { contributionId: 301, from: 'PAID', to: 'VERIFIED' },
+    )
+
+    expect(after).toEqual({ events: undefined, event: undefined, contributions: undefined })
   })
 })

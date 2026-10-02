@@ -88,6 +88,7 @@ export function createHttpClient({
   return {
     get: <T>(path: string, options: RequestOptions<T>) => request('GET', path, options),
     post: <T>(path: string, options: RequestOptions<T>) => request('POST', path, options),
+    patch: <T>(path: string, options: RequestOptions<T>) => request('PATCH', path, options),
   }
 }
 

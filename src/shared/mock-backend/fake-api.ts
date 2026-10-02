@@ -12,7 +12,11 @@ const STATUS_BY_CODE: Record<string, number> = {
   UNAUTHENTICATED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
+  EVENT_ARCHIVED: 409,
+  CONTRIBUTION_NOT_PAID: 409,
 }
+
+const OUTCOMES = { verify: 'VERIFIED', reject: 'REJECTED' } as const
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -66,6 +70,17 @@ export function createFakeApi({
           Number(contributionId),
         )
         return json(200, { data: receipt })
+      }
+      const [, decisionEventId, decisionId, action] =
+        route.match(/^PATCH \/events\/([^/]+)\/contributions\/([^/]+)\/(verify|reject)$/) ?? []
+      if (action === 'verify' || action === 'reject') {
+        const contribution = await backend.decideContribution(
+          requester,
+          Number(decisionEventId),
+          Number(decisionId),
+          OUTCOMES[action],
+        )
+        return json(200, { data: contribution })
       }
       throw notFound()
     } catch (error) {

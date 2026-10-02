@@ -113,6 +113,12 @@ const rsvp = (name: string, email: string, dayMonth: string): RsvpRow => {
   return { name, email, createdAt: `2026-${month}-${day}T15:00:00.000Z` }
 }
 
+/**
+ * Contributions whose Verification always fails (`INTERNAL_ERROR`), so Demo mode can show the
+ * rollback: Helena Costa's, on Ana & Rafael.
+ */
+export const FAILING_VERIFICATIONS = [303]
+
 /** A sample image per item (stable by seed); `null` for no image, `'missing'` for a 404. */
 const registryItem = (
   id: number,
@@ -277,6 +283,11 @@ const EVENTS: EventRow[] = [
     rsvps: [
       rsvp('Otávio Kern', 'otavio@kora.com.br', '01/09'),
       rsvp('Isabela Faria', 'isabela@kora.com.br', '02/09'),
+    ],
+    registryItems: [registryItem(91, 'Cota do happy hour', 150)],
+    // Verified before archiving: its Owner can still revise it (events-api ADR-0011).
+    contributions: [
+      contribution(201, 'Isabela Faria', 91, 150, '2026-09-05T13:00:00.000Z', true, 'VERIFIED'),
     ],
   }),
 ]

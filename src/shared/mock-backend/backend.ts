@@ -1,12 +1,16 @@
 import { z } from 'zod'
 
-import type { ContributionStatus } from '@/shared/domain/contributions'
+import {
+  canVerify,
+  type ContributionStatus,
+  type VerificationOutcome,
+} from '@/shared/domain/contributions'
 import { canSeeGuests } from '@/shared/domain/events'
 import { isSuperAdmin, type Membership } from '@/shared/domain/roles'
-import { ApiError, validationError } from '@/shared/lib/api-error'
+import { ApiError, internalError, validationError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
 
-import { createDataset, type EventRow } from './data'
+import { createDataset, FAILING_VERIFICATIONS, type EventRow } from './data'
 
 const TOKEN_PREFIX = 'mock-token-'
 
@@ -17,9 +21,15 @@ export const mockTokenFor = (user: Pick<User, 'id'>) => `${TOKEN_PREFIX}${user.i
 const unauthenticated = () => new ApiError('UNAUTHENTICATED', 'Autenticação necessária.')
 const forbidden = () => new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.')
 export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
+const eventArchived = () =>
+  new ApiError('EVENT_ARCHIVED', 'Este evento está arquivado e não aceita alterações.')
+const contributionNotPaid = () =>
+  new ApiError('CONTRIBUTION_NOT_PAID', 'Esta contribuição ainda não foi marcada como paga.')
 
 const LISTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED', 'REJECTED']
 const COUNTED_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED']
+/** Where each Verification outcome can come from: PAID, or a revision of the other (ADR-0004). */
+const DECIDABLE_CONTRIBUTIONS: ContributionStatus[] = ['PAID', 'VERIFIED', 'REJECTED']
 
 const listedContributions = (event: EventRow) =>
   event.contributions.filter((c) => LISTED_CONTRIBUTIONS.includes(c.status))
@@ -195,6 +205,30 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const contribution = listedContributions(event).find((c) => c.id === contributionId)
       if (!contribution?.hasReceipt) throw notFound()
       return { url: `https://picsum.photos/seed/receipt-${contribution.id}/600/900` }
+    },
+
+    /**
+     * `PATCH /events/:id/contributions/:cid/verify|reject`: the Verification, or its revision.
+     * The role before the state (events-api ADR-0011): a Viewer gets FORBIDDEN, an archived
+     * Event's Manager EVENT_ARCHIVED. Asking for the status it already has changes nothing.
+     */
+    async decideContribution(
+      requester: User | null,
+      eventId: number,
+      contributionId: number,
+      outcome: VerificationOutcome,
+    ) {
+      await delay()
+      const { event, membership } = visibleEvent(requester, eventId)
+      if (membership?.role === 'VIEWER') throw forbidden()
+      if (!canVerify({ status: event.status, membership })) throw eventArchived()
+      const contribution = event.contributions.find((c) => c.id === contributionId)
+      if (!contribution) throw notFound()
+      if (!DECIDABLE_CONTRIBUTIONS.includes(contribution.status)) throw contributionNotPaid()
+      // The sample's way to show a failed Verification and its rollback (Demo mode).
+      if (FAILING_VERIFICATIONS.includes(contribution.id)) throw internalError()
+      contribution.status = outcome
+      return contribution
     },
 
     /** A sample User by id (e.g. the ones "Modo demo" enters as). */

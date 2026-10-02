@@ -1,6 +1,7 @@
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
+  useBottomSheet,
   useBottomSheetSpringConfigs,
   type BottomSheetBackdropProps,
   type BottomSheetBackgroundProps,
@@ -48,6 +49,9 @@ export function Sheet({ onClose, children }: Props) {
     </BottomSheet>
   )
 }
+
+/** Closes the sheet it's inside, with its animation; its `onClose` follows (the route pops). */
+export const useCloseSheet = () => useBottomSheet().close
 
 function Backdrop(props: BottomSheetBackdropProps) {
   return (

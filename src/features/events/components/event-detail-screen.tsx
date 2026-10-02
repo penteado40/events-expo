@@ -30,13 +30,21 @@ type DetailTab = 'summary' | 'rsvps' | 'registry' | 'contributions'
 /** A tab's content, built by the route from other features (ADR-0001) once the Event loads. */
 type Slot = (event: Event) => ReactNode
 
-type Props = { id: number } & { summary: Slot } & Partial<Record<DetailTab, Slot>>
+type Props = {
+  id: number
+  summary: Slot
+  /**
+   * Between the header and the tabs, whatever the tab (e.g. a failed Verification). Often renders
+   * nothing, so it brings its own space below.
+   */
+  notice?: ReactNode
+} & Partial<Record<DetailTab, Slot>>
 
 /**
  * The Event detail: top bar, header and sticky segmented tabs over the active tab's content.
  * Pulling refreshes the Event and whatever of it is on screen.
  */
-export function EventDetailScreen({ id, ...slots }: Props) {
+export function EventDetailScreen({ id, notice, ...slots }: Props) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const client = useQueryClient()
@@ -118,6 +126,7 @@ export function EventDetailScreen({ id, ...slots }: Props) {
               <HeaderSkeleton />
             )}
           </View>
+          <View style={styles.notice}>{notice}</View>
         </View>
 
         {!failed && (
@@ -227,6 +236,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.sans600, fontSize: 30, lineHeight: 34, color: colors.text },
   meta: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textMuted },
   venue: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textSoft },
+  notice: { paddingHorizontal: spacing.screen },
   archived: { marginTop: 4, fontFamily: fonts.mono400, fontSize: 12, color: colors.warning },
   skeleton: { gap: 10 },
   statRow: { flexDirection: 'row', gap: 10 },

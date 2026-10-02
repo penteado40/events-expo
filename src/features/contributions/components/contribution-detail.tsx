@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import {
   ArchivedGuestsNotice,
@@ -8,7 +8,13 @@ import {
   Notice,
   QueryError,
   SkeletonBlock,
+  useCloseSheet,
 } from '@/shared/components/ui'
+import {
+  canVerify,
+  verificationOutcomes,
+  type VerificationOutcome,
+} from '@/shared/domain/contributions'
 import { canSeeGuests, formatEventDayTime } from '@/shared/domain/events'
 import { formatMoney } from '@/shared/domain/money'
 import { isViewer } from '@/shared/domain/roles'
@@ -18,6 +24,7 @@ import type { ContributionEvent } from '../contribution-event'
 import { contributionStatus } from '../contribution-status'
 import { useContributions } from '../hooks/use-contributions'
 import { useOpenReceipt } from '../hooks/use-open-receipt'
+import { useVerification } from '../hooks/use-verification'
 import { registryItemName, type RegistryItemNames } from '../registry-item-name'
 import type { Contribution } from '../schemas'
 import { ItemName } from './item-name'
@@ -108,7 +115,75 @@ function Details({ event, contribution, itemName }: DetailsProps) {
       {contribution.status === 'PAID' && isViewer(event.membership) && (
         <Notice>Viewers não fazem a conferência.</Notice>
       )}
+      {canVerify(event) && <Verification event={event} contribution={contribution} />}
     </>
+  )
+}
+
+/**
+ * The Verification: "Rejeitar" and "Verificar Pix" on a PAID Contribution; on a decided one, a
+ * discreet link to revise it to the other outcome. Rejecting asks first. Each closes the sheet at
+ * once: the screen underneath updates optimistically, and a failure shows on the Event detail.
+ */
+function Verification({ event, contribution }: { event: DetailEvent; contribution: Contribution }) {
+  const verify = useVerification(event.id)
+  const closeSheet = useCloseSheet()
+  const outcomes = verificationOutcomes(contribution.status)
+
+  const decide = (outcome: VerificationOutcome) => {
+    verify(contribution, outcome)
+    closeSheet()
+  }
+  const confirmReject = () => {
+    const [title, message] =
+      contribution.status === 'VERIFIED'
+        ? [`Marcar #${contribution.id} como rejeitada?`, 'Ela sai do total verificado.']
+        : [
+            `Rejeitar contribuição #${contribution.id}?`,
+            `O Pix de ${formatMoney(contribution.amount, event.currency)} de ${contribution.guestName} não chegou?`,
+          ]
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Rejeitar', style: 'destructive', onPress: () => decide('REJECTED') },
+    ])
+  }
+
+  if (contribution.status === 'PAID') {
+    return (
+      <View style={styles.buttons}>
+        <Pressable
+          onPress={confirmReject}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.button, styles.reject, pressed && styles.pressed]}
+        >
+          <Text style={styles.rejectText}>Rejeitar</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => decide('VERIFIED')}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.button, styles.verify, pressed && styles.pressed]}
+        >
+          <Text style={styles.verifyText}>Verificar Pix</Text>
+        </Pressable>
+      </View>
+    )
+  }
+
+  const [revision] = outcomes
+  if (!revision) return null
+  return (
+    <Pressable
+      onPress={revision === 'REJECTED' ? confirmReject : () => decide('VERIFIED')}
+      accessibilityRole="button"
+      hitSlop={8}
+      style={styles.revise}
+    >
+      <Text style={styles.reviseText}>
+        {revision === 'REJECTED'
+          ? 'rever · marcar como rejeitada'
+          : 'rever · marcar como verificada'}
+      </Text>
+    </Pressable>
   )
 }
 
@@ -156,4 +231,23 @@ const styles = StyleSheet.create({
   value: { fontFamily: fonts.sans400, fontSize: 14, color: colors.text },
   flexValue: { flexShrink: 1, textAlign: 'right' },
   skeleton: { gap: 14 },
+  // README: 1 : 1.4, height 54, radius 27.
+  buttons: { flexDirection: 'row', gap: 10 },
+  button: { height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
+  reject: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.errorBorder,
+    backgroundColor: 'rgba(255,154,134,.08)',
+  },
+  rejectText: { fontFamily: fonts.sans500, fontSize: 15, color: colors.danger },
+  verify: {
+    flex: 1.4,
+    backgroundColor: colors.accent,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.6)',
+  },
+  verifyText: { fontFamily: fonts.sans600, fontSize: 15, color: colors.onAccent },
+  pressed: { transform: [{ scale: 0.98 }] },
+  revise: { alignSelf: 'center', paddingVertical: 4 },
+  reviseText: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
 })

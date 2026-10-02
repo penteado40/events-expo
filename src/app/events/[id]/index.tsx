@@ -3,6 +3,7 @@ import { useLocalSearchParams } from 'expo-router'
 import {
   ContributionList,
   ContributionStats,
+  VerificationError,
   type ContributionEvent,
 } from '@/features/contributions'
 import { EventDetailScreen, SiteCard } from '@/features/events'
@@ -17,6 +18,7 @@ export default function EventDetailRoute() {
   return (
     <EventDetailScreen
       id={eventId}
+      notice={<VerificationError eventId={eventId} />}
       summary={(event) => (
         <>
           <RsvpStats event={event} />

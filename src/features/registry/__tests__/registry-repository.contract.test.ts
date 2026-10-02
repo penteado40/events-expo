@@ -81,7 +81,9 @@ describe.each(implementations)('RegistryRepository contract (%s)', (_, createRep
     })
 
     it("keeps an archived Event's Registry visible to a Manager (no Guest data)", async () => {
-      await expect(as(OTAVIO).list(OFFSITE_KORA)).resolves.toEqual([])
+      const items = await as(OTAVIO).list(OFFSITE_KORA)
+
+      expect(items.map((i) => [i.id, i.contributionCount])).toEqual([[91, 1]])
     })
 
     it('refuses a non-member with FORBIDDEN, even for a missing Event', async () => {

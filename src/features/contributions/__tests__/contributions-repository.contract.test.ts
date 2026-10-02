@@ -75,8 +75,10 @@ describe.each(implementations)('ContributionsRepository contract (%s)', (_, crea
     })
 
     it("keeps an archived Event's Contributions for its Owners and the Super admin", async () => {
-      await expect(as(CLAUDIA).list(OFFSITE_KORA)).resolves.toEqual([])
-      await expect(as(SUPER_ADMIN).list(OFFSITE_KORA)).resolves.toEqual([])
+      const ids = async (userId: number) => (await as(userId).list(OFFSITE_KORA)).map((c) => c.id)
+
+      await expect(ids(CLAUDIA)).resolves.toEqual([201])
+      await expect(ids(SUPER_ADMIN)).resolves.toEqual([201])
     })
 
     it("refuses an archived Event's Contributions to a Manager with FORBIDDEN", async () => {
@@ -127,6 +129,96 @@ describe.each(implementations)('ContributionsRepository contract (%s)', (_, crea
 
     it('refuses a non-member with FORBIDDEN', async () => {
       await expect(as(CLAUDIA).getReceiptUrl(16, 301)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+  })
+
+  describe.each([
+    ['verify', 'VERIFIED', 'REJECTED'],
+    ['reject', 'REJECTED', 'VERIFIED'],
+  ] as const)('%s(eventId, contributionId)', (action, outcome, other) => {
+    it(`moves a PAID Contribution to ${outcome} and answers it`, async () => {
+      const repository = as(CLAUDIA)
+
+      const contribution = await repository[action](12, 301)
+
+      expect(contribution).toMatchObject({
+        id: 301,
+        status: outcome,
+        guestName: 'Beatriz Nogueira',
+      })
+      const listed = await repository.list(12)
+      expect(listed.find((c) => c.id === 301)?.status).toBe(outcome)
+    })
+
+    it(`revises a ${other} Contribution to ${outcome}`, async () => {
+      const repository = as(CLAUDIA)
+      await repository[action === 'verify' ? 'reject' : 'verify'](12, 302)
+
+      await expect(repository[action](12, 302)).resolves.toMatchObject({ status: outcome })
+    })
+
+    it(`leaves a Contribution already ${outcome} as it is`, async () => {
+      const repository = as(CLAUDIA)
+      await repository[action](12, 301)
+
+      await expect(repository[action](12, 301)).resolves.toMatchObject({ status: outcome })
+    })
+
+    it('refuses a Contribution not marked paid with CONTRIBUTION_NOT_PAID', async () => {
+      const repository = as(CLAUDIA)
+
+      await expect(repository[action](12, 304)).rejects.toMatchObject({
+        code: 'CONTRIBUTION_NOT_PAID',
+      })
+      await expect(repository[action](12, 296)).rejects.toMatchObject({
+        code: 'CONTRIBUTION_NOT_PAID',
+      })
+    })
+
+    it('lets a Manager and the Super admin do it too', async () => {
+      await expect(as(CLAUDIA)[action](14, 388)).resolves.toMatchObject({ status: outcome })
+      await expect(as(SUPER_ADMIN)[action](12, 301)).resolves.toMatchObject({ status: outcome })
+    })
+
+    it('refuses a Viewer with FORBIDDEN, and changes nothing', async () => {
+      const repository = as(CLAUDIA)
+
+      await expect(repository[action](15, 412)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+      const listed = await repository.list(15)
+      expect(listed.find((c) => c.id === 412)?.status).toBe('PAID')
+    })
+
+    it("keeps an archived Event's Verification for its Owners and the Super admin", async () => {
+      const owner = as(CLAUDIA)
+      // 201 is VERIFIED: reject it first, so verifying it is a change.
+      if (action === 'verify') await owner.reject(OFFSITE_KORA, 201)
+
+      await expect(owner[action](OFFSITE_KORA, 201)).resolves.toMatchObject({ status: outcome })
+      await expect(as(SUPER_ADMIN)[action](OFFSITE_KORA, 201)).resolves.toMatchObject({
+        status: outcome,
+      })
+    })
+
+    it("refuses an archived Event's Manager with EVENT_ARCHIVED", async () => {
+      await expect(as(OTAVIO)[action](OFFSITE_KORA, 201)).rejects.toMatchObject({
+        code: 'EVENT_ARCHIVED',
+      })
+    })
+
+    it('refuses a non-member with FORBIDDEN', async () => {
+      await expect(as(CLAUDIA)[action](16, 301)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+
+    it("answers NOT_FOUND for a Contribution the Event doesn't have", async () => {
+      await expect(as(CLAUDIA)[action](12, 999)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it("fails the sample's sabotaged Contribution with INTERNAL_ERROR (Demo mode's rollback)", async () => {
+      const repository = as(CLAUDIA)
+
+      await expect(repository[action](12, 303)).rejects.toMatchObject({ code: 'INTERNAL_ERROR' })
+      const listed = await repository.list(12)
+      expect(listed.find((c) => c.id === 303)?.status).toBe('PAID')
     })
   })
 })
