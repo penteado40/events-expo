@@ -59,6 +59,13 @@ async function renderSheet(
 /** Lets the Verification's last cache writes and their re-renders land inside the test. */
 const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 
+/** Taps a button of the confirmation the sheet asked with, then lets the Verification land. */
+async function confirmWith(alert: jest.SpyInstance, label: string) {
+  const buttons = alert.mock.calls.at(-1)?.[2] as { text: string; onPress?: () => void }[]
+  await act(async () => buttons.find((button) => button.text === label)?.onPress?.())
+  await settle()
+}
+
 beforeEach(() => {
   mockCloseSheet.mockClear()
   jest
@@ -82,14 +89,22 @@ describe('ContributionDetail: the Verification', () => {
     },
   )
 
-  it('verifies at once and closes the sheet, still showing it as it was', async () => {
+  it('asks before verifying, then verifies at once and closes, still showing it as it was', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
     await renderSheet(contribution(301, 'PAID'), 'OWNER')
 
     await fireEvent.press(screen.getByText('Verificar Pix'))
 
+    expect(alert).toHaveBeenCalledWith(
+      'Verificar contribuição #301?',
+      // formatMoney puts a no-break space after "R$".
+      expect.stringMatching(/^O Pix de R\$\s450,00 de Beatriz Nogueira chegou\?$/),
+      expect.any(Array),
+    )
+    expect(contributionsRepository.verify).not.toHaveBeenCalled()
+    await confirmWith(alert, 'Verificar')
     expect(contributionsRepository.verify).toHaveBeenCalledWith(12, 301)
     expect(mockCloseSheet).toHaveBeenCalledTimes(1)
-    await settle()
     expect(screen.getByText('● pendente')).toBeTruthy()
     expect(screen.queryByText('rever · marcar como rejeitada')).toBeNull()
   })
@@ -102,16 +117,24 @@ describe('ContributionDetail: the Verification', () => {
 
     expect(alert).toHaveBeenCalledWith(
       'Rejeitar contribuição #301?',
-      // formatMoney puts a no-break space after "R$".
       expect.stringMatching(/^O Pix de R\$\s450,00 de Beatriz Nogueira não chegou\?$/),
       expect.any(Array),
     )
     expect(contributionsRepository.reject).not.toHaveBeenCalled()
-    const confirm = alert.mock.calls[0][2]?.find((button) => button.text === 'Rejeitar')
-    await act(async () => confirm?.onPress?.())
+    await confirmWith(alert, 'Rejeitar')
     expect(contributionsRepository.reject).toHaveBeenCalledWith(12, 301)
     expect(mockCloseSheet).toHaveBeenCalledTimes(1)
-    await settle()
+  })
+
+  it('records nothing when the confirmation is cancelled', async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+    await renderSheet(contribution(301, 'PAID'), 'OWNER')
+
+    await fireEvent.press(screen.getByText('Verificar Pix'))
+    await confirmWith(alert, 'Cancelar')
+
+    expect(contributionsRepository.verify).not.toHaveBeenCalled()
+    expect(mockCloseSheet).not.toHaveBeenCalled()
   })
 
   it('tells a Viewer why there are no buttons', async () => {
@@ -134,15 +157,23 @@ describe('ContributionDetail: the Verification', () => {
       'Ela sai do total verificado.',
       expect.any(Array),
     )
+    await confirmWith(alert, 'Rejeitar')
+    expect(contributionsRepository.reject).toHaveBeenCalledWith(12, 298)
   })
 
-  it("lets an archived Event's Owner revise a REJECTED one to verified, without asking", async () => {
+  it("lets an archived Event's Owner revise a REJECTED one to verified, asking first", async () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
     await renderSheet(contribution(290, 'REJECTED'), 'OWNER', 'ARCHIVED')
 
     await fireEvent.press(screen.getByText('rever · marcar como verificada'))
 
+    expect(alert).toHaveBeenCalledWith(
+      'Marcar #290 como verificada?',
+      'Ela entra no total verificado.',
+      expect.any(Array),
+    )
+    await confirmWith(alert, 'Verificar')
     expect(contributionsRepository.verify).toHaveBeenCalledWith(12, 290)
-    await settle()
   })
 
   it('offers nothing to a Viewer on a decided one', async () => {

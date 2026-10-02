@@ -48,11 +48,7 @@ beforeEach(() => {
   ])
 })
 
-// A test's last refetches and re-renders land inside it, not in the next one.
-afterEach(async () => {
-  await act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
-  jest.restoreAllMocks()
-})
+afterEach(() => jest.restoreAllMocks())
 
 /** What the screen shows: the hero total, the Event's dot/chip count and "Verificado". */
 const screen = () => ({

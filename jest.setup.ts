@@ -1,3 +1,9 @@
+import { notifyManager } from '@tanstack/react-query'
+
+// TanStack Query re-renders on a timer by default, which can land after a test's act: notify at
+// once instead, inside the act that caused it.
+notifyManager.setScheduler((callback) => callback())
+
 // SecureStore is a native module: tests use an in-memory keychain shared by every store instance,
 // so creating a second store over it behaves like reopening the app.
 jest.mock('expo-secure-store', () => {

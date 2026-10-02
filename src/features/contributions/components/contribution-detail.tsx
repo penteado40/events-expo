@@ -141,7 +141,7 @@ function Details({ event, contribution, itemName, closing, onRecorded }: Details
 
 /**
  * The Verification: "Rejeitar" and "Verificar Pix" on a PAID Contribution; on a decided one, a
- * discreet link to revise it to the other outcome. Rejecting asks first. Each closes the sheet at
+ * secondary button to revise it to the other outcome. Each asks first. Each closes the sheet at
  * once: the screen underneath updates optimistically, and a failure shows on the Event detail.
  */
 function Verification({
@@ -158,17 +158,23 @@ function Verification({
     recordVerification(contribution, outcome)
     closeSheet()
   }
-  const confirmReject = () => {
+  /** Every Verification asks first: verifying vouches for a Pix, rejecting accuses a Guest. */
+  const confirm = (outcome: VerificationOutcome) => {
+    const copy = VERIFICATION_OUTCOMES[outcome]
+    const asked = {
+      id: contribution.id,
+      guestName: contribution.guestName,
+      amount: formatMoney(contribution.amount, event.currency),
+    }
     const [title, message] =
-      contribution.status === 'VERIFIED'
-        ? [`Marcar #${contribution.id} como rejeitada?`, 'Ela sai do total verificado.']
-        : [
-            `Rejeitar contribuição #${contribution.id}?`,
-            `O Pix de ${formatMoney(contribution.amount, event.currency)} de ${contribution.guestName} não chegou?`,
-          ]
+      contribution.status === 'PAID' ? copy.decideQuestion(asked) : copy.reviseQuestion(asked)
     Alert.alert(title, message, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Rejeitar', style: 'destructive', onPress: () => decide('REJECTED') },
+      {
+        text: copy.confirm.label,
+        style: copy.confirm.destructive ? 'destructive' : 'default',
+        onPress: () => decide(outcome),
+      },
     ])
   }
 
@@ -176,7 +182,7 @@ function Verification({
     return (
       <View style={styles.buttons}>
         <Pressable
-          onPress={confirmReject}
+          onPress={() => confirm('REJECTED')}
           disabled={closing}
           accessibilityRole="button"
           style={({ pressed }) => [styles.button, styles.reject, pressed && styles.pressed]}
@@ -184,7 +190,7 @@ function Verification({
           <Text style={styles.rejectText}>Rejeitar</Text>
         </Pressable>
         <Pressable
-          onPress={() => decide('VERIFIED')}
+          onPress={() => confirm('VERIFIED')}
           disabled={closing}
           accessibilityRole="button"
           style={({ pressed }) => [styles.button, styles.verify, pressed && styles.pressed]}
@@ -199,11 +205,10 @@ function Verification({
   if (!revision) return null
   return (
     <Pressable
-      onPress={revision === 'REJECTED' ? confirmReject : () => decide(revision)}
+      onPress={() => confirm(revision)}
       disabled={closing}
       accessibilityRole="button"
-      hitSlop={8}
-      style={styles.revise}
+      style={({ pressed }) => [styles.revise, pressed && styles.pressed]}
     >
       <Text style={styles.reviseText}>{VERIFICATION_OUTCOMES[revision].revision}</Text>
     </Pressable>
@@ -271,6 +276,15 @@ const styles = StyleSheet.create({
   },
   verifyText: { fontFamily: fonts.sans600, fontSize: 15, color: colors.onAccent },
   pressed: { transform: [{ scale: 0.98 }] },
-  revise: { alignSelf: 'center', paddingVertical: 4 },
-  reviseText: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
+  // A secondary button: a correction, so quieter than the PAID one's pair.
+  revise: {
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.secondaryButtonBorder,
+    backgroundColor: colors.secondaryButtonBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviseText: { fontFamily: fonts.mono400, fontSize: 13, color: colors.textSoft },
 })

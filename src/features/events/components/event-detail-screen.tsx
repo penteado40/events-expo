@@ -130,21 +130,23 @@ export function EventDetailScreen({ id, notice, ...slots }: Props) {
 
         {!failed && (
           <View style={styles.tabs} onLayout={(e) => setTabsHeight(e.nativeEvent.layout.height)}>
-            {notice}
-            <SegmentedTabs
-              active={tab}
-              onChange={selectTab}
-              tabs={[
-                { key: 'summary', label: 'Resumo' },
-                { key: 'rsvps', label: 'RSVPs' },
-                { key: 'registry', label: 'Presentes' },
-                {
-                  key: 'contributions',
-                  label: 'Conferir',
-                  dot: (event.data?.paidContributionCount ?? 0) > 0,
-                },
-              ]}
-            />
+            <View style={styles.stack}>
+              {notice}
+              <SegmentedTabs
+                active={tab}
+                onChange={selectTab}
+                tabs={[
+                  { key: 'summary', label: 'Resumo' },
+                  { key: 'rsvps', label: 'RSVPs' },
+                  { key: 'registry', label: 'Presentes' },
+                  {
+                    key: 'contributions',
+                    label: 'Conferir',
+                    dot: (event.data?.paidContributionCount ?? 0) > 0,
+                  },
+                ]}
+              />
+            </View>
           </View>
         )}
 
@@ -239,8 +241,11 @@ const styles = StyleSheet.create({
   archived: { marginTop: 4, fontFamily: fonts.mono400, fontSize: 12, color: colors.warning },
   skeleton: { gap: 10 },
   statRow: { flexDirection: 'row', gap: 10 },
-  // The gap only shows with a notice: one that renders nothing adds no view.
-  tabs: { paddingHorizontal: spacing.screen, paddingBottom: 14, gap: 10 },
+  tabs: { paddingHorizontal: spacing.screen, paddingBottom: 14 },
+  // Inside the sticky child: ScrollView moves that child's own style to its sticky wrapper, so a
+  // gap there wouldn't reach the notice. The gap only shows with one: a notice that renders
+  // nothing adds no view.
+  stack: { gap: 14 },
   content: { paddingHorizontal: spacing.screen, gap: 10 },
   soon: { paddingVertical: 20, alignItems: 'center' },
   soonText: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textMuted },
