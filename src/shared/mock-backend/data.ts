@@ -140,6 +140,9 @@ const registryItem = (
   return { id, name, price, imageUrl }
 }
 
+/** Every sample Event's timezone: their dates are local times in São Paulo. */
+const SAMPLE_TIMEZONE = 'America/Sao_Paulo'
+
 type EventSeed = Pick<
   EventRow,
   'id' | 'type' | 'name' | 'slug' | 'siteUrl' | 'startsAt' | 'venueName' | 'city'
@@ -161,7 +164,7 @@ type EventSeed = Pick<
 const event = (seed: EventSeed): EventRow => ({
   status: 'ACTIVE',
   endsAt: null,
-  timezone: 'America/Sao_Paulo',
+  timezone: SAMPLE_TIMEZONE,
   locale: 'pt-BR',
   currency: 'BRL',
   venueAddress: null,
@@ -303,7 +306,6 @@ const EVENTS: EventRow[] = [
   }),
 ]
 
-const SAMPLE_TIMEZONE = 'America/Sao_Paulo'
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
 
@@ -311,7 +313,7 @@ const DAY_MS = 24 * HOUR_MS
 export const SAMPLE_DATE = new Date('2026-10-01T15:00:00.000Z')
 
 /** `YYYY-MM-DD` of a moment in São Paulo. */
-function sampleDay(date: Date): string {
+function saoPauloDay(date: Date): string {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: SAMPLE_TIMEZONE,
     year: 'numeric',
@@ -323,11 +325,11 @@ function sampleDay(date: Date): string {
 }
 
 /** Midnight in São Paulo, which has had no daylight saving time since 2019 (always UTC-3). */
-const startOfSampleDay = (date: Date) => new Date(`${sampleDay(date)}T00:00:00.000-03:00`)
+const startOfSaoPauloDay = (date: Date) => new Date(`${saoPauloDay(date)}T00:00:00.000-03:00`)
 
 /** Whole days from SAMPLE_DATE to `now`, counted on São Paulo's calendar. */
 const daysSinceSampleDate = (now: Date) =>
-  Math.round((Date.parse(sampleDay(now)) - Date.parse(sampleDay(SAMPLE_DATE))) / DAY_MS)
+  Math.round((Date.parse(saoPauloDay(now)) - Date.parse(saoPauloDay(SAMPLE_DATE))) / DAY_MS)
 
 const shift = (iso: string, ms: number) => new Date(Date.parse(iso) + ms).toISOString()
 
@@ -347,7 +349,7 @@ const shiftEvent = (row: EventRow, ms: number): EventRow => ({
  * today's midnight, since an Event without `endsAt` lasts until the end of its day.
  */
 function happeningEvent(now: Date): EventRow {
-  const startsAt = Math.max(now.getTime() - 2 * HOUR_MS, startOfSampleDay(now).getTime())
+  const startsAt = Math.max(now.getTime() - 2 * HOUR_MS, startOfSaoPauloDay(now).getTime())
   const before = (days: number, hours = 0) =>
     new Date(startsAt - days * DAY_MS - hours * HOUR_MS).toISOString()
   return event({
