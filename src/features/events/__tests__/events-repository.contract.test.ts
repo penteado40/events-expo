@@ -43,7 +43,7 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
     it('gives the Super admin every Event, with no Membership in any', async () => {
       const events = await as(SUPER_ADMIN).list()
 
-      expect(events.map((e) => e.id).sort((a, b) => a - b)).toEqual([9, 12, 14, 15, 16])
+      expect(events.map((e) => e.id).sort((a, b) => a - b)).toEqual([9, 12, 14, 15, 16, 17])
       expect(events.every((e) => e.membership === null)).toBe(true)
     })
 
@@ -55,6 +55,7 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
         15: { role: 'VIEWER', isPrimaryOwner: false },
         14: { role: 'MANAGER', isPrimaryOwner: false },
         9: { role: 'OWNER', isPrimaryOwner: true },
+        17: { role: 'OWNER', isPrimaryOwner: true },
       })
     })
 
@@ -71,6 +72,7 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
         14: 1,
         16: 0,
         9: 0,
+        17: 2,
       })
     })
 
@@ -83,6 +85,7 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
         14: { rsvpCount: 3, verifiedAmount: 520, registryItemCount: 2 },
         16: { rsvpCount: 1, verifiedAmount: 0, registryItemCount: 0 },
         9: { rsvpCount: 2, verifiedAmount: 150, registryItemCount: 1 },
+        17: { rsvpCount: 4, verifiedAmount: 350, registryItemCount: 3 },
       })
     })
 

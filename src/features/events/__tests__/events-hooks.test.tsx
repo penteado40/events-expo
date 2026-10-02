@@ -33,6 +33,7 @@ describe('useEvents', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.map((e) => e.name)).toEqual([
+      'Aniversário da Cláudia',
       'Chá da Júlia',
       'Marcos, 40',
       'Ana & Rafael',
@@ -57,7 +58,7 @@ describe('useEvents', () => {
       const { result } = await renderHook(() => useEvents(), { wrapper })
 
       await waitFor(() => expect(result.current.isSuccess).toBe(true))
-      expect(result.current.data).toHaveLength(5)
+      expect(result.current.data).toHaveLength(6)
     })
   })
 })
