@@ -21,6 +21,9 @@ const EVENT_ROLE_LABELS: Record<EventRole, string> = {
 
 export const isSuperAdmin = (user: Pick<User, 'role'>) => user.role === 'SUPER_ADMIN'
 
+/** Whether the viewer is the Event's Viewer: read-only, and told so (the Viewer notices). */
+export const isViewer = (membership: Membership | null) => membership?.role === 'VIEWER'
+
 /** An Event member's role, with "· principal" for the Primary owner. */
 export function memberRoleLabel({ role, isPrimaryOwner }: Membership): string {
   const label = EVENT_ROLE_LABELS[role]

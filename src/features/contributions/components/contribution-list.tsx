@@ -12,12 +12,14 @@ import {
 } from '@/shared/components/ui'
 import { canSeeGuests } from '@/shared/domain/events'
 import { formatMoney } from '@/shared/domain/money'
+import { isViewer } from '@/shared/domain/roles'
 import { colors, fonts, radii } from '@/shared/theme'
 
 import type { ContributionEvent } from '../contribution-event'
 import { contributionStatus } from '../contribution-status'
 import { useContributions } from '../hooks/use-contributions'
 import { registryItemName, type RegistryItemNames } from '../registry-item-name'
+import { ItemName } from './item-name'
 import type { Contribution } from '../schemas'
 
 const SKELETON_ROWS = 3
@@ -37,7 +39,7 @@ export function ContributionList({ event, registryItemNames }: Props) {
   const contributions = useContributions(event)
 
   if (!canSeeGuests(event)) return <ArchivedGuestsNotice />
-  const viewerNotice = event.membership?.role === 'VIEWER' && (
+  const viewerNotice = isViewer(event.membership) && (
     <Notice>VIEWER · somente leitura. A conferência cabe a Managers e Owners.</Notice>
   )
   if (contributions.isError && !contributions.data) {
@@ -100,15 +102,13 @@ function ContributionCard({ contribution, currency, itemName, onPress }: CardPro
         <Text style={styles.amount}>{formatMoney(contribution.amount, currency)}</Text>
       </View>
       <View style={[styles.row, styles.bottomRow]}>
-        {itemName === undefined ? (
-          <View style={styles.flex}>
-            <SkeletonBlock width={140} height={11} />
-          </View>
-        ) : (
-          <Text style={styles.item} numberOfLines={1}>
-            {itemName}
-          </Text>
-        )}
+        <ItemName
+          name={itemName}
+          style={styles.item}
+          skeleton={{ width: 140, height: 11 }}
+          numberOfLines={1}
+          fill
+        />
         <Text style={[styles.status, { color: status.color }]}>{status.label}</Text>
       </View>
     </PressableGlass>
@@ -137,6 +137,5 @@ const styles = StyleSheet.create({
   amount: { fontFamily: fonts.mono500, fontSize: 16, color: colors.text },
   item: { flex: 1, fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
   bottomRow: { gap: 10 },
-  flex: { flex: 1 },
   status: { fontFamily: fonts.mono400, fontSize: 12 },
 })

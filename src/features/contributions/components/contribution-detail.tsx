@@ -11,14 +11,16 @@ import {
 } from '@/shared/components/ui'
 import { canSeeGuests, formatEventDayTime } from '@/shared/domain/events'
 import { formatMoney } from '@/shared/domain/money'
+import { isViewer } from '@/shared/domain/roles'
 import { colors, fonts } from '@/shared/theme'
 
 import type { ContributionEvent } from '../contribution-event'
 import { contributionStatus } from '../contribution-status'
 import { useContributions } from '../hooks/use-contributions'
-import { useOpenReceipt } from '../hooks/use-receipt'
+import { useOpenReceipt } from '../hooks/use-open-receipt'
 import { registryItemName, type RegistryItemNames } from '../registry-item-name'
 import type { Contribution } from '../schemas'
+import { ItemName } from './item-name'
 
 type DetailEvent = ContributionEvent & { timezone: string }
 
@@ -77,33 +79,33 @@ function Details({ event, contribution, itemName }: DetailsProps) {
 
       <View style={styles.table}>
         <Row label="Convidado" value={contribution.guestName} />
-        {itemName === undefined ? (
-          <Row label="Presente">
-            <SkeletonBlock width={150} height={14} />
-          </Row>
-        ) : (
-          <Row label="Presente" value={itemName} />
-        )}
+        <Row label="Presente">
+          <ItemName
+            name={itemName}
+            style={[styles.value, styles.flexValue]}
+            skeleton={{ width: 150, height: 14 }}
+          />
+        </Row>
         <Row label="Marcada paga" value={formatEventDayTime(contribution.paidAt, event.timezone)} />
         <Row label="Comprovante" last>
           {contribution.hasReceipt ? (
             <Pressable
-              onPress={() => receipt.mutate()}
-              disabled={receipt.isPending}
+              onPress={receipt.open}
+              disabled={receipt.opening}
               accessibilityRole="link"
               accessibilityLabel="Abrir comprovante"
               hitSlop={8}
             >
-              <Text style={styles.value}>{receipt.isPending ? 'abrindo…' : 'anexado ↗'}</Text>
+              <Text style={styles.value}>{receipt.opening ? 'abrindo…' : 'anexado ↗'}</Text>
             </Pressable>
           ) : (
             <Text style={styles.value}>não anexado</Text>
           )}
         </Row>
       </View>
-      {receipt.isError && <ErrorBox message={receipt.error.message} />}
+      {receipt.error && <ErrorBox message={receipt.error} />}
 
-      {contribution.status === 'PAID' && event.membership?.role === 'VIEWER' && (
+      {contribution.status === 'PAID' && isViewer(event.membership) && (
         <Notice>Viewers não fazem a conferência.</Notice>
       )}
     </>

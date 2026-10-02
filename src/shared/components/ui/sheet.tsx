@@ -72,7 +72,8 @@ function Background({ style }: BottomSheetBackgroundProps) {
 const styles = StyleSheet.create({
   sheet: { marginHorizontal: INSET },
   flex: { flex: 1 },
-  handle: { paddingTop: 10, paddingBottom: 0 },
+  // README: padding 14 on top with the handle inside it, then the 14 gap before the content.
+  handle: { paddingTop: 14, paddingBottom: 0 },
   indicator: { width: 40, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,.3)' },
   content: { paddingTop: 14, paddingHorizontal: 20, paddingBottom: 26, gap: 14 },
 })
