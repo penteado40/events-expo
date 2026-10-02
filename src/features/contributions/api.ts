@@ -5,7 +5,7 @@ import { useSession } from '@/shared/session'
 
 import { createMockContributionsRepository } from './mock'
 import type { ContributionsRepository } from './repository'
-import { contributionListSchema } from './schemas'
+import { contributionListSchema, receiptUrlSchema } from './schemas'
 
 export type { ContributionsRepository } from './repository'
 
@@ -13,6 +13,12 @@ export function createHttpContributionsRepository(http: HttpClient): Contributio
   return {
     list: (eventId) =>
       http.get(`/events/${eventId}/contributions`, { schema: contributionListSchema }),
+    getReceiptUrl: async (eventId, contributionId) =>
+      (
+        await http.get(`/events/${eventId}/contributions/${contributionId}/receipt`, {
+          schema: receiptUrlSchema,
+        })
+      ).url,
   }
 }
 

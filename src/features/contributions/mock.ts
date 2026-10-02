@@ -2,7 +2,7 @@ import { mockBackend, type MockBackend } from '@/shared/mock-backend'
 import type { User } from '@/shared/session'
 
 import type { ContributionsRepository } from './repository'
-import { contributionListSchema } from './schemas'
+import { contributionListSchema, receiptUrlSchema } from './schemas'
 
 type Options = {
   /** The Session's User: the mock trusts it, since a Live session's token means nothing here. */
@@ -18,5 +18,8 @@ export function createMockContributionsRepository({
   return {
     list: async (eventId) =>
       contributionListSchema.parse(await backend.listContributions(getRequester(), eventId)),
+    getReceiptUrl: async (eventId, contributionId) =>
+      receiptUrlSchema.parse(await backend.getReceiptUrl(getRequester(), eventId, contributionId))
+        .url,
   }
 }

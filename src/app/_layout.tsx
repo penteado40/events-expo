@@ -3,6 +3,8 @@ import { DarkTheme, Stack, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
+import { StyleSheet } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { useSessionCheck } from '@/features/auth'
 import { Background, BlurTargetProvider } from '@/shared/components/ui'
@@ -41,25 +43,37 @@ export default function RootLayout() {
   if (!ready) return null
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={theme}>
-        <BlurTargetProvider>
-          <StatusBar style="light" />
-          <Background />
-          <Stack
-            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Protected guard={!signedIn}>
-              <Stack.Screen name="(auth)/login" />
-            </Stack.Protected>
-            <Stack.Protected guard={signedIn}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="events/[id]" />
-            </Stack.Protected>
-          </Stack>
-        </BlurTargetProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider value={theme}>
+          <BlurTargetProvider>
+            <StatusBar style="light" />
+            <Background />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: 'transparent' },
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Protected guard={!signedIn}>
+                <Stack.Screen name="(auth)/login" />
+              </Stack.Protected>
+              <Stack.Protected guard={signedIn}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="events/[id]/index" />
+                <Stack.Screen
+                  name="events/[id]/contributions/[cid]"
+                  // The sheet animates itself, over the detail.
+                  options={{ presentation: 'transparentModal', animation: 'none' }}
+                />
+              </Stack.Protected>
+            </Stack>
+          </BlurTargetProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   )
 }
+
+const styles = StyleSheet.create({ root: { flex: 1 } })
