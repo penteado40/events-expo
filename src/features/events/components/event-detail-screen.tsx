@@ -106,8 +106,8 @@ export function EventDetailScreen({ id, initialTab = 'summary', notice, ...slots
             <PressableGlass
               variant="pill"
               radius={radii.backButton}
-              // Opened by a link with nothing underneath, there's no back: go to the Events list.
-              onPress={() => (router.canGoBack() ? router.back() : router.replace('/events'))}
+              // Opened by a link with nothing underneath, there's no back: go to Início.
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
               accessibilityLabel="Voltar"
               contentStyle={styles.back}
             >

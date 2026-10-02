@@ -4,7 +4,6 @@ import {
   formatEventDate,
   formatEventDay,
   formatEventDayTime,
-  pendingTotal,
   sortEvents,
   type EventStatus,
 } from '../events'
@@ -46,22 +45,6 @@ describe('sortEvents', () => {
     sortEvents(events)
 
     expect(events.map((e) => e.id)).toEqual([1, 2])
-  })
-})
-
-describe('pendingTotal', () => {
-  it('adds up the PAID Contributions of every visible Event', () => {
-    const events = [
-      { paidContributionCount: 3 },
-      { paidContributionCount: 0 },
-      { paidContributionCount: 2 },
-    ]
-
-    expect(pendingTotal(events)).toBe(5)
-  })
-
-  it('is zero without Events', () => {
-    expect(pendingTotal([])).toBe(0)
   })
 })
 

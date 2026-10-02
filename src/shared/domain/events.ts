@@ -76,7 +76,3 @@ export function sortEvents<E extends Sortable>(events: readonly E[]): E[] {
     return isArchived(a) ? time(b) - time(a) : time(a) - time(b)
   })
 }
-
-/** The "Para conferir" total: `PAID` Contributions across every visible Event. */
-export const pendingTotal = (events: readonly { paidContributionCount: number }[]) =>
-  events.reduce((total, event) => total + event.paidContributionCount, 0)
