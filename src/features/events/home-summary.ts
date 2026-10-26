@@ -1,5 +1,11 @@
 import { canVerify } from '@/shared/domain/contributions'
-import { isArchived, type EventStatus, type GuestDataScope } from '@/shared/domain/events'
+import {
+  calendarDay,
+  isArchived,
+  sortEvents,
+  type EventStatus,
+  type GuestDataScope,
+} from '@/shared/domain/events'
 import { sumMoney } from '@/shared/domain/money'
 
 import type { Event } from './schemas'
@@ -7,7 +13,8 @@ import type { Event } from './schemas'
 /** Início's amounts: one currency for now, so the verified amounts add up as is. */
 export const HOME_CURRENCY = 'BRL'
 
-type SummedEvent = { status: EventStatus; summary: Event['summary'] } & Pick<
+/** What Início reads of an Event: its status, Event summary and dates. */
+type HomeEvent = { status: EventStatus; summary: Event['summary'] } & Pick<
   Event,
   'startsAt' | 'endsAt' | 'timezone'
 >
@@ -35,50 +42,30 @@ export type HomeSummary<E> = HomeNumbers & {
 }
 
 /** How far "Próximos eventos" looks ahead, in calendar days. */
-const UPCOMING_DAYS = 30
-
-const DAY_MS = 86_400_000
-
-/** The calendar day of `date` in `timezone`, as days since the epoch. */
-function dayNumber(date: Date, timezone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-  }).formatToParts(date)
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    Number(parts.find((p) => p.type === type)?.value)
-  return Date.UTC(part('year'), part('month') - 1, part('day')) / DAY_MS
-}
+export const UPCOMING_DAYS = 30
 
 /** Calendar days from `now` to the Event's start, both on the Event's timezone's calendar. */
-const daysUntil = (event: SummedEvent, now: Date) =>
-  dayNumber(new Date(event.startsAt), event.timezone) - dayNumber(now, event.timezone)
+const daysUntil = (event: HomeEvent, now: Date) =>
+  calendarDay(new Date(event.startsAt), event.timezone) - calendarDay(now, event.timezone)
 
 /**
  * Started and not ended: before `endsAt` or, without one, still on the day it started in its
  * timezone.
  */
-function isHappening(event: SummedEvent, now: Date): boolean {
+function isHappening(event: HomeEvent, now: Date): boolean {
   if (Date.parse(event.startsAt) > now.getTime()) return false
   return event.endsAt ? now.getTime() < Date.parse(event.endsAt) : daysUntil(event, now) === 0
 }
-
-const byStart = (a: SummedEvent, b: SummedEvent) => Date.parse(a.startsAt) - Date.parse(b.startsAt)
 
 /**
  * Início, from the Events list (ADR-0003): every number and list is about the active Events; the
  * archived ones are only counted. `now` is the render time.
  */
-export function homeSummary<E extends SummedEvent>(
-  events: readonly E[],
-  now: Date,
-): HomeSummary<E> {
-  const active = events.filter((event) => !isArchived(event)).sort(byStart)
+export function homeSummary<E extends HomeEvent>(events: readonly E[], now: Date): HomeSummary<E> {
+  const active = sortEvents(events.filter((event) => !isArchived(event)))
   const sum = (amount: (event: E) => number) =>
     active.reduce((total, event) => total + amount(event), 0)
-  const toStart = active
+  const notStarted = active
     .filter((event) => Date.parse(event.startsAt) > now.getTime())
     .map((event) => ({ event, days: daysUntil(event, now) }))
   return {
@@ -88,8 +75,8 @@ export function homeSummary<E extends SummedEvent>(
     verified: sumMoney(active.map((event) => event.summary.verifiedAmount)),
     registryItems: sum((event) => event.summary.registryItemCount),
     happening: active.filter((event) => isHappening(event, now)),
-    next: toStart[0] ?? null,
-    upcoming: toStart.filter(({ days }) => days <= UPCOMING_DAYS),
+    next: notStarted[0] ?? null,
+    upcoming: notStarted.filter(({ days }) => days <= UPCOMING_DAYS),
   }
 }
 

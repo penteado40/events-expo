@@ -1,5 +1,5 @@
 import type { ContributionStatus } from '@/shared/domain/contributions'
-import type { EventStatus, EventType } from '@/shared/domain/events'
+import { calendarDay, type EventStatus, type EventType } from '@/shared/domain/events'
 import type { EventRole } from '@/shared/domain/roles'
 import type { User } from '@/shared/session'
 
@@ -312,24 +312,13 @@ const DAY_MS = 24 * HOUR_MS
 /** The day the sample dates above were written for: loaded on it, the mock keeps them as they are. */
 export const SAMPLE_DATE = new Date('2026-10-01T15:00:00.000Z')
 
-/** `YYYY-MM-DD` of a moment in São Paulo. */
-function saoPauloDay(date: Date): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: SAMPLE_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date)
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value
-  return `${part('year')}-${part('month')}-${part('day')}`
-}
-
 /** Midnight in São Paulo, which has had no daylight saving time since 2019 (always UTC-3). */
-const startOfSaoPauloDay = (date: Date) => new Date(`${saoPauloDay(date)}T00:00:00.000-03:00`)
+const startOfSaoPauloDay = (date: Date) =>
+  new Date(calendarDay(date, SAMPLE_TIMEZONE) * DAY_MS + 3 * HOUR_MS)
 
 /** Whole days from SAMPLE_DATE to `now`, counted on São Paulo's calendar. */
 const daysSinceSampleDate = (now: Date) =>
-  Math.round((Date.parse(saoPauloDay(now)) - Date.parse(saoPauloDay(SAMPLE_DATE))) / DAY_MS)
+  calendarDay(now, SAMPLE_TIMEZONE) - calendarDay(SAMPLE_DATE, SAMPLE_TIMEZONE)
 
 const shift = (iso: string, ms: number) => new Date(Date.parse(iso) + ms).toISOString()
 

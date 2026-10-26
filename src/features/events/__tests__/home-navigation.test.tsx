@@ -30,7 +30,7 @@ function Detail() {
   return <Text>{`detalhe ${id} ${tab ?? 'summary'}`}</Text>
 }
 
-async function renderInicio() {
+async function renderHome() {
   useSession.setState({ session: { token: mockTokenFor(claudia), user: claudia, live: false } })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const Home = () => (
@@ -41,13 +41,11 @@ async function renderInicio() {
   await renderRouter({ index: Home, 'events/[id]': Detail }, { initialUrl: '/' })
 }
 
-// Início reads the clock at render: pin it to the day the sample data is written for.
-beforeAll(() => pinClock(SAMPLE_DATE))
-afterAll(() => jest.useRealTimers())
+pinClock(SAMPLE_DATE)
 
 describe('Início → Conferir → back', () => {
   it('opens the row on Conferir and comes back to Início', async () => {
-    await renderInicio()
+    await renderHome()
 
     await fireEvent.press(await screen.findByRole('button', { name: /^Marcos, 40/ }))
     expect(await screen.findByText('detalhe 14 contributions')).toBeOnTheScreen()
@@ -63,7 +61,7 @@ describe('Início → Resumo → back', () => {
     [/^Acontecendo agora/, 17],
     [/^Próximo evento/, 15],
   ])('opens the %s card on Resumo and comes back to Início', async (name, id) => {
-    await renderInicio()
+    await renderHome()
 
     await fireEvent.press(await screen.findByRole('button', { name }))
     expect(await screen.findByText(`detalhe ${id} summary`)).toBeOnTheScreen()

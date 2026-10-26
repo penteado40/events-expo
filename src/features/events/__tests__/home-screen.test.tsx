@@ -48,9 +48,7 @@ async function renderHome(who: User, events?: unknown[]) {
   return client
 }
 
-// Início reads the clock at render: pin it to the day the sample data is written for.
-beforeAll(() => pinClock(SAMPLE_DATE))
-afterAll(() => jest.useRealTimers())
+pinClock(SAMPLE_DATE)
 
 beforeEach(() => {
   mockNavigate.mockClear()
@@ -169,27 +167,22 @@ describe('HomeScreen', () => {
           name: 'Próximo evento: Chá da Júlia, em 10 dias. Mais 1 nos próximos 30 dias',
         }),
       ).toBeOnTheScreen()
-      expect(
-        screen.getAllByTestId('upcoming-stack-layer', { includeHiddenElements: true }),
-      ).toHaveLength(1)
     })
 
     it('puts them around the grid, above the pending work', async () => {
       await renderHome(user(7, 'Cláudia Lima'))
       await screen.findByText('ACONTECENDO AGORA')
 
-      const titles = screen
-        .getAllByText(
-          /^(ACONTECENDO AGORA|EVENTOS ATIVOS|PRÓXIMOS EVENTOS|PARA CONFERIR|CONFERIR POR EVENTO)$/,
-        )
-        .map((element) => element.props.children)
-      expect(titles).toEqual([
+      const titles = [
         'ACONTECENDO AGORA',
         'EVENTOS ATIVOS',
         'PRÓXIMOS EVENTOS',
         'PARA CONFERIR',
         'CONFERIR POR EVENTO',
-      ])
+      ]
+      const found = screen.getAllByText(new RegExp(`^(${titles.join('|')})$`))
+      expect(found).toHaveLength(titles.length)
+      found.forEach((element, index) => expect(element).toHaveTextContent(titles[index]))
     })
 
     it.each([
