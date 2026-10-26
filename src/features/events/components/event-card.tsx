@@ -7,10 +7,10 @@ import { colors, fonts, radii, textStyles } from '@/shared/theme'
 
 import type { DetailTab } from '../detail-tab'
 import { eventPlace } from '../event-place'
+import { pendingLabel } from '../pending-label'
 import type { Event } from '../schemas'
 
 const confirmedText = (n: number) => (n === 1 ? '1 confirmado' : `${n} confirmados`)
-export const pendingText = (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`)
 
 // The chips are ~24pt tall: reach 44pt outwards, but only 4pt (half the gap) towards the other.
 const OUTER_SLOP = 10
@@ -32,7 +32,7 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen: (tab: Detai
     event.name,
     archived && 'arquivado',
     confirmedText(confirmed),
-    pending > 0 && pendingText(pending),
+    pending > 0 && pendingLabel(pending),
   ]
     .filter(Boolean)
     .join(', ')
@@ -92,7 +92,7 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen: (tab: Detai
           {pending > 0 && (
             <Chip
               testID="chip-pending"
-              text={pendingText(pending)}
+              text={pendingLabel(pending)}
               tone="accent"
               hitSlop={{ top: INNER_SLOP, bottom: OUTER_SLOP, left: SIDE_SLOP, right: SIDE_SLOP }}
               onPress={() => onOpen('contributions')}

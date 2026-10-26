@@ -5,7 +5,7 @@ import { Glass, PressableGlass } from '@/shared/components/ui'
 import { colors, fonts, radii } from '@/shared/theme'
 
 import type { PendingRow } from '../home-summary'
-import { pendingText } from './event-card'
+import { pendingLabel } from '../pending-label'
 
 const totalLabel = (total: number) =>
   `${total} ${total === 1 ? 'contribuição' : 'contribuições'} para conferir`
@@ -50,14 +50,14 @@ export function PendingByEvent({
             <Pressable
               onPress={() => onOpen(row.id)}
               accessibilityRole="button"
-              accessibilityLabel={`${row.name}, ${pendingText(row.count)}`}
+              accessibilityLabel={`${row.name}, ${pendingLabel(row.count)}`}
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
             >
               <Text style={styles.name} numberOfLines={1}>
                 {row.name}
               </Text>
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{pendingText(row.count)}</Text>
+                <Text style={styles.chipText}>{pendingLabel(row.count)}</Text>
               </View>
             </Pressable>
           </Fragment>
