@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
 import { Glass } from '@/shared/components/ui'
@@ -65,9 +65,15 @@ export function NextEvents({
   const section = useRef<View>(null)
   const [origin, setOrigin] = useState<Origin | null>(null)
   const [cardHeight, setCardHeight] = useState(0)
+  const others = Math.max(upcoming.length - 1, 0)
+  const expandable = next !== null && others > 0
+
+  // A refetch can leave nothing to expand: close, so the list doesn't reopen by itself later.
+  useEffect(() => {
+    if (expanded && !expandable) onExpandedChange(false)
+  }, [expanded, expandable, onExpandedChange])
 
   if (!next) return null
-  const others = Math.max(upcoming.length - 1, 0)
   const layers = Math.min(others, MAX_LAYERS)
   const distance = distanceLabel(next.days)
   const label = [
@@ -124,25 +130,28 @@ export function NextEvents({
                 when={distance}
                 accessibilityLabel={label}
                 accessibilityHint={
-                  others > 0 ? `Abre a lista dos próximos ${UPCOMING_DAYS} dias` : undefined
+                  expandable ? `Abre a lista dos próximos ${UPCOMING_DAYS} dias` : undefined
                 }
-                onPress={others > 0 ? expand : () => onOpen(next.event.id)}
+                onPress={expandable ? expand : () => onOpen(next.event.id)}
               />
             </View>
           </View>
         </HomeSection>
       </View>
-      {expanded && others > 0 && (
+      {expanded && expandable && (
         <UpcomingList origin={origin} shape={shape} onClose={() => onExpandedChange(false)}>
-          {upcoming.map(({ event, days }) => (
-            <HomeEventCard
-              key={event.id}
-              event={event}
-              when={distanceLabel(days)}
-              accessibilityLabel={`${event.name}, ${distanceLabel(days)}`}
-              onPress={() => openFromList(event.id)}
-            />
-          ))}
+          {upcoming.map(({ event, days }) => {
+            const when = distanceLabel(days)
+            return (
+              <HomeEventCard
+                key={event.id}
+                event={event}
+                when={when}
+                accessibilityLabel={`${event.name}, ${when}`}
+                onPress={() => openFromList(event.id)}
+              />
+            )
+          })}
         </UpcomingList>
       )}
     </View>

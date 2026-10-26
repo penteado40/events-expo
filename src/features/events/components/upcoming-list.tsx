@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { Children, useEffect, useRef, type ReactNode } from 'react'
 import {
   AccessibilityInfo,
   Modal,
@@ -59,8 +59,11 @@ export function UpcomingList({
 
   useEffect(() => {
     progress.set(withSpring(1, SPRING))
-    if (title.current) AccessibilityInfo.sendAccessibilityEvent(title.current, 'focus')
   }, [progress])
+  // Once the Modal is up, its content is in the accessibility tree: move focus to the list.
+  const focusList = () => {
+    if (title.current) AccessibilityInfo.sendAccessibilityEvent(title.current, 'focus')
+  }
 
   const fold = () =>
     progress.set(
@@ -79,6 +82,7 @@ export function UpcomingList({
       statusBarTranslucent
       navigationBarTranslucent
       onRequestClose={fold}
+      onShow={focusList}
     >
       <Veil progress={progress} />
       <ScrollView
@@ -98,13 +102,12 @@ export function UpcomingList({
         />
         <View style={sectionStyles.section}>
           <Animated.View style={fadeIn}>
-            <Text ref={title} style={sectionStyles.title}>
+            <Text ref={title} accessibilityRole="header" style={sectionStyles.title}>
               {`PRÓXIMOS ${UPCOMING_DAYS} DIAS`}
             </Text>
           </Animated.View>
-          {children.map((card, index) => (
+          {Children.map(children, (card, index) => (
             <FanCard
-              key={index}
               index={index}
               count={children.length}
               cardHeight={origin?.cardHeight ?? 0}

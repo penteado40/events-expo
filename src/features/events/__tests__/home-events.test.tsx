@@ -101,6 +101,16 @@ describe('NextEvents', () => {
       expect(screen.queryByText('PRÓXIMOS 30 DIAS')).toBeNull()
     })
 
+    it('closes when a refetch leaves fewer than 2 within 30 days', async () => {
+      const onExpandedChange = jest.fn()
+      const props = { next: upcoming[0], onOpen: jest.fn(), expanded: true, onExpandedChange }
+      await render(<NextEvents {...props} upcoming={upcoming} />)
+      expect(onExpandedChange).not.toHaveBeenCalled()
+
+      await screen.rerender(<NextEvents {...props} upcoming={upcoming.slice(0, 1)} />)
+      expect(onExpandedChange).toHaveBeenCalledWith(false)
+    })
+
     it('closes on a tap outside the list, opening nothing', async () => {
       const onOpen = await expand()
 
