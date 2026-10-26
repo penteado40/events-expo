@@ -1,5 +1,7 @@
 import type { Membership } from '../roles'
 import {
+  calendarDay,
+  formatEventDayMonth,
   canSeeGuests,
   formatEventDate,
   formatEventDay,
@@ -87,5 +89,31 @@ describe('formatEventDayTime', () => {
     ['2026-09-26T13:02:00.000Z', 'Europe/Lisbon', '26/09 14:02'],
   ])('%s in %s → %s', (iso, timezone, expected) => {
     expect(formatEventDayTime(iso, timezone)).toBe(expected)
+  })
+})
+
+describe('formatEventDayMonth', () => {
+  it.each([
+    ['2026-10-11T18:00:00.000Z', 'America/Sao_Paulo', { day: '11', month: 'OUT' }],
+    ['2026-03-05T12:00:00.000Z', 'America/Sao_Paulo', { day: '5', month: 'MAR' }],
+    // 23:30 of 31/10 in São Paulo is already 01/11 in UTC: the Event's day wins.
+    ['2026-11-01T02:30:00.000Z', 'America/Sao_Paulo', { day: '31', month: 'OUT' }],
+    ['2026-11-01T02:30:00.000Z', 'Europe/Lisbon', { day: '1', month: 'NOV' }],
+  ])('%s in %s → %o', (iso, timezone, expected) => {
+    expect(formatEventDayMonth(iso, timezone)).toEqual(expected)
+  })
+})
+
+describe('calendarDay', () => {
+  it('counts whole days between two dates on the calendar of a timezone', () => {
+    const day = (iso: string, timezone = 'America/Sao_Paulo') =>
+      calendarDay(new Date(iso), timezone)
+
+    // 23:59 and 00:00 a minute later are a day apart; 00:00 and 23:59 are the same day.
+    expect(day('2026-10-02T03:00:00.000Z') - day('2026-10-02T02:59:00.000Z')).toBe(1)
+    expect(day('2026-10-03T02:59:00.000Z') - day('2026-10-02T03:00:00.000Z')).toBe(0)
+    expect(day('2026-10-11T18:00:00.000Z') - day('2026-10-01T15:00:00.000Z')).toBe(10)
+    // The same moment is 01/10 in São Paulo and 02/10 in Tokyo.
+    expect(day('2026-10-01T15:00:00.000Z', 'Asia/Tokyo') - day('2026-10-01T15:00:00.000Z')).toBe(1)
   })
 })

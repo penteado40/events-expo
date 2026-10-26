@@ -14,12 +14,14 @@ import { homeSummary, pendingByEvent, pendingTotal } from '../home-summary'
 import { useEvents, useRefetchEventsOnFocus } from '../hooks/use-events'
 import type { Event } from '../schemas'
 import { HomeGrid, HomeGridSkeleton } from './home-grid'
+import { HappeningNow, NextEvents } from './home-events'
 import { PendingByEvent, PendingHero } from './home-pending'
 import { NoEvents } from './no-events'
 
 /**
- * Início, the tabs' first screen: the greeting and the numbers of the viewer's active Events, from
- * the same Events list as Eventos (ADR-0003), and the Verification work waiting for them.
+ * Início, the tabs' first screen: the greeting, then the viewer's active Events happening now, their
+ * numbers and the next ones, from the same Events list as Eventos (ADR-0003), and the Verification
+ * work waiting for them.
  */
 export function HomeScreen() {
   const insets = useSafeAreaInsets()
@@ -39,6 +41,7 @@ export function HomeScreen() {
 
   if (!user) return null
   const openEvents = () => router.navigate('/events')
+  const openSummary = (id: number) => router.push(detailHref(id, 'summary'))
   const openContributions = (id: number) => router.push(detailHref(id, 'contributions'))
 
   return (
@@ -71,7 +74,9 @@ export function HomeScreen() {
       ) : (
         <HomeContent
           events={events.data}
+          now={new Date()}
           onOpenEvents={openEvents}
+          onOpenSummary={openSummary}
           onOpenContributions={openContributions}
         />
       )}
@@ -80,22 +85,29 @@ export function HomeScreen() {
 }
 
 /**
- * The grid, then the pending work where the viewer does the Verification: the hero (hidden when
- * they verify no Event) and "Conferir por evento".
+ * What's happening, the grid and what's next, as of `now`; then the pending work where the viewer
+ * does the Verification: the hero (hidden when they verify no Event) and "Conferir por evento".
  */
 function HomeContent({
   events,
+  now,
   onOpenEvents,
+  onOpenSummary,
   onOpenContributions,
 }: {
   events: Event[]
+  now: Date
   onOpenEvents: () => void
+  onOpenSummary: (id: number) => void
   onOpenContributions: (id: number) => void
 }) {
+  const summary = homeSummary(events, now)
   const total = pendingTotal(events)
   return (
     <>
-      <HomeGrid summary={homeSummary(events)} onOpen={onOpenEvents} />
+      <HappeningNow events={summary.happening} onOpen={onOpenSummary} />
+      <HomeGrid summary={summary} onOpen={onOpenEvents} />
+      <NextEvents next={summary.next} upcoming={summary.upcoming} onOpen={onOpenSummary} />
       {total !== null && <PendingHero total={total} onOpen={onOpenEvents} />}
       <PendingByEvent rows={pendingByEvent(events)} onOpen={onOpenContributions} />
     </>

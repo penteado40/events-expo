@@ -15,18 +15,24 @@ export const EVENT_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 
 export type EventStatus = (typeof EVENT_STATUSES)[number]
 
+/** Reads `date`'s parts (`part('day')`...) as `options` format them in `timezone`, in pt-BR. */
+function dateParts(date: Date, timezone: string, options: Intl.DateTimeFormatOptions) {
+  const parts = new Intl.DateTimeFormat('pt-BR', { timeZone: timezone, ...options }).formatToParts(
+    date,
+  )
+  return (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ''
+}
+
 /** `dd.mm.aa · HH:MM` in the Event's own timezone: the time on the invitation, not the device's. */
 export function formatEventDate(startsAt: string, timezone: string): string {
-  const parts = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: timezone,
+  const part = dateParts(new Date(startsAt), timezone, {
     day: '2-digit',
     month: '2-digit',
     year: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date(startsAt))
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value
+  })
   return `${part('day')}.${part('month')}.${part('year')} · ${part('hour')}:${part('minute')}`
 }
 
@@ -41,16 +47,31 @@ export function formatEventDay(iso: string, timezone: string): string {
 
 /** `dd/mm HH:MM` in the Event's timezone: when a Guest marked a Contribution paid (the sheet). */
 export function formatEventDayTime(iso: string, timezone: string): string {
-  const parts = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: timezone,
+  const part = dateParts(new Date(iso), timezone, {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date(iso))
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value
+  })
   return `${part('day')}/${part('month')} ${part('hour')}:${part('minute')}`
+}
+
+/** The day and short month ("11", "OUT") in the Event's timezone: Início's date block. */
+export function formatEventDayMonth(iso: string, timezone: string) {
+  const part = dateParts(new Date(iso), timezone, { day: 'numeric', month: 'short' })
+  return { day: part('day'), month: part('month').replace('.', '').toUpperCase() }
+}
+
+const DAY_MS = 86_400_000
+
+/**
+ * The calendar day `date` falls on in `timezone`, as a day count: subtracting two gives how many
+ * days apart they are on that calendar, whatever the hours.
+ */
+export function calendarDay(date: Date, timezone: string): number {
+  const part = dateParts(date, timezone, { year: 'numeric', month: 'numeric', day: 'numeric' })
+  return Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day'))) / DAY_MS
 }
 
 export const isArchived = (event: { status: EventStatus }) => event.status === 'ARCHIVED'

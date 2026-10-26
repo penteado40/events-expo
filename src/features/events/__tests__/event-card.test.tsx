@@ -2,31 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 
 import { EventCard } from '../components/event-card'
 import type { Event } from '../schemas'
+import { eventFixture } from './event-fixture'
 
-const event = (overrides: Partial<Event> & { rsvpCount?: number } = {}): Event => {
-  const { rsvpCount = 5, ...fields } = overrides
-  return {
-    id: 12,
-    type: 'WEDDING',
-    status: 'ACTIVE',
-    name: 'Ana & Rafael',
-    slug: 'ana-e-rafael',
-    siteUrl: 'https://anaerafael.com.br',
-    startsAt: '2026-11-14T19:30:00.000Z',
-    endsAt: null,
-    timezone: 'America/Sao_Paulo',
-    locale: 'pt-BR',
-    currency: 'BRL',
-    venueName: 'Fazenda Santa Clara',
-    venueAddress: null,
-    city: 'Itu, SP',
-    mapsUrl: null,
-    membership: { role: 'OWNER', isPrimaryOwner: true },
-    paidContributionCount: 3,
-    summary: { rsvpCount, verifiedAmount: 1090, registryItemCount: 5 },
-    ...fields,
-  }
-}
+const event = ({ rsvpCount = 5, ...fields }: Partial<Event> & { rsvpCount?: number } = {}) =>
+  eventFixture({ ...fields, summary: { rsvpCount, verifiedAmount: 1090, registryItemCount: 5 } })
 
 async function renderCard(item: Event) {
   const onOpen = jest.fn()
