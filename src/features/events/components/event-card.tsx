@@ -7,10 +7,11 @@ import { colors, fonts, radii, textStyles } from '@/shared/theme'
 
 import type { DetailTab } from '../detail-tab'
 import { eventPlace } from '../event-place'
+import { pendingLabel } from '../pending-label'
+import { chipStyles } from './chip-styles'
 import type { Event } from '../schemas'
 
 const confirmedText = (n: number) => (n === 1 ? '1 confirmado' : `${n} confirmados`)
-const pendingText = (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`)
 
 // The chips are ~24pt tall: reach 44pt outwards, but only 4pt (half the gap) towards the other.
 const OUTER_SLOP = 10
@@ -32,7 +33,7 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen: (tab: Detai
     event.name,
     archived && 'arquivado',
     confirmedText(confirmed),
-    pending > 0 && pendingText(pending),
+    pending > 0 && pendingLabel(pending),
   ]
     .filter(Boolean)
     .join(', ')
@@ -59,8 +60,8 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen: (tab: Detai
       <View style={styles.row}>
         <View style={styles.top}>
           {archived && (
-            <View style={[styles.chip, styles.chipArchived]}>
-              <Text style={styles.chipText}>arquivado</Text>
+            <View style={[chipStyles.chip, chipStyles.archived]}>
+              <Text style={chipStyles.text}>arquivado</Text>
             </View>
           )}
           <Text style={textStyles.monoCaption}>
@@ -92,7 +93,7 @@ export function EventCard({ event, onOpen }: { event: Event; onOpen: (tab: Detai
           {pending > 0 && (
             <Chip
               testID="chip-pending"
-              text={pendingText(pending)}
+              text={pendingLabel(pending)}
               tone="accent"
               hitSlop={{ top: INNER_SLOP, bottom: OUTER_SLOP, left: SIDE_SLOP, right: SIDE_SLOP }}
               onPress={() => onOpen('contributions')}
@@ -129,12 +130,12 @@ function Chip({
       hitSlop={hitSlop}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.chip,
-        accent ? styles.chipAccent : styles.chipNeutral,
-        pressed && (accent ? styles.chipAccentPressed : styles.chipNeutralPressed),
+        chipStyles.chip,
+        accent ? chipStyles.accent : chipStyles.neutral,
+        pressed && (accent ? chipStyles.accentPressed : chipStyles.neutralPressed),
       ]}
     >
-      <Text style={[styles.chipText, accent ? styles.chipAccentText : styles.chipNeutralText]}>
+      <Text style={[chipStyles.text, accent ? chipStyles.accentText : chipStyles.neutralText]}>
         {text}
       </Text>
     </Pressable>
@@ -151,13 +152,4 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.sans500, fontSize: 22, lineHeight: 26, color: colors.text },
   place: { fontFamily: fonts.sans400, fontSize: 13, color: colors.textMuted },
   chips: { alignItems: 'flex-end', gap: 8 },
-  chip: { borderRadius: radii.chip, borderWidth: 1, paddingVertical: 3, paddingHorizontal: 9 },
-  chipNeutral: { backgroundColor: colors.chipNeutralBg, borderColor: colors.chipNeutralBorder },
-  chipNeutralPressed: { backgroundColor: colors.chipNeutralPressedBg },
-  chipAccent: { backgroundColor: colors.chipAccentBg, borderColor: colors.chipAccentBorder },
-  chipAccentPressed: { backgroundColor: colors.chipAccentPressedBg },
-  chipArchived: { borderColor: colors.chipMutedBorder },
-  chipText: { fontFamily: fonts.mono500, fontSize: 12, color: colors.textMuted },
-  chipNeutralText: { color: colors.text },
-  chipAccentText: { color: colors.accent },
 })

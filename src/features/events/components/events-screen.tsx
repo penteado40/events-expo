@@ -10,7 +10,7 @@ import { colors, fonts, spacing, textStyles } from '@/shared/theme'
 
 import { useEvents } from '../hooks/use-events'
 import type { Event } from '../schemas'
-import type { DetailTab } from '../detail-tab'
+import { detailHref, type DetailTab } from '../detail-tab'
 import { EventCard } from './event-card'
 import { EventsSkeleton } from './events-skeleton'
 import { NoEvents } from './no-events'
@@ -60,15 +60,7 @@ export function EventsScreen() {
       ) : events.data.length === 0 ? (
         <NoEvents superAdmin={superAdmin} />
       ) : (
-        <EventList
-          events={events.data}
-          onOpen={(id, tab) =>
-            router.push({
-              pathname: '/events/[id]',
-              params: tab === 'summary' ? { id } : { id, tab },
-            })
-          }
-        />
+        <EventList events={events.data} onOpen={(id, tab) => router.push(detailHref(id, tab))} />
       )}
     </ScrollView>
   )

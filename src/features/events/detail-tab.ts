@@ -7,3 +7,10 @@ export type DetailTab = (typeof DETAIL_TABS)[number]
 export function parseDetailTab(value: string | string[] | undefined): DetailTab {
   return DETAIL_TABS.find((tab) => tab === value) ?? 'summary'
 }
+
+/** The Event detail on `tab`: Resumo needs no param, so its link stays `/events/{id}`. */
+export const detailHref = (id: number, tab: DetailTab) =>
+  ({
+    pathname: '/events/[id]',
+    params: tab === 'summary' ? { id } : { id, tab },
+  }) as const
