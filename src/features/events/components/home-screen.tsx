@@ -9,14 +9,16 @@ import { useSession } from '@/shared/session'
 import { colors, fonts, spacing } from '@/shared/theme'
 
 import { firstName, formatToday } from '../greeting'
-import { homeSummary } from '../home-summary'
+import { homeSummary, pendingByEvent, pendingTotal } from '../home-summary'
 import { useEvents, useRefetchEventsOnFocus } from '../hooks/use-events'
+import type { Event } from '../schemas'
 import { HomeGrid, HomeGridSkeleton } from './home-grid'
+import { PendingByEvent, PendingHero } from './home-pending'
 import { NoEvents } from './no-events'
 
 /**
  * Início, the tabs' first screen: the greeting and the numbers of the viewer's active Events, from
- * the same Events list as Eventos (ADR-0003).
+ * the same Events list as Eventos (ADR-0003), and the Verification work waiting for them.
  */
 export function HomeScreen() {
   const insets = useSafeAreaInsets()
@@ -36,6 +38,8 @@ export function HomeScreen() {
 
   if (!user) return null
   const openEvents = () => router.navigate('/events')
+  const openContributions = (id: number) =>
+    router.push({ pathname: '/events/[id]', params: { id, tab: 'contributions' } })
 
   return (
     <ScrollView
@@ -65,9 +69,36 @@ export function HomeScreen() {
       ) : events.data.length === 0 ? (
         <NoEvents superAdmin={isSuperAdmin(user)} />
       ) : (
-        <HomeGrid summary={homeSummary(events.data)} onOpen={openEvents} />
+        <HomeContent
+          events={events.data}
+          onOpenEvents={openEvents}
+          onOpenContributions={openContributions}
+        />
       )}
     </ScrollView>
+  )
+}
+
+/**
+ * The grid, then the pending work where the viewer does the Verification: the hero (hidden when
+ * they verify no Event) and "Conferir por evento".
+ */
+function HomeContent({
+  events,
+  onOpenEvents,
+  onOpenContributions,
+}: {
+  events: Event[]
+  onOpenEvents: () => void
+  onOpenContributions: (id: number) => void
+}) {
+  const total = pendingTotal(events)
+  return (
+    <>
+      <HomeGrid summary={homeSummary(events)} onOpen={onOpenEvents} />
+      {total !== null && <PendingHero total={total} onOpen={onOpenEvents} />}
+      <PendingByEvent rows={pendingByEvent(events)} onOpen={onOpenContributions} />
+    </>
   )
 }
 

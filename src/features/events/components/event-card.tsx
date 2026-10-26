@@ -10,7 +10,7 @@ import { eventPlace } from '../event-place'
 import type { Event } from '../schemas'
 
 const confirmedText = (n: number) => (n === 1 ? '1 confirmado' : `${n} confirmados`)
-const pendingText = (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`)
+export const pendingText = (n: number) => (n === 1 ? '1 pendente' : `${n} pendentes`)
 
 // The chips are ~24pt tall: reach 44pt outwards, but only 4pt (half the gap) towards the other.
 const OUTER_SLOP = 10

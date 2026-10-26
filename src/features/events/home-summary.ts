@@ -1,4 +1,5 @@
-import { isArchived, type EventStatus } from '@/shared/domain/events'
+import { canVerify } from '@/shared/domain/contributions'
+import { isArchived, type EventStatus, type GuestDataScope } from '@/shared/domain/events'
 import { sumMoney } from '@/shared/domain/money'
 
 import type { Event } from './schemas'
@@ -32,4 +33,26 @@ export function homeSummary(events: readonly SummedEvent[]): HomeSummary {
     verified: sumMoney(active.map((event) => event.summary.verifiedAmount)),
     registryItems: sum((event) => event.summary.registryItemCount),
   }
+}
+
+type PendingEvent = GuestDataScope & Pick<Event, 'id' | 'name' | 'paidContributionCount'>
+
+/** An Event with Contributions waiting for the viewer's Verification: a row of "Conferir por evento". */
+export type PendingRow = { id: number; name: string; count: number }
+
+/**
+ * Início's "Para conferir" hero: the PAID Contributions across the Events where the viewer does the
+ * Verification (`canVerify`), 0 included. Null, and the hero hidden, when they verify none.
+ */
+export function pendingTotal(events: readonly PendingEvent[]): number | null {
+  const verifiable = events.filter(canVerify)
+  if (verifiable.length === 0) return null
+  return verifiable.reduce((total, event) => total + event.paidContributionCount, 0)
+}
+
+/** "Conferir por evento": the Events the viewer verifies that have PAID ones, in the given order. */
+export function pendingByEvent(events: readonly PendingEvent[]): PendingRow[] {
+  return events
+    .filter((event) => canVerify(event) && event.paidContributionCount > 0)
+    .map(({ id, name, paidContributionCount }) => ({ id, name, count: paidContributionCount }))
 }

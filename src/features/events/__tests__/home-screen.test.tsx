@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 
 import { eventsKey } from '@/shared/lib/query-keys'
 import { mockTokenFor } from '@/shared/mock-backend'
@@ -8,8 +8,9 @@ import { useSession, type User } from '@/shared/session'
 import { HomeScreen } from '../components/home-screen'
 
 const mockNavigate = jest.fn()
+const mockPush = jest.fn()
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ navigate: mockNavigate }),
+  useRouter: () => ({ navigate: mockNavigate, push: mockPush }),
   useFocusEffect: jest.fn(),
 }))
 jest.mock('react-native-safe-area-context', () => ({
@@ -36,9 +37,13 @@ async function renderHome(who: User, events?: unknown[]) {
       <HomeScreen />
     </QueryClientProvider>,
   )
+  return client
 }
 
-beforeEach(() => mockNavigate.mockClear())
+beforeEach(() => {
+  mockNavigate.mockClear()
+  mockPush.mockClear()
+})
 
 describe('HomeScreen', () => {
   it('greets the member by first name and shows their numbers', async () => {
@@ -70,5 +75,62 @@ describe('HomeScreen', () => {
     await renderHome(user(1, 'Admin Local', 'SUPER_ADMIN'), [])
 
     expect(screen.getByText('Nenhum evento foi criado.')).toBeOnTheScreen()
+  })
+
+  describe('pending work', () => {
+    it('shows the Super admin every Event to verify', async () => {
+      await renderHome(user(1, 'Admin Local', 'SUPER_ADMIN'))
+
+      expect(
+        await screen.findByRole('button', { name: '8 contribuições para conferir' }),
+      ).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Chá da Júlia, 2 pendentes' })).toBeOnTheScreen()
+    })
+
+    it("leaves out of Cláudia Lima's the Event she is only Viewer of", async () => {
+      await renderHome(user(7, 'Cláudia Lima'))
+
+      expect(
+        await screen.findByRole('button', { name: '6 contribuições para conferir' }),
+      ).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Ana & Rafael, 3 pendentes' })).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Marcos, 40, 1 pendente' })).toBeOnTheScreen()
+      expect(screen.queryByText('Chá da Júlia')).toBeNull()
+    })
+
+    it('hides both from Otávio Kern, Manager of an archived Event only', async () => {
+      await renderHome(user(8, 'Otávio Kern'))
+
+      expect(await screen.findByRole('button', { name: /^0 eventos ativos/ })).toBeOnTheScreen()
+      expect(screen.queryByText('PARA CONFERIR')).toBeNull()
+      expect(screen.queryByText('CONFERIR POR EVENTO')).toBeNull()
+    })
+
+    it('opens the tapped Event on Conferir', async () => {
+      await renderHome(user(7, 'Cláudia Lima'))
+
+      await fireEvent.press(await screen.findByRole('button', { name: /^Marcos, 40/ }))
+
+      expect(mockPush).toHaveBeenCalledWith({
+        pathname: '/events/[id]',
+        params: { id: 14, tab: 'contributions' },
+      })
+    })
+
+    it('follows the Events list as a Verification patches it', async () => {
+      const client = await renderHome(user(7, 'Cláudia Lima'))
+      await screen.findByRole('button', { name: '6 contribuições para conferir' })
+
+      await act(async () => {
+        client.setQueryData<{ id: number; paidContributionCount: number }[]>(eventsKey, (events) =>
+          events?.map((e) => (e.id === 14 ? { ...e, paidContributionCount: 0 } : e)),
+        )
+      })
+
+      expect(
+        screen.getByRole('button', { name: '5 contribuições para conferir' }),
+      ).toBeOnTheScreen()
+      expect(screen.queryByText('Marcos, 40')).toBeNull()
+    })
   })
 })
