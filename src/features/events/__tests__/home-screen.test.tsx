@@ -8,10 +8,12 @@ import {
 } from '@/shared/domain/contributions'
 import { eventsKey } from '@/shared/lib/query-keys'
 import { mockTokenFor } from '@/shared/mock-backend'
+import { SAMPLE_DATE } from '@/shared/mock-backend/data'
 import { useSession, type User } from '@/shared/session'
 
 import { HomeScreen } from '../components/home-screen'
 import type { Event } from '../schemas'
+import { pinClock } from './pin-clock'
 
 const mockNavigate = jest.fn()
 const mockPush = jest.fn()
@@ -45,6 +47,10 @@ async function renderHome(who: User, events?: unknown[]) {
   )
   return client
 }
+
+// Início reads the clock at render: pin it to the day the sample data is written for.
+beforeAll(() => pinClock(SAMPLE_DATE))
+afterAll(() => jest.useRealTimers())
 
 beforeEach(() => {
   mockNavigate.mockClear()
@@ -101,7 +107,7 @@ describe('HomeScreen', () => {
       ).toBeOnTheScreen()
       expect(screen.getByRole('button', { name: 'Ana & Rafael, 3 pendentes' })).toBeOnTheScreen()
       expect(screen.getByRole('button', { name: 'Marcos, 40, 1 pendente' })).toBeOnTheScreen()
-      expect(screen.queryByText('Chá da Júlia')).toBeNull()
+      expect(screen.queryByRole('button', { name: /^Chá da Júlia/ })).toBeNull()
     })
 
     it('hides both from Otávio Kern, Manager of an archived Event only', async () => {
@@ -147,6 +153,62 @@ describe('HomeScreen', () => {
         screen.getByRole('button', { name: '6 contribuições para conferir' }),
       ).toBeOnTheScreen()
       expect(screen.getByRole('button', { name: 'Marcos, 40, 1 pendente' })).toBeOnTheScreen()
+    })
+  })
+
+  describe('happening and upcoming', () => {
+    it("shows Cláudia's birthday happening and Chá da Júlia next, stacked over Marcos, 40", async () => {
+      await renderHome(user(7, 'Cláudia Lima'))
+
+      expect(
+        await screen.findByRole('button', { name: 'Acontecendo agora: Aniversário da Cláudia' }),
+      ).toBeOnTheScreen()
+      expect(screen.getByText('agora')).toBeOnTheScreen()
+      expect(
+        screen.getByRole('button', {
+          name: 'Próximo evento: Chá da Júlia, em 10 dias. Mais 1 nos próximos 30 dias',
+        }),
+      ).toBeOnTheScreen()
+      expect(
+        screen.getAllByTestId('upcoming-stack-layer', { includeHiddenElements: true }),
+      ).toHaveLength(1)
+    })
+
+    it('puts them around the grid, above the pending work', async () => {
+      await renderHome(user(7, 'Cláudia Lima'))
+      await screen.findByText('ACONTECENDO AGORA')
+
+      const titles = screen
+        .getAllByText(
+          /^(ACONTECENDO AGORA|EVENTOS ATIVOS|PRÓXIMOS EVENTOS|PARA CONFERIR|CONFERIR POR EVENTO)$/,
+        )
+        .map((element) => element.props.children)
+      expect(titles).toEqual([
+        'ACONTECENDO AGORA',
+        'EVENTOS ATIVOS',
+        'PRÓXIMOS EVENTOS',
+        'PARA CONFERIR',
+        'CONFERIR POR EVENTO',
+      ])
+    })
+
+    it.each([
+      [/^Acontecendo agora/, 17],
+      [/^Próximo evento/, 15],
+    ])('opens %s on Resumo', async (name, id) => {
+      await renderHome(user(7, 'Cláudia Lima'))
+
+      await fireEvent.press(await screen.findByRole('button', { name }))
+
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/events/[id]', params: { id } })
+    })
+
+    it('hides both when no active Event is happening or to come', async () => {
+      await renderHome(user(8, 'Otávio Kern'))
+
+      expect(await screen.findByRole('button', { name: /^0 eventos ativos/ })).toBeOnTheScreen()
+      expect(screen.queryByText('ACONTECENDO AGORA')).toBeNull()
+      expect(screen.queryByText('PRÓXIMOS EVENTOS')).toBeNull()
     })
   })
 })

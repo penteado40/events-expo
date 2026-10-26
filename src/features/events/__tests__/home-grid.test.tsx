@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 
 import { HomeGrid } from '../components/home-grid'
-import type { HomeSummary } from '../home-summary'
+import type { HomeNumbers } from '../home-summary'
 
-const summary = (overrides: Partial<HomeSummary> = {}): HomeSummary => ({
+const summary = (overrides: Partial<HomeNumbers> = {}): HomeNumbers => ({
   active: 4,
   archived: 1,
   rsvps: 15,
@@ -12,7 +12,7 @@ const summary = (overrides: Partial<HomeSummary> = {}): HomeSummary => ({
   ...overrides,
 })
 
-async function renderGrid(value: HomeSummary) {
+async function renderGrid(value: HomeNumbers) {
   const onOpen = jest.fn()
   await render(<HomeGrid summary={value} onOpen={onOpen} />)
   return onOpen

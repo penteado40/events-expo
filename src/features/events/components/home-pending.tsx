@@ -7,6 +7,7 @@ import { colors, fonts, radii } from '@/shared/theme'
 import type { PendingRow } from '../home-summary'
 import { pendingLabel } from '../pending-label'
 import { chipStyles } from './chip-styles'
+import { HomeSection } from './home-section'
 
 const totalLabel = (total: number) =>
   `${total} ${total === 1 ? 'contribuição' : 'contribuições'} para conferir`
@@ -42,8 +43,7 @@ export function PendingByEvent({
 }) {
   if (rows.length === 0) return null
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>CONFERIR POR EVENTO</Text>
+    <HomeSection title="CONFERIR POR EVENTO">
       <Glass variant="card" radius={radii.eventCard} contentStyle={styles.card}>
         {rows.map((row, index) => (
           <Fragment key={row.id}>
@@ -66,7 +66,7 @@ export function PendingByEvent({
           </Fragment>
         ))}
       </Glass>
-    </View>
+    </HomeSection>
   )
 }
 
@@ -84,14 +84,6 @@ const styles = StyleSheet.create({
   heroLabel: { fontFamily: fonts.mono500, fontSize: 12, letterSpacing: 0.72, color: colors.accent },
   heroSubtitle: { fontFamily: fonts.sans400, fontSize: 14, color: colors.heroSubtitle },
   heroCount: { fontFamily: fonts.mono500, fontSize: 50, lineHeight: 56, color: colors.accent },
-  section: { gap: 10 },
-  sectionLabel: {
-    paddingHorizontal: 6,
-    fontFamily: fonts.mono400,
-    fontSize: 12,
-    letterSpacing: 0.72,
-    color: colors.textMuted,
-  },
   card: { paddingHorizontal: 18, paddingVertical: 4 },
   row: {
     minHeight: 56,

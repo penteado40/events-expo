@@ -4,7 +4,7 @@ import { Glass, PressableGlass, SkeletonBlock } from '@/shared/components/ui'
 import { formatMoney } from '@/shared/domain/money'
 import { colors, fonts, radii } from '@/shared/theme'
 
-import { HOME_CURRENCY, type HomeSummary } from '../home-summary'
+import { HOME_CURRENCY, type HomeNumbers } from '../home-summary'
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
 
@@ -13,7 +13,7 @@ const archivedLabel = (archived: number) =>
 
 type Card = { label: string; value: string; subtitle: string; accessibilityLabel: string }
 
-function cards({ active, archived, rsvps, verified, registryItems }: HomeSummary): Card[] {
+function cards({ active, archived, rsvps, verified, registryItems }: HomeNumbers): Card[] {
   return [
     {
       label: 'EVENTOS ATIVOS',
@@ -47,7 +47,7 @@ function cards({ active, archived, rsvps, verified, registryItems }: HomeSummary
 const rows = <T,>(items: T[]) => [items.slice(0, 2), items.slice(2, 4)]
 
 /** Início's 2×2 grid about the active Events; every card opens Eventos. */
-export function HomeGrid({ summary, onOpen }: { summary: HomeSummary; onOpen: () => void }) {
+export function HomeGrid({ summary, onOpen }: { summary: HomeNumbers; onOpen: () => void }) {
   return (
     <View style={styles.grid}>
       {rows(cards(summary)).map((row, index) => (
