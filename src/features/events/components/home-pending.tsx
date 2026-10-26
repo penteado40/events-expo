@@ -6,6 +6,7 @@ import { colors, fonts, radii } from '@/shared/theme'
 
 import type { PendingRow } from '../home-summary'
 import { pendingLabel } from '../pending-label'
+import { chipStyles } from './chip-styles'
 
 const totalLabel = (total: number) =>
   `${total} ${total === 1 ? 'contribuição' : 'contribuições'} para conferir`
@@ -56,8 +57,10 @@ export function PendingByEvent({
               <Text style={styles.name} numberOfLines={1}>
                 {row.name}
               </Text>
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>{pendingLabel(row.count)}</Text>
+              <View style={[chipStyles.chip, chipStyles.accent]}>
+                <Text style={[chipStyles.text, chipStyles.accentText]}>
+                  {pendingLabel(row.count)}
+                </Text>
               </View>
             </Pressable>
           </Fragment>
@@ -79,7 +82,7 @@ const styles = StyleSheet.create({
   },
   heroText: { flexShrink: 1, gap: 4 },
   heroLabel: { fontFamily: fonts.mono500, fontSize: 12, letterSpacing: 0.72, color: colors.accent },
-  heroSubtitle: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textSoft },
+  heroSubtitle: { fontFamily: fonts.sans400, fontSize: 14, color: colors.heroSubtitle },
   heroCount: { fontFamily: fonts.mono500, fontSize: 50, lineHeight: 56, color: colors.accent },
   section: { gap: 10 },
   sectionLabel: {
@@ -100,13 +103,4 @@ const styles = StyleSheet.create({
   rowPressed: { opacity: 0.7 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.divider },
   name: { flexShrink: 1, fontFamily: fonts.sans400, fontSize: 16, color: colors.text },
-  chip: {
-    borderRadius: radii.chip,
-    borderWidth: 1,
-    paddingVertical: 3,
-    paddingHorizontal: 9,
-    backgroundColor: colors.chipAccentBg,
-    borderColor: colors.chipAccentBorder,
-  },
-  chipText: { fontFamily: fonts.mono500, fontSize: 12, color: colors.accent },
 })

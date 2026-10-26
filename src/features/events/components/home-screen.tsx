@@ -8,6 +8,7 @@ import { isSuperAdmin } from '@/shared/domain/roles'
 import { useSession } from '@/shared/session'
 import { colors, fonts, spacing } from '@/shared/theme'
 
+import { detailHref } from '../detail-tab'
 import { firstName, formatToday } from '../greeting'
 import { homeSummary, pendingByEvent, pendingTotal } from '../home-summary'
 import { useEvents, useRefetchEventsOnFocus } from '../hooks/use-events'
@@ -38,8 +39,7 @@ export function HomeScreen() {
 
   if (!user) return null
   const openEvents = () => router.navigate('/events')
-  const openContributions = (id: number) =>
-    router.push({ pathname: '/events/[id]', params: { id, tab: 'contributions' } })
+  const openContributions = (id: number) => router.push(detailHref(id, 'contributions'))
 
   return (
     <ScrollView

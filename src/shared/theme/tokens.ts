@@ -5,6 +5,8 @@ export const colors = {
   text: '#f2f1ee',
   textMuted: 'rgba(255,255,255,.66)',
   textSoft: 'rgba(255,255,255,.78)',
+  /** The "Para conferir" hero's subtitle (README: 80% white). */
+  heroSubtitle: 'rgba(255,255,255,.8)',
   accent: '#b5e35a',
   accentGlow: 'rgba(181,227,90,.6)',
   onAccent: '#0f1011',
