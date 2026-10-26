@@ -39,6 +39,8 @@ export const colors = {
   orbBlue: '#4f7dff',
   orbViolet: '#b36bff',
   gridLine: 'rgba(255,255,255,.05)',
+  /** The dim over the blurred screen under an overlay (Início's expanded list). */
+  veil: 'rgba(0,0,0,.35)',
 } as const
 
 export const fonts = {

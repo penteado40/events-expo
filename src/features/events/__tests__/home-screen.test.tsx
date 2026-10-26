@@ -185,15 +185,25 @@ describe('HomeScreen', () => {
       found.forEach((element, index) => expect(element).toHaveTextContent(titles[index]))
     })
 
-    it.each([
-      [/^Acontecendo agora/, 17],
-      [/^Próximo evento/, 15],
-    ])('opens %s on Resumo', async (name, id) => {
+    it('opens Acontecendo agora on Resumo', async () => {
       await renderHome(user(7, 'Cláudia Lima'))
 
-      await fireEvent.press(await screen.findByRole('button', { name }))
+      await fireEvent.press(await screen.findByRole('button', { name: /^Acontecendo agora/ }))
 
-      expect(mockPush).toHaveBeenCalledWith({ pathname: '/events/[id]', params: { id } })
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/events/[id]', params: { id: 17 } })
+    })
+
+    it('expands Próximos eventos into the Events within 30 days, each opening on Resumo', async () => {
+      await renderHome(user(7, 'Cláudia Lima'))
+
+      await fireEvent.press(await screen.findByRole('button', { name: /^Próximo evento/ }))
+      expect(mockPush).not.toHaveBeenCalled()
+      expect(screen.getByText('PRÓXIMOS 30 DIAS')).toBeOnTheScreen()
+      expect(screen.getByRole('button', { name: 'Marcos, 40, em 23 dias' })).toBeOnTheScreen()
+      await fireEvent.press(screen.getByRole('button', { name: 'Chá da Júlia, em 10 dias' }))
+
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/events/[id]', params: { id: 15 } })
+      expect(screen.queryByText('PRÓXIMOS 30 DIAS')).toBeNull()
     })
 
     it('hides both when no active Event is happening or to come', async () => {

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, screen } from '@testing-library/react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import Tabs from 'expo-router/js-tabs'
 import { renderRouter } from 'expo-router/testing-library'
 import { Text } from 'react-native'
 
@@ -57,10 +58,9 @@ describe('Início → Conferir → back', () => {
 })
 
 describe('Início → Resumo → back', () => {
-  it.each([
-    [/^Acontecendo agora/, 17],
-    [/^Próximo evento/, 15],
-  ])('opens the %s card on Resumo and comes back to Início', async (name, id) => {
+  it('opens the Acontecendo agora card on Resumo and comes back to Início', async () => {
+    const name = /^Acontecendo agora/
+    const id = 17
     await renderHome()
 
     await fireEvent.press(await screen.findByRole('button', { name }))
@@ -69,5 +69,48 @@ describe('Início → Resumo → back', () => {
     await act(async () => router.back())
     expect(screen.queryByText(`detalhe ${id} summary`)).toBeNull()
     expect(await screen.findByRole('button', { name })).toBeOnTheScreen()
+  })
+})
+
+describe('Início → expanded Próximos eventos', () => {
+  const stack = /^Próximo evento: Chá da Júlia/
+
+  it('opens an Event from the list on Resumo, and comes back with the list closed', async () => {
+    await renderHome()
+
+    await fireEvent.press(await screen.findByRole('button', { name: stack }))
+    expect(screen.getByRole('button', { name: 'Chá da Júlia, em 10 dias' })).toBeOnTheScreen()
+    await fireEvent.press(screen.getByRole('button', { name: 'Marcos, 40, em 23 dias' }))
+    expect(await screen.findByText('detalhe 14 summary')).toBeOnTheScreen()
+
+    await act(async () => router.back())
+    expect(await screen.findByRole('button', { name: stack })).toBeOnTheScreen()
+    expect(screen.queryByText('PRÓXIMOS 30 DIAS')).toBeNull()
+  })
+
+  it('is closed on coming back from another tab', async () => {
+    useSession.setState({ session: { token: mockTokenFor(claudia), user: claudia, live: false } })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const Home = () => (
+      <QueryClientProvider client={client}>
+        <HomeScreen />
+      </QueryClientProvider>
+    )
+    await renderRouter(
+      {
+        '(tabs)/_layout': () => <Tabs />,
+        '(tabs)/index': Home,
+        '(tabs)/events': () => <Text>eventos</Text>,
+      },
+      { initialUrl: '/' },
+    )
+
+    await fireEvent.press(await screen.findByRole('button', { name: stack }))
+    expect(screen.getByText('PRÓXIMOS 30 DIAS')).toBeOnTheScreen()
+
+    await act(async () => router.navigate('/events'))
+    await act(async () => router.navigate('/'))
+    expect(await screen.findByRole('button', { name: stack })).toBeOnTheScreen()
+    expect(screen.queryByText('PRÓXIMOS 30 DIAS')).toBeNull()
   })
 })

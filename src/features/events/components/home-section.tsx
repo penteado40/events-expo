@@ -6,14 +6,15 @@ import { colors, fonts } from '@/shared/theme'
 /** A section of Início: its title in mono, outside the cards, above them. */
 export function HomeSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.title}>{title}</Text>
+    <View style={sectionStyles.section}>
+      <Text style={sectionStyles.title}>{title}</Text>
       {children}
     </View>
   )
 }
 
-const styles = StyleSheet.create({
+/** Shared with the expanded "Próximos eventos", which lays its list out like a section. */
+export const sectionStyles = StyleSheet.create({
   section: { gap: 10 },
   title: {
     paddingHorizontal: 6,

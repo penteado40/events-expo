@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useFocusEffect, useRouter } from 'expo-router'
+import { useCallback, useState } from 'react'
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -30,8 +30,11 @@ export function HomeScreen() {
   const events = useEvents()
   // Only a pull shows the spinner; background refetches (focus, remount) stay silent.
   const [pulling, setPulling] = useState(false)
+  // "Próximos eventos" expanded; closed whenever Início loses focus (another tab, an Event).
+  const [upcomingExpanded, setUpcomingExpanded] = useState(false)
 
   useRefetchEventsOnFocus()
+  useFocusEffect(useCallback(() => () => setUpcomingExpanded(false), []))
 
   const refresh = async () => {
     setPulling(true)
@@ -78,6 +81,8 @@ export function HomeScreen() {
           onOpenEvents={openEvents}
           onOpenSummary={openSummary}
           onOpenContributions={openContributions}
+          upcomingExpanded={upcomingExpanded}
+          onUpcomingExpandedChange={setUpcomingExpanded}
         />
       )}
     </ScrollView>
@@ -94,12 +99,16 @@ function HomeContent({
   onOpenEvents,
   onOpenSummary,
   onOpenContributions,
+  upcomingExpanded,
+  onUpcomingExpandedChange,
 }: {
   events: Event[]
   now: Date
   onOpenEvents: () => void
   onOpenSummary: (id: number) => void
   onOpenContributions: (id: number) => void
+  upcomingExpanded: boolean
+  onUpcomingExpandedChange: (expanded: boolean) => void
 }) {
   const summary = homeSummary(events, now)
   const total = pendingTotal(events)
@@ -107,7 +116,13 @@ function HomeContent({
     <>
       <HappeningNow events={summary.happening} onOpen={onOpenSummary} />
       <HomeGrid summary={summary} onOpen={onOpenEvents} />
-      <NextEvents next={summary.next} upcoming={summary.upcoming} onOpen={onOpenSummary} />
+      <NextEvents
+        next={summary.next}
+        upcoming={summary.upcoming}
+        onOpen={onOpenSummary}
+        expanded={upcomingExpanded}
+        onExpandedChange={onUpcomingExpandedChange}
+      />
       {total !== null && <PendingHero total={total} onOpen={onOpenEvents} />}
       <PendingByEvent rows={pendingByEvent(events)} onOpen={onOpenContributions} />
     </>

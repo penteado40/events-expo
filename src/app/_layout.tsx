@@ -7,7 +7,7 @@ import { StyleSheet } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 import { useSessionCheck } from '@/features/auth'
-import { Background, BlurTargetProvider } from '@/shared/components/ui'
+import { Background, BlurTargetProvider, ScreenBlurTarget } from '@/shared/components/ui'
 import {
   clearCacheOnSignOut,
   createQueryClient,
@@ -48,26 +48,28 @@ export default function RootLayout() {
         <ThemeProvider value={theme}>
           <BlurTargetProvider>
             <StatusBar style="light" />
-            <Background />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: 'transparent' },
-              }}
-            >
-              <Stack.Protected guard={!signedIn}>
-                <Stack.Screen name="(auth)/login" />
-              </Stack.Protected>
-              <Stack.Protected guard={signedIn}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="events/[id]/index" />
-                <Stack.Screen
-                  name="events/[id]/contributions/[cid]"
-                  // The sheet animates itself, over the detail.
-                  options={{ presentation: 'transparentModal', animation: 'none' }}
-                />
-              </Stack.Protected>
-            </Stack>
+            <ScreenBlurTarget>
+              <Background />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: 'transparent' },
+                }}
+              >
+                <Stack.Protected guard={!signedIn}>
+                  <Stack.Screen name="(auth)/login" />
+                </Stack.Protected>
+                <Stack.Protected guard={signedIn}>
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="events/[id]/index" />
+                  <Stack.Screen
+                    name="events/[id]/contributions/[cid]"
+                    // The sheet animates itself, over the detail.
+                    options={{ presentation: 'transparentModal', animation: 'none' }}
+                  />
+                </Stack.Protected>
+              </Stack>
+            </ScreenBlurTarget>
           </BlurTargetProvider>
         </ThemeProvider>
       </QueryClientProvider>
