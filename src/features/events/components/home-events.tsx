@@ -1,13 +1,14 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { useRef, useState } from 'react'
+import { StyleSheet, View } from 'react-native'
 
-import { Glass, PressableGlass } from '@/shared/components/ui'
-import { formatEventDayMonth } from '@/shared/domain/events'
-import { colors, fonts, radii } from '@/shared/theme'
+import { Glass } from '@/shared/components/ui'
+import { radii } from '@/shared/theme'
 
-import { eventPlace } from '../event-place'
 import { distanceLabel, UPCOMING_DAYS, type Upcoming } from '../home-summary'
 import type { Event } from '../schemas'
+import { HomeEventCard } from './home-event-card'
 import { HomeSection } from './home-section'
+import { UpcomingList, type Origin, type StackShape } from './upcoming-list'
 
 /** "Acontecendo agora": a card per active Event in progress, each opening it on Resumo. */
 export function HappeningNow({
@@ -26,7 +27,7 @@ export function HappeningNow({
           event={event}
           when="agora"
           accessibilityLabel={`Acontecendo agora: ${event.name}`}
-          onOpen={onOpen}
+          onPress={() => onOpen(event.id)}
         />
       ))}
     </HomeSection>
@@ -44,18 +45,27 @@ const STACK_LAYER_HEIGHT = 48
 
 /**
  * "Próximos eventos": the nearest upcoming Event, however far, opening it on Resumo. When others
- * start within UPCOMING_DAYS too, glass edges peek below it, like a stack of notifications.
+ * start within UPCOMING_DAYS too, glass edges peek below it, like a stack of notifications, and
+ * tapping it expands them in place (`expanded`, kept by Início) instead.
  */
 export function NextEvents({
   next,
   upcoming,
   onOpen,
+  expanded,
+  onExpandedChange,
 }: {
   next: Upcoming<Event> | null
   /** The Events starting within UPCOMING_DAYS, the nearest (`next`) first. */
   upcoming: Upcoming<Event>[]
   onOpen: (id: number) => void
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
 }) {
+  const section = useRef<View>(null)
+  const [origin, setOrigin] = useState<Origin | null>(null)
+  const [cardHeight, setCardHeight] = useState(0)
+
   if (!next) return null
   const others = Math.max(upcoming.length - 1, 0)
   const layers = Math.min(others, MAX_LAYERS)
@@ -66,98 +76,81 @@ export function NextEvents({
   ]
     .filter(Boolean)
     .join('. ')
+  const shape: StackShape = {
+    peek: STACK_PEEK,
+    inset: STACK_INSET,
+    fade: STACK_FADE,
+    layers,
+  }
+
+  const expand = () => {
+    // Synchronous on the new architecture, so the list opens already in place.
+    section.current?.measureInWindow?.((x, y, width) => setOrigin({ x, y, width, cardHeight }))
+    onExpandedChange(true)
+  }
+  const openFromList = (id: number) => {
+    onExpandedChange(false)
+    onOpen(id)
+  }
 
   return (
-    <HomeSection title="PRÓXIMOS EVENTOS">
-      <View style={{ paddingBottom: layers * STACK_PEEK }}>
-        {Array.from({ length: layers }, (_, index) => layers - index).map((depth) => (
-          <View
-            key={depth}
-            pointerEvents="none"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={[
-              styles.layer,
-              {
-                left: depth * STACK_INSET,
-                right: depth * STACK_INSET,
-                bottom: (layers - depth) * STACK_PEEK,
-                opacity: 1 - depth * STACK_FADE,
-              },
-            ]}
-          >
-            <Glass variant="card" radius={radii.eventCard} style={styles.layerGlass} />
+    <View ref={section}>
+      {/* Hidden while expanded: the list's cards are the stack, fanned out. */}
+      <View style={expanded && styles.hidden}>
+        <HomeSection title="PRÓXIMOS EVENTOS">
+          <View style={{ paddingBottom: layers * STACK_PEEK }}>
+            {Array.from({ length: layers }, (_, index) => layers - index).map((depth) => (
+              <View
+                key={depth}
+                pointerEvents="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[
+                  styles.layer,
+                  {
+                    left: depth * STACK_INSET,
+                    right: depth * STACK_INSET,
+                    bottom: (layers - depth) * STACK_PEEK,
+                    opacity: 1 - depth * STACK_FADE,
+                  },
+                ]}
+              >
+                <Glass variant="card" radius={radii.eventCard} style={styles.layerGlass} />
+              </View>
+            ))}
+            <View onLayout={(event) => setCardHeight(event.nativeEvent.layout.height)}>
+              <HomeEventCard
+                event={next.event}
+                when={distance}
+                accessibilityLabel={label}
+                accessibilityHint={
+                  others > 0 ? `Abre a lista dos próximos ${UPCOMING_DAYS} dias` : undefined
+                }
+                onPress={others > 0 ? expand : () => onOpen(next.event.id)}
+              />
+            </View>
           </View>
-        ))}
-        <HomeEventCard
-          event={next.event}
-          when={distance}
-          accessibilityLabel={label}
-          onOpen={onOpen}
-        />
+        </HomeSection>
       </View>
-    </HomeSection>
-  )
-}
-
-/**
- * An Event on Início (README "Início"): its day and month on the left, name and "tipo · local" in
- * the middle, and where it stands in lime on the right.
- */
-function HomeEventCard({
-  event,
-  when,
-  accessibilityLabel,
-  onOpen,
-}: {
-  event: Event
-  /** Where it stands, in lime: "agora", "hoje", "em N dias". */
-  when: string
-  accessibilityLabel: string
-  onOpen: (id: number) => void
-}) {
-  const { day, month } = formatEventDayMonth(event.startsAt, event.timezone)
-  return (
-    <PressableGlass
-      variant="card"
-      radius={radii.eventCard}
-      onPress={() => onOpen(event.id)}
-      accessibilityLabel={accessibilityLabel}
-      contentStyle={styles.card}
-    >
-      <View style={styles.date}>
-        <Text style={styles.day}>{day}</Text>
-        <Text style={styles.month}>{month}</Text>
-      </View>
-      <View style={styles.details}>
-        <Text style={styles.name} numberOfLines={1}>
-          {event.name}
-        </Text>
-        <Text style={styles.place} numberOfLines={2}>
-          {eventPlace(event)}
-        </Text>
-      </View>
-      <Text style={styles.when}>{when}</Text>
-    </PressableGlass>
+      {expanded && others > 0 && (
+        <UpcomingList origin={origin} shape={shape} onClose={() => onExpandedChange(false)}>
+          {upcoming.map(({ event, days }) => (
+            <HomeEventCard
+              key={event.id}
+              event={event}
+              when={distanceLabel(days)}
+              accessibilityLabel={`${event.name}, ${distanceLabel(days)}`}
+              onPress={() => openFromList(event.id)}
+            />
+          ))}
+        </UpcomingList>
+      )}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
-  card: {
-    minHeight: 44,
-    paddingVertical: 18,
-    paddingHorizontal: 22,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 18,
-  },
-  date: { minWidth: 44, alignItems: 'center' },
-  day: { fontFamily: fonts.sans500, fontSize: 32, lineHeight: 36, color: colors.text },
-  month: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
-  details: { flex: 1, gap: 4 },
-  name: { fontFamily: fonts.sans500, fontSize: 18, color: colors.text },
-  place: { fontFamily: fonts.sans400, fontSize: 14, color: colors.textMuted },
-  when: { fontFamily: fonts.mono500, fontSize: 13, color: colors.accent },
+  hidden: { opacity: 0 },
   layer: { position: 'absolute', height: STACK_LAYER_HEIGHT },
   layerGlass: { flex: 1 },
 })

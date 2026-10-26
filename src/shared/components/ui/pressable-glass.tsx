@@ -8,6 +8,7 @@ type Props = Omit<ComponentProps<typeof Glass>, 'pressed' | 'style'> &
   Pick<PressableProps, 'accessibilityActions' | 'onAccessibilityAction'> & {
     onPress?: () => void
     accessibilityLabel?: string
+    accessibilityHint?: string
     style?: StyleProp<ViewStyle>
   }
 
@@ -15,6 +16,7 @@ type Props = Omit<ComponentProps<typeof Glass>, 'pressed' | 'style'> &
 export function PressableGlass({
   onPress,
   accessibilityLabel,
+  accessibilityHint,
   accessibilityActions,
   onAccessibilityAction,
   style,
@@ -30,6 +32,7 @@ export function PressableGlass({
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
         accessibilityActions={accessibilityActions}
         onAccessibilityAction={onAccessibilityAction}
         onPressIn={() => {
