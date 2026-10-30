@@ -1,4 +1,4 @@
-import Tabs from 'expo-router/js-tabs'
+import { Tabs } from 'expo-router/js-tabs'
 
 import { FloatingTabBar, Icon } from '@/shared/components/ui'
 import { useTheme } from '@/shared/theme'

@@ -20,7 +20,7 @@ describe('themeFor', () => {
 
   it('uses light mode when the system has no preference', () => {
     expect(themeFor(null)).toBe(themeFor('light'))
-    expect(themeFor('unspecified')).toBe(themeFor('light'))
+    expect(themeFor(undefined)).toBe(themeFor('light'))
   })
 
   it('tints badges and Team chips with steps 50/100 → 700 in light, 900 → 100 in dark', () => {
