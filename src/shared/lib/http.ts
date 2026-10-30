@@ -74,7 +74,6 @@ export function createHttpClient({
     const failure = errorEnvelope.safeParse(payload)
     if (failure.success) {
       const { code, message, details } = failure.data.error
-      // Only the code: a wrong password is a 401 too (`INVALID_CREDENTIALS`).
       if (code === 'UNAUTHENTICATED') onUnauthenticated?.(token ?? null)
       throw new ApiError(code, message, details)
     }

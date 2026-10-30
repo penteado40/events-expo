@@ -1,6 +1,6 @@
 # Domain Docs
 
-The domain glossary and ADRs are shared with the backend: read `CONTEXT.md` and `docs/adr/` in [`penteado40/events-api`](https://github.com/penteado40/events-api) (locally `../events-api/`). This repo's own `CONTEXT.md` holds only app-specific terms (Session, Demo mode, Live session), and its own `docs/adr/` holds app decisions (starting with 0001, the feature-based structure). Use its terms (Event, RSVP, Registry item, Contribution, Verification, Owner/Manager/Viewer, Primary owner) and flag conflicts with its ADRs (in particular 0003 and 0004).
+The domain glossary and ADRs are shared with the backend: read `CONTEXT.md` and `docs/adr/` in [`penteado40/events-api`](https://github.com/penteado40/events-api) (locally `../events-api/`). This repo's own `CONTEXT.md` holds only app-specific terms (Session, Demo mode, Live session), and its own `docs/adr/` holds app decisions (starting with 0001, the feature-based structure). Use its terms (Group, Event, Event item, Participant, Team, Audience, Owner/Viewer, Super admin) and flag conflicts with its ADRs (in particular 0016, the pivot to Groups, and 0020, identity in Clerk).
 
 How the engineering skills should consume this repo's domain documentation when exploring the codebase.
 

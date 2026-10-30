@@ -1,26 +1,39 @@
-import Tabs from 'expo-router/js-tabs'
+import { Tabs } from 'expo-router/js-tabs'
 
-import { FloatingTabBar } from '@/shared/components/ui'
+import { FloatingTabBar, Icon } from '@/shared/components/ui'
+import { useTheme } from '@/shared/theme'
 
+/** The Group's tabs: Início, Hoje, Pessoas, Perfil, on the floating blue bar. */
 export default function TabsLayout() {
+  const { colors } = useTheme()
+
   return (
     <Tabs
-      // Início, in the middle, is where a Session lands.
-      initialRouteName="index"
-      // Back from another tab returns to Início, not to the first tab (Eventos).
+      // Back from another tab returns to Início.
       backBehavior="initialRoute"
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: 'transparent' },
-        // Scenes are transparent (the fixed Background shows through), so the inactive tab must
-        // fade to opacity 0 or it stays visible underneath.
+        sceneStyle: { backgroundColor: colors.bg },
         animation: 'fade',
       }}
     >
-      <Tabs.Screen name="events" options={{ title: 'Eventos' }} />
-      <Tabs.Screen name="index" options={{ title: 'Início' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Perfil' }} />
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Início', tabBarIcon: (props) => <Icon name="home" {...props} /> }}
+      />
+      <Tabs.Screen
+        name="today"
+        options={{ title: 'Hoje', tabBarIcon: (props) => <Icon name="today" {...props} /> }}
+      />
+      <Tabs.Screen
+        name="people"
+        options={{ title: 'Pessoas', tabBarIcon: (props) => <Icon name="people" {...props} /> }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: 'Perfil', tabBarIcon: (props) => <Icon name="profile" {...props} /> }}
+      />
     </Tabs>
   )
 }

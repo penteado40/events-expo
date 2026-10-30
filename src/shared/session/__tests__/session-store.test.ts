@@ -2,7 +2,6 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import * as SecureStore from 'expo-secure-store'
 import type { StoreApi, UseBoundStore } from 'zustand'
 
-import { createLastEmailStore } from '../last-email-store'
 import { createSessionStore, type Session } from '../session-store'
 
 const admin: Session = {
@@ -34,20 +33,14 @@ describe('Session store', () => {
     expect(reopened.current.session).toEqual(admin)
   })
 
-  it('signs out without forgetting the saved email, even after reopening', async () => {
+  it('signs out, also after reopening', async () => {
     const session = await open(createSessionStore())
-    const lastEmail = await open(createLastEmailStore())
-    await act(() => {
-      session.current.signIn(admin)
-      lastEmail.current.setEmail('admin@local.test')
-    })
+    await act(() => session.current.signIn(admin))
 
     await act(() => session.current.signOut())
 
-    const reopenedSession = await open(createSessionStore())
-    const reopenedEmail = await open(createLastEmailStore())
-    expect(reopenedSession.current.session).toBeNull()
-    expect(reopenedEmail.current.email).toBe('admin@local.test')
+    const reopened = await open(createSessionStore())
+    expect(reopened.current.session).toBeNull()
   })
 
   it('drops a stored Session without an API behind it when reopened in a release build', async () => {

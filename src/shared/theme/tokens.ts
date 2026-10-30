@@ -1,145 +1,146 @@
-/** Design tokens from docs/design/README.md. */
+import type { ColorSchemeName } from 'react-native'
 
-export const colors = {
-  bg: '#07080a',
-  text: '#f2f1ee',
-  textMuted: 'rgba(255,255,255,.66)',
-  textSoft: 'rgba(255,255,255,.78)',
-  /** The "Para conferir" hero's subtitle (README: 80% white). */
-  heroSubtitle: 'rgba(255,255,255,.8)',
-  accent: '#b5e35a',
-  accentGlow: 'rgba(181,227,90,.6)',
-  onAccent: '#0f1011',
-  verified: '#9cc4ff',
-  danger: '#ff9a86',
-  dangerBorder: 'rgba(255,154,134,.3)',
-  dangerFill: 'rgba(255,154,134,.08)',
-  warning: '#f0c24b',
-  divider: 'rgba(255,255,255,.08)',
-  dividerSheet: 'rgba(255,255,255,.12)',
-  activePill: 'rgba(255,255,255,.88)',
-  tabInactive: 'rgba(255,255,255,.75)',
-  inputBg: 'rgba(0,0,0,.28)',
-  inputBorder: 'rgba(255,255,255,.14)',
-  errorBg: 'rgba(60,18,12,.55)',
-  errorBorder: 'rgba(255,154,134,.35)',
-  errorText: '#f3d6cf',
-  secondaryButtonBg: 'rgba(255,255,255,.06)',
-  secondaryButtonBorder: 'rgba(255,255,255,.16)',
-  chipMutedBorder: 'rgba(255,255,255,.18)',
-  chipAccentBg: 'rgba(181,227,90,.16)',
-  chipAccentBorder: 'rgba(181,227,90,.35)',
-  chipAccentPressedBg: 'rgba(181,227,90,.28)',
-  chipNeutralBg: 'rgba(255,255,255,.08)',
-  chipNeutralBorder: 'rgba(255,255,255,.22)',
-  chipNeutralPressedBg: 'rgba(255,255,255,.16)',
-  skeleton: 'rgba(255,255,255,.1)',
-  stripeLight: 'rgba(255,255,255,.1)',
-  stripeDark: 'rgba(255,255,255,.04)',
-  orbBlue: '#4f7dff',
-  orbViolet: '#b36bff',
-  gridLine: 'rgba(255,255,255,.05)',
-} as const
+/** Design D tokens (canvas "events-expo · Design D", Media kit: Cores and Tipografia). */
+
+type Scale = Readonly<Record<'50' | '100' | '500' | '700' | '900', string>>
+
+/**
+ * The palette in 5 steps. 50: badge and tinted card background; 100: Team chip, soft border, text in
+ * dark mode; 500: full color (end of a cover, Timeline dot); 700: text and icon in light mode; 900:
+ * start of a cover, badge background in dark mode.
+ */
+export const palette = {
+  /** Identity: the app's bars, buttons, links, active tab. Never an Event's or Team's tone. */
+  blue: { 50: '#EEF3FB', 100: '#DBE7FF', 500: '#2F63C9', 700: '#1F4FAE', 900: '#10204A' },
+  coral: { 50: '#FFF4F2', 100: '#FFE2DC', 500: '#EF5A3C', 700: '#AB331C', 900: '#52170C' },
+  green: { 50: '#EEFBF2', 100: '#D3F3DD', 500: '#1FB86A', 700: '#057743', 900: '#0D3B3A' },
+  purple: { 50: '#F8F5FE', 100: '#EDE5FE', 500: '#A06AEC', 700: '#7347AF', 900: '#352053' },
+  pink: { 50: '#FEF4F7', 100: '#FEE0EB', 500: '#DF4E92', 700: '#A43068', 900: '#4E1530' },
+  turquoise: { 50: '#EAFBFC', 100: '#C8F3F5', 500: '#069FA6', 700: '#057176', 900: '#023538' },
+  gold: { 50: '#FDF6EA', 100: '#FAE7C8', 500: '#B68103', 700: '#815B04', 900: '#3E2A00' },
+  /** Only for Cancelled. */
+  red: { 50: '#FFF4F5', 100: '#FFE1E4', 500: '#D93A52', 700: '#AA2E4A', 900: '#511522' },
+  /** Text, borders, Event items; the removed (ghost) state. */
+  gray: { 50: '#F6F7F9', 100: '#ECEEF3', 500: '#8A909C', 700: '#5B6170', 900: '#15171C' },
+} as const satisfies Record<string, Scale>
+
+/** A tone a badge, chip or cover can take: any palette scale. */
+export type Tone = keyof typeof palette
+
+export type ColorScheme = 'light' | 'dark'
+
+type Colors = {
+  bg: string
+  /** Cards. */
+  surface: string
+  surfaceBrand: string
+  text: string
+  textMuted: string
+  /** Buttons and the floating bar: always blue, even inside a colored Event. */
+  action: string
+  onAction: string
+  link: string
+  /** Inactive icons on the floating bar. */
+  onActionMuted: string
+}
+
+/** Two colors of a gradient, from its top-left start to its bottom-right end. */
+export type Gradient = readonly [string, string]
+
+export type Theme = {
+  scheme: ColorScheme
+  colors: Colors
+  /** The Group's header: blue 900 → 500, in both modes. */
+  header: Gradient
+  /** A state badge, always with text: coral changed/new, green now/going, gold Draft, red Cancelled, gray removed. */
+  badge: (tone: Tone) => { bg: string; text: string }
+  teamChip: (tone: Tone) => { bg: string; text: string }
+  /** An Event's cover, the same in both modes. */
+  cover: (tone: Tone) => Gradient
+  timelineDot: (tone: Tone) => string
+}
+
+const shared = {
+  header: [palette.blue[900], palette.blue[500]],
+  cover: (tone: Tone) => [palette[tone][900], palette[tone][500]],
+  timelineDot: (tone: Tone) => palette[tone][500],
+} as const satisfies Partial<Theme>
+
+const light: Theme = {
+  ...shared,
+  scheme: 'light',
+  colors: {
+    bg: palette.gray[50],
+    surface: '#FFFFFF',
+    surfaceBrand: palette.blue[50],
+    text: palette.gray[900],
+    textMuted: palette.gray[700],
+    action: palette.blue[700],
+    onAction: '#FFFFFF',
+    link: palette.blue[700],
+    onActionMuted: palette.blue[100],
+  },
+  badge: (tone) => ({ bg: palette[tone][50], text: palette[tone][700] }),
+  teamChip: (tone) => ({ bg: palette[tone][100], text: palette[tone][700] }),
+}
+
+const dark: Theme = {
+  ...shared,
+  scheme: 'dark',
+  colors: {
+    bg: '#0E1320',
+    surface: '#171D2B',
+    surfaceBrand: '#142038',
+    text: '#F2F4F8',
+    textMuted: '#A7AEBD',
+    action: palette.blue[500],
+    onAction: '#FFFFFF',
+    link: palette.blue[100],
+    onActionMuted: palette.blue[100],
+  },
+  badge: (tone) => ({ bg: palette[tone][900], text: palette[tone][100] }),
+  teamChip: (tone) => ({ bg: palette[tone][900], text: palette[tone][100] }),
+}
+
+/** The theme for the system's color scheme; light when it has no preference. */
+export const themeFor = (scheme: ColorSchemeName | null | undefined): Theme =>
+  scheme === 'dark' ? dark : light
 
 export const fonts = {
-  sans400: 'IBMPlexSans_400Regular',
-  sans500: 'IBMPlexSans_500Medium',
-  sans600: 'IBMPlexSans_600SemiBold',
+  sans400: 'Outfit_400Regular',
+  sans500: 'Outfit_500Medium',
+  sans600: 'Outfit_600SemiBold',
+  sans700: 'Outfit_700Bold',
+  /** Only for links and codes. */
   mono400: 'IBMPlexMono_400Regular',
   mono500: 'IBMPlexMono_500Medium',
 } as const
 
-export const radii = {
-  chip: 10,
-  input: 16,
-  stat: 22,
-  rsvpCard: 20,
-  registryCard: 22,
-  contributionCard: 22,
-  thumbnail: 14,
-  segmentedTabs: 24,
-  segmentedTab: 19,
-  eventCard: 24,
-  pillButton: 26,
-  backButton: 22,
-  heroCard: 26,
-  loginCard: 28,
-  primaryButton: 28,
-  tabBar: 32,
-  tabBarItem: 26,
-  sheet: 40,
+/** Type scale (Media kit: Tipografia). Colors come from the theme. */
+export const textStyles = {
+  display: { fontFamily: fonts.sans700, fontSize: 30, lineHeight: 33 },
+  title: { fontFamily: fonts.sans700, fontSize: 28, lineHeight: 31 },
+  day: { fontFamily: fonts.sans700, fontSize: 20 },
+  cardTitle: { fontFamily: fonts.sans600, fontSize: 16 },
+  body: { fontFamily: fonts.sans400, fontSize: 15 },
+  caption: { fontFamily: fonts.sans400, fontSize: 13 },
+  label: {
+    fontFamily: fonts.sans700,
+    fontSize: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  /** Never below 11 px; badges at 11 only in caps and 700. */
+  badge: { fontFamily: fonts.sans700, fontSize: 11, textTransform: 'uppercase' },
+  /** Tabular digits, so the Timeline's columns line up. */
+  time: { fontFamily: fonts.sans700, fontSize: 15, fontVariant: ['tabular-nums'] },
+  mono: { fontFamily: fonts.mono400, fontSize: 13 },
 } as const
 
 export const spacing = {
   screen: 16,
-  cardGap: 12,
-  cardPadding: 16,
-  /** Side padding of the Event detail's header. */
-  eventHeader: 22,
-  /** Bottom padding that keeps scrolling content clear of the floating tab bar. */
-  tabBarClearance: 120,
-} as const
-
-/** Text styles repeated across screens. */
-export const textStyles = {
-  screenTitle: { fontFamily: fonts.sans600, fontSize: 32, color: colors.text },
-  /** Mono 12 muted: meta lines. */
-  monoCaption: { fontFamily: fonts.mono400, fontSize: 12, color: colors.textMuted },
-} as const
-
-export type GlassVariant = 'card' | 'accent' | 'pill' | 'sheet'
-
-type Material = {
-  tint: string
-  border: string
-  highlight: string
-  /** Stronger top highlight while pressed. */
-  highlightPressed: string
-  shadow: string
-}
-
-/** Glass materials (README "Materiais de vidro"). */
-export const materials: Record<GlassVariant, Material> = {
-  card: {
-    tint: 'rgba(255,255,255,.06)',
-    border: 'rgba(255,255,255,.16)',
-    highlight: 'rgba(255,255,255,.3)',
-    highlightPressed: 'rgba(255,255,255,.55)',
-    shadow: '0 16px 40px -16px rgba(0,0,0,.6)',
-  },
-  accent: {
-    tint: 'rgba(181,227,90,.14)',
-    border: 'rgba(181,227,90,.35)',
-    highlight: 'rgba(255,255,255,.35)',
-    highlightPressed: 'rgba(255,255,255,.6)',
-    shadow: '0 16px 40px -16px rgba(0,0,0,.6)',
-  },
-  pill: {
-    tint: 'rgba(255,255,255,.08)',
-    border: 'rgba(255,255,255,.18)',
-    highlight: 'rgba(255,255,255,.35)',
-    highlightPressed: 'rgba(255,255,255,.6)',
-    shadow: '0 12px 30px -12px rgba(0,0,0,.6)',
-  },
-  sheet: {
-    tint: 'rgba(30,32,36,.45)',
-    border: 'rgba(255,255,255,.2)',
-    highlight: 'rgba(255,255,255,.4)',
-    highlightPressed: 'rgba(255,255,255,.6)',
-    shadow: '0 -10px 50px -10px rgba(0,0,0,.6)',
-  },
-}
-
-/** The accent stat's overrides of the Card accent material (README: ".12 nos stats"). */
-export const accentStatGlass = {
-  tint: 'rgba(181,227,90,.12)',
-  borderColor: 'rgba(181,227,90,.32)',
-  highlight: 'rgba(255,255,255,.3)',
-} as const
-
-/** The tab bar's overrides of the Pill material (README "Materiais de vidro"). */
-export const tabBarGlass = {
-  borderColor: 'rgba(255,255,255,.2)',
-  highlight: 'rgba(255,255,255,.4)',
-  shadow: '0 18px 40px -12px rgba(0,0,0,.7)',
+  /** Minimum touch target. */
+  touchTarget: 44,
+  /** Bottom padding that keeps scrolling content clear of the floating bar. */
+  tabBarClearance: 112,
 } as const

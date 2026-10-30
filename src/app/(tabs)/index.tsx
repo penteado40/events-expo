@@ -1,3 +1,5 @@
-import { HomeScreen } from '@/features/events'
+import { EmptyScreen } from '@/shared/components/ui'
 
-export default HomeScreen
+export default function HomeScreen() {
+  return <EmptyScreen title="Início" />
+}

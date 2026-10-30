@@ -1,4 +1,3 @@
-import { createLastEmailStore } from './last-email-store'
 import { createSessionStore } from './session-store'
 
 export type { Session } from './session-store'
@@ -8,8 +7,5 @@ export { userSchema } from './user'
 /** The device's Session (CONTEXT.md). */
 export const useSession = createSessionStore()
 
-/** The email last used with "Entrar". */
-export const useLastEmail = createLastEmailStore()
-
-/** Ends the Session the API refused (`UNAUTHENTICATED`); Stack.Protected then returns to Login. */
+/** Ends the Session the API refused (`UNAUTHENTICATED`). */
 export const expireSession = (token: string | null) => useSession.getState().expire(token)
