@@ -18,12 +18,17 @@ function tabBarProps(index: number, { defaultPrevented = false } = {}) {
   const descriptors = Object.fromEntries(
     TABS.map(([name, title]) => [`${name}-key`, { options: { title } }]),
   )
-  const navigation = {
-    emit: jest.fn(() => ({ defaultPrevented })),
-    navigate: jest.fn(),
-  }
-  const props = { state: { index, routes }, descriptors, navigation } as unknown as Props
-  return { props, navigation }
+  const emitter = { emit: jest.fn(() => ({ defaultPrevented })) }
+  const navigateToTab = jest.fn()
+  const insets = { top: 0, right: 0, bottom: 0, left: 0 }
+  const props = {
+    state: { index, routes },
+    descriptors,
+    emitter,
+    navigateToTab,
+    insets,
+  } as unknown as Props
+  return { props, navigateToTab }
 }
 
 describe('FloatingTabBar', () => {
@@ -42,23 +47,23 @@ describe('FloatingTabBar', () => {
   })
 
   it('goes to the tab pressed', async () => {
-    const { props, navigation } = tabBarProps(0)
+    const { props, navigateToTab } = tabBarProps(0)
     await render(<FloatingTabBar {...props} />)
 
     fireEvent.press(screen.getByRole('tab', { name: 'Pessoas' }))
 
-    expect(navigation.navigate).toHaveBeenCalledWith('people')
+    expect(navigateToTab).toHaveBeenCalledWith('people-key')
   })
 
   it('stays put when the current tab is pressed again, or a listener prevents it', async () => {
     const current = tabBarProps(1)
     await render(<FloatingTabBar {...current.props} />)
     fireEvent.press(screen.getByRole('tab', { name: 'Hoje' }))
-    expect(current.navigation.navigate).not.toHaveBeenCalled()
+    expect(current.navigateToTab).not.toHaveBeenCalled()
 
     const prevented = tabBarProps(1, { defaultPrevented: true })
     await render(<FloatingTabBar {...prevented.props} />)
     fireEvent.press(screen.getByRole('tab', { name: 'Perfil' }))
-    expect(prevented.navigation.navigate).not.toHaveBeenCalled()
+    expect(prevented.navigateToTab).not.toHaveBeenCalled()
   })
 })

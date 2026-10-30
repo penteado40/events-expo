@@ -1,11 +1,7 @@
-import type { ComponentProps } from 'react'
+import type { BottomTabBarProps } from 'expo-router/js-tabs'
 import { Pressable, StyleSheet, View } from 'react-native'
-import Tabs from 'expo-router/js-tabs'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { palette, useTheme } from '@/shared/theme'
-
-type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0]
 
 const ICON_SIZE = 22
 const BOTTOM = 24
@@ -14,9 +10,14 @@ const BOTTOM = 24
  * The Group's floating blue bar (Media kit: Navegação): icons only, each tab named by its screen's
  * title for screen readers; the current one on a white pill.
  */
-export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) {
+export function FloatingTabBar({
+  state,
+  descriptors,
+  emitter,
+  navigateToTab,
+  insets,
+}: BottomTabBarProps) {
   const { colors } = useTheme()
-  const insets = useSafeAreaInsets()
 
   return (
     <View
@@ -30,12 +31,12 @@ export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) 
         const { title, tabBarIcon } = descriptors[route.key].options
         const color = focused ? colors.action : colors.onActionMuted
         const onPress = () => {
-          const event = navigation.emit({
+          const event = emitter.emit({
             type: 'tabPress',
             target: route.key,
             canPreventDefault: true,
           })
-          if (!focused && !event.defaultPrevented) navigation.navigate(route.name)
+          if (!focused && !event.defaultPrevented) navigateToTab(route.key)
         }
         return (
           <Pressable
