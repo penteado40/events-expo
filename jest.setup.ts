@@ -25,7 +25,12 @@ beforeEach(() => {
   require('expo-secure-store').__keychain.clear()
 })
 
-// Reanimated (the UI kit's skeletons and tab bar) needs its native worklets runtime: use its mocks,
-// so component tests can render screens.
+// Reanimated needs its native worklets runtime: use its mocks, so component tests can render screens.
 jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'))
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
+
+// Safe-area insets come from a native provider: the library's mock answers with zero insets.
+jest.mock(
+  'react-native-safe-area-context',
+  () => require('react-native-safe-area-context/jest/mock').default,
+)

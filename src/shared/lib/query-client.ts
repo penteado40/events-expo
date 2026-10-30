@@ -17,7 +17,7 @@ export const shouldRetry = (failureCount: number, error: unknown) =>
 /** Data counts as fresh for 30 s; after that a remount or a return to the app refetches it. */
 const STALE_TIME_MS = 30_000
 
-/** Mutations (login, verify/reject) never retry automatically. */
+/** Mutations never retry automatically. */
 export const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -28,7 +28,7 @@ export const createQueryClient = () =>
 
 /**
  * React Native has no window focus: tell TanStack Query the app is focused while it is in the
- * foreground, so stale queries refetch on return (e.g. back from the bank app).
+ * foreground, so stale queries refetch on return.
  */
 export const refetchOnAppFocus = () =>
   focusManager.setEventListener((setFocused) => {

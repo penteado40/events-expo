@@ -1,12 +1,6 @@
 /** Stable error codes from the events-api contract (ADR-0008), plus `NETWORK` for unreachable API. */
 export type KnownApiErrorCode =
-  | 'VALIDATION_ERROR'
-  | 'INVALID_CREDENTIALS'
-  | 'UNAUTHENTICATED'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'INTERNAL_ERROR'
-  | 'NETWORK'
+  'VALIDATION_ERROR' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'INTERNAL_ERROR' | 'NETWORK'
 
 /** A known code, or any other the API sends (e.g. `USER_PENDING`), shown with the API's message. */
 // `string & {}` keeps editor completion for the known codes.

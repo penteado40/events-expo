@@ -1,3 +1,5 @@
-import { ProfileScreen } from '@/features/profile'
+import { EmptyScreen } from '@/shared/components/ui'
 
-export default ProfileScreen
+export default function ProfileScreen() {
+  return <EmptyScreen title="Perfil" />
+}

@@ -1,4 +1,10 @@
+---
+status: superseded by PROJ-210
+---
+
 # A Início agrega o Event summary de `GET /events`, sem um `GET /dashboard`
+
+> Substituído pelo PROJ-210 (PRD da V2, design D, 2026-10-30): o app passou para Groups e o Event summary da V1 (RSVPs, Registry, Contributions) saiu do produto. O Início da V2 é uma leitura da lista de Events do Group.
 
 A tela Início mostra totais de todos os Events visíveis (eventos ativos, RSVPs, valor verificado, Registry items, Contributions para conferir) e listas por Event (acontecendo agora, próximos, conferir por evento). O pedido original era um `DashboardRepository.getSummary()` espelhando um futuro `GET /dashboard`. Decidimos, em vez disso, que cada item de `GET /events` traz o seu **Event summary** (o conceito da events-api: os números agregados de um Event, sem dado de nenhum Guest), como já traz o `paidContributionCount` (events-api PROJ-67), e que a Início é uma função pura do app sobre essa lista. Assim a Início faz a mesma requisição da tela Eventos, divide o cache com ela e acompanha a Verification otimista sem invalidação própria; e o backend expõe um conceito de domínio, não um endpoint com a forma de uma tela.
 

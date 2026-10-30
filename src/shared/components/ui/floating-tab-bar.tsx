@@ -1,90 +1,77 @@
 import type { ComponentProps } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import Tabs from 'expo-router/js-tabs'
-import Animated, { Easing, useAnimatedStyle, withTiming } from 'react-native-reanimated'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { colors, fonts, radii, tabBarGlass } from '@/shared/theme'
-
-import { Glass } from './glass'
+import { useTheme } from '@/shared/theme'
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0]
 
-const WIDTH = 300
-const PADDING = 5
-const GAP = 4
+const ICON_SIZE = 22
+const BOTTOM = 24
 
-/** The centered floating tab bar (README "Tab bar flutuante") with the sliding active pill. */
+/**
+ * The Group's floating blue bar (Media kit: Navegação): icons only, each tab named by its screen's
+ * title for screen readers; the current one on a white pill.
+ */
 export function FloatingTabBar({ state, descriptors, navigation }: TabBarProps) {
-  const count = state.routes.length
-  const itemWidth = (WIDTH - PADDING * 2 - GAP * (count - 1)) / count
-
-  const pill = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: withTiming(state.index * (itemWidth + GAP), {
-          duration: 250,
-          easing: Easing.out(Easing.cubic),
-        }),
-      },
-    ],
-  }))
+  const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
 
   return (
-    <View style={styles.wrapper} pointerEvents="box-none">
-      <Glass
-        variant="pill"
-        radius={radii.tabBar}
-        {...tabBarGlass}
-        style={styles.bar}
-        contentStyle={styles.content}
-      >
-        <Animated.View style={[styles.activePill, { width: itemWidth }, pill]} />
-        {state.routes.map((route, index) => {
-          const focused = state.index === index
-          const label = descriptors[route.key].options.title ?? route.name
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            })
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name)
-          }
-          return (
-            <Pressable
-              key={route.key}
-              onPress={onPress}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: focused }}
-              style={[styles.item, { width: itemWidth }]}
-            >
-              <Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>
-            </Pressable>
-          )
-        })}
-      </Glass>
+    <View
+      style={[
+        styles.bar,
+        { bottom: Math.max(insets.bottom, BOTTOM), backgroundColor: colors.action },
+      ]}
+    >
+      {state.routes.map((route, index) => {
+        const focused = state.index === index
+        const { title, tabBarIcon } = descriptors[route.key].options
+        const color = focused ? colors.action : colors.onActionMuted
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          })
+          if (!focused && !event.defaultPrevented) navigation.navigate(route.name)
+        }
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            accessibilityRole="tab"
+            accessibilityLabel={title ?? route.name}
+            accessibilityState={{ selected: focused }}
+            style={[styles.item, focused && { backgroundColor: colors.onAction }]}
+          >
+            {tabBarIcon?.({ focused, color, size: ICON_SIZE })}
+          </Pressable>
+        )
+      })}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  wrapper: { position: 'absolute', left: 0, right: 0, bottom: 28, alignItems: 'center' },
-  bar: { width: WIDTH },
-  content: { flexDirection: 'row', padding: PADDING, gap: GAP },
-  activePill: {
+  bar: {
     position: 'absolute',
-    top: PADDING,
-    left: PADDING,
-    height: 48,
-    borderRadius: radii.tabBarItem,
-    backgroundColor: colors.activePill,
+    left: 20,
+    right: 20,
+    height: 64,
+    borderRadius: 32,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    boxShadow: '0 18px 30px -14px rgba(31,79,174,0.7)',
   },
   item: {
+    flex: 1,
     height: 48,
-    borderRadius: radii.tabBarItem,
+    marginHorizontal: 6,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  label: { fontFamily: fonts.sans500, fontSize: 14, color: colors.tabInactive },
-  labelActive: { color: colors.onAccent },
 })
