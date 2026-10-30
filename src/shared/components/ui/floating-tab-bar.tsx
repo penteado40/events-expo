@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import Tabs from 'expo-router/js-tabs'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { useTheme } from '@/shared/theme'
+import { palette, useTheme } from '@/shared/theme'
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0]
 
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    boxShadow: '0 18px 30px -14px rgba(31,79,174,0.7)',
+    boxShadow: `0 18px 30px -14px ${palette.blue[700]}B3`,
   },
   item: {
     flex: 1,

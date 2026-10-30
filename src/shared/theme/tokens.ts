@@ -11,17 +11,17 @@ type Scale = Readonly<Record<'50' | '100' | '500' | '700' | '900', string>>
  */
 export const palette = {
   /** Identity: the app's bars, buttons, links, active tab. Never an Event's or Team's tone. */
-  azul: { 50: '#EEF3FB', 100: '#DBE7FF', 500: '#2F63C9', 700: '#1F4FAE', 900: '#10204A' },
+  blue: { 50: '#EEF3FB', 100: '#DBE7FF', 500: '#2F63C9', 700: '#1F4FAE', 900: '#10204A' },
   coral: { 50: '#FFF4F2', 100: '#FFE2DC', 500: '#EF5A3C', 700: '#AB331C', 900: '#52170C' },
-  verde: { 50: '#EEFBF2', 100: '#D3F3DD', 500: '#1FB86A', 700: '#057743', 900: '#0D3B3A' },
-  roxo: { 50: '#F8F5FE', 100: '#EDE5FE', 500: '#A06AEC', 700: '#7347AF', 900: '#352053' },
-  rosa: { 50: '#FEF4F7', 100: '#FEE0EB', 500: '#DF4E92', 700: '#A43068', 900: '#4E1530' },
-  turquesa: { 50: '#EAFBFC', 100: '#C8F3F5', 500: '#069FA6', 700: '#057176', 900: '#023538' },
-  ouro: { 50: '#FDF6EA', 100: '#FAE7C8', 500: '#B68103', 700: '#815B04', 900: '#3E2A00' },
+  green: { 50: '#EEFBF2', 100: '#D3F3DD', 500: '#1FB86A', 700: '#057743', 900: '#0D3B3A' },
+  purple: { 50: '#F8F5FE', 100: '#EDE5FE', 500: '#A06AEC', 700: '#7347AF', 900: '#352053' },
+  pink: { 50: '#FEF4F7', 100: '#FEE0EB', 500: '#DF4E92', 700: '#A43068', 900: '#4E1530' },
+  turquoise: { 50: '#EAFBFC', 100: '#C8F3F5', 500: '#069FA6', 700: '#057176', 900: '#023538' },
+  gold: { 50: '#FDF6EA', 100: '#FAE7C8', 500: '#B68103', 700: '#815B04', 900: '#3E2A00' },
   /** Only for Cancelled. */
-  vermelho: { 50: '#FFF4F5', 100: '#FFE1E4', 500: '#D93A52', 700: '#AA2E4A', 900: '#511522' },
+  red: { 50: '#FFF4F5', 100: '#FFE1E4', 500: '#D93A52', 700: '#AA2E4A', 900: '#511522' },
   /** Text, borders, Event items; the removed (ghost) state. */
-  cinza: { 50: '#F6F7F9', 100: '#ECEEF3', 500: '#8A909C', 700: '#5B6170', 900: '#15171C' },
+  gray: { 50: '#F6F7F9', 100: '#ECEEF3', 500: '#8A909C', 700: '#5B6170', 900: '#15171C' },
 } as const satisfies Record<string, Scale>
 
 /** A tone a badge, chip or cover can take: any palette scale. */
@@ -50,9 +50,9 @@ export type Gradient = readonly [string, string]
 export type Theme = {
   scheme: ColorScheme
   colors: Colors
-  /** The Group's header and the splash: azul 900 → 500, in both modes. */
+  /** The Group's header: blue 900 → 500, in both modes. */
   header: Gradient
-  /** A state badge, always with text: coral changed/new, verde now/going, ouro Draft, vermelho Cancelled, cinza removed. */
+  /** A state badge, always with text: coral changed/new, green now/going, gold Draft, red Cancelled, gray removed. */
   badge: (tone: Tone) => { bg: string; text: string }
   teamChip: (tone: Tone) => { bg: string; text: string }
   /** An Event's cover, the same in both modes. */
@@ -61,7 +61,7 @@ export type Theme = {
 }
 
 const shared = {
-  header: [palette.azul[900], palette.azul[500]],
+  header: [palette.blue[900], palette.blue[500]],
   cover: (tone: Tone) => [palette[tone][900], palette[tone][500]],
   timelineDot: (tone: Tone) => palette[tone][500],
 } as const satisfies Partial<Theme>
@@ -70,15 +70,15 @@ const light: Theme = {
   ...shared,
   scheme: 'light',
   colors: {
-    bg: palette.cinza[50],
+    bg: palette.gray[50],
     surface: '#FFFFFF',
-    surfaceBrand: palette.azul[50],
-    text: palette.cinza[900],
-    textMuted: palette.cinza[700],
-    action: palette.azul[700],
+    surfaceBrand: palette.blue[50],
+    text: palette.gray[900],
+    textMuted: palette.gray[700],
+    action: palette.blue[700],
     onAction: '#FFFFFF',
-    link: palette.azul[700],
-    onActionMuted: palette.azul[100],
+    link: palette.blue[700],
+    onActionMuted: palette.blue[100],
   },
   badge: (tone) => ({ bg: palette[tone][50], text: palette[tone][700] }),
   teamChip: (tone) => ({ bg: palette[tone][100], text: palette[tone][700] }),
@@ -93,10 +93,10 @@ const dark: Theme = {
     surfaceBrand: '#142038',
     text: '#F2F4F8',
     textMuted: '#A7AEBD',
-    action: palette.azul[500],
+    action: palette.blue[500],
     onAction: '#FFFFFF',
-    link: palette.azul[100],
-    onActionMuted: palette.azul[100],
+    link: palette.blue[100],
+    onActionMuted: palette.blue[100],
   },
   badge: (tone) => ({ bg: palette[tone][900], text: palette[tone][100] }),
   teamChip: (tone) => ({ bg: palette[tone][900], text: palette[tone][100] }),

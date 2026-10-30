@@ -7,5 +7,5 @@ export { userSchema } from './user'
 /** The device's Session (CONTEXT.md). */
 export const useSession = createSessionStore()
 
-/** Ends the Session the API refused (`UNAUTHENTICATED`); its screens then return to the login. */
+/** Ends the Session the API refused (`UNAUTHENTICATED`). */
 export const expireSession = (token: string | null) => useSession.getState().expire(token)

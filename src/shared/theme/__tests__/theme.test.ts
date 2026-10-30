@@ -26,30 +26,30 @@ describe('themeFor', () => {
   it('tints badges and Team chips with steps 50/100 → 700 in light, 900 → 100 in dark', () => {
     expect(themeFor('light').badge('coral')).toEqual({ bg: '#FFF4F2', text: '#AB331C' })
     expect(themeFor('dark').badge('coral')).toEqual({ bg: '#52170C', text: '#FFE2DC' })
-    expect(themeFor('light').teamChip('roxo')).toEqual({ bg: '#EDE5FE', text: '#7347AF' })
-    expect(themeFor('dark').teamChip('roxo')).toEqual({ bg: '#352053', text: '#EDE5FE' })
+    expect(themeFor('light').teamChip('purple')).toEqual({ bg: '#EDE5FE', text: '#7347AF' })
+    expect(themeFor('dark').teamChip('purple')).toEqual({ bg: '#352053', text: '#EDE5FE' })
   })
 
   it('keeps covers, headers and Timeline dots the same in both modes', () => {
     for (const scheme of ['light', 'dark'] as const) {
       const theme = themeFor(scheme)
-      expect(theme.cover('verde')).toEqual(['#0D3B3A', '#1FB86A'])
-      expect(theme.timelineDot('verde')).toBe('#1FB86A')
+      expect(theme.cover('green')).toEqual(['#0D3B3A', '#1FB86A'])
+      expect(theme.timelineDot('green')).toBe('#1FB86A')
       expect(theme.header).toEqual(['#10204A', '#2F63C9'])
     }
   })
 
   it('has the five steps for the brand blue, the six categorical tones, red and gray', () => {
     expect(Object.keys(palette)).toEqual([
-      'azul',
+      'blue',
       'coral',
-      'verde',
-      'roxo',
-      'rosa',
-      'turquesa',
-      'ouro',
-      'vermelho',
-      'cinza',
+      'green',
+      'purple',
+      'pink',
+      'turquoise',
+      'gold',
+      'red',
+      'gray',
     ])
     for (const scale of Object.values(palette)) {
       expect(Object.keys(scale)).toEqual(['50', '100', '500', '700', '900'])

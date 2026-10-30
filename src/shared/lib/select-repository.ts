@@ -11,7 +11,7 @@ type Options = {
 /**
  * The mock-vs-HTTP rule every feature's `api.ts` uses: Demo mode → mock; a module outside
  * LIVE_MODULES → mock; otherwise HTTP. A release build never uses the mock. Decided on every
- * call, so the answer follows the current Session (e.g. "Entrar" before any Session exists).
+ * call, so the answer follows the current Session (e.g. a sign-in before any Session exists).
  */
 export function selectRepository<T extends object>(
   module: DataModule,
