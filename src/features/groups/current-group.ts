@@ -1,9 +1,7 @@
+import type { GroupRole } from '@/shared/domain/group-role'
 import type { User } from '@/shared/session'
 
-import type { Group } from './repository'
-
-/** What the person is in a Group: Owner, Viewer, or the Super admin, who is never a Group member. */
-export type GroupRole = 'OWNER' | 'VIEWER' | 'SUPER_ADMIN'
+import type { Group } from './schemas'
 
 export type CurrentGroup = Group & { role: GroupRole }
 

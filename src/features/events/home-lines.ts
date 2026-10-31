@@ -1,20 +1,19 @@
 import { autoTone, type AutoTone } from '@/shared/domain/auto-tone'
+import { isGroupMember, seesDrafts, type GroupRole } from '@/shared/domain/group-role'
 import { dayAndMonth, isFinished, periodDays, weekday } from '@/shared/domain/local-dates'
 
-import type { Event } from './repository'
+import type { Event } from './schemas'
 
 /** The Início's tabs: Próximos, Que eu vou, Passados. */
 export type HomeTab = 'upcoming' | 'going' | 'past'
 
-/** What the person looking is, as far as the list cares. */
-export type HomeViewer = {
-  /** Owners and the Super admin see the RASCUNHO badge. */
-  canSeeDrafts: boolean
-  /** A Group member can be told "você não vai"; the Super admin is never one. */
-  isMember: boolean
+export type HomeOptions = {
+  tab: HomeTab
+  query: string
+  now: Date
+  /** The person's role in the Group: Drafts and "você não vai" depend on it. */
+  role: GroupRole
 }
-
-export type HomeOptions = { tab: HomeTab; query: string; now: Date; viewer: HomeViewer }
 
 /** The one state badge a line shows, always with text: CANCELADO, RASCUNHO or VOCÊ VAI. */
 export type HomeBadge = 'cancelled' | 'draft' | 'going' | null
@@ -33,8 +32,8 @@ export type HomeLine = {
   struck: boolean
   /** The date column, as written in the Event's timezone. */
   start: { day: string; month: string }
-  /** The last day under the first, for an Event of more than one day. */
-  endDay: string | null
+  /** The last day under the first, for an Event of more than one day; its month may differ. */
+  end: { day: string; month: string } | null
   days: number
   /** "sex. · Manaus, AM", plus "· você não vai". */
   subtitle: string
@@ -55,7 +54,7 @@ const byStart = (a: Event, b: Event) =>
  * search, each with the state it shows. The dates are read as written, never converted; an Event
  * moves to Passados once its last day is over in its own timezone (Finished event).
  */
-export function homeLines(events: Event[], { tab, query, now, viewer }: HomeOptions): HomeLine[] {
+export function homeLines(events: Event[], { tab, query, now, role }: HomeOptions): HomeLine[] {
   const search = fold(query.trim())
   const chosen = events
     .filter((e) => (tab === 'past' ? isFinished(e.period, now) : !isFinished(e.period, now)))
@@ -68,10 +67,10 @@ export function homeLines(events: Event[], { tab, query, now, viewer }: HomeOpti
 
   return chosen.map((event) => {
     const { startDate, endDate } = event.period
-    const notGoing = viewer.isMember && !event.isParticipant
+    const notGoing = isGroupMember(role) && !event.isParticipant
     const badge: HomeBadge = event.cancelled
       ? 'cancelled'
-      : event.status === 'DRAFT' && viewer.canSeeDrafts
+      : event.status === 'DRAFT' && seesDrafts(role)
         ? 'draft'
         : event.isParticipant
           ? 'going'
@@ -85,7 +84,7 @@ export function homeLines(events: Event[], { tab, query, now, viewer }: HomeOpti
       faded: notGoing || event.cancelled,
       struck: event.cancelled,
       start: dayAndMonth(startDate),
-      endDay: endDate === startDate ? null : dayAndMonth(endDate).day,
+      end: endDate === startDate ? null : dayAndMonth(endDate),
       days: periodDays(event.period),
       subtitle: [weekday(startDate), event.place, notGoing && 'você não vai']
         .filter(Boolean)

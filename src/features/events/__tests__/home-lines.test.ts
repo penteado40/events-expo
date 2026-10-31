@@ -1,12 +1,12 @@
 import type { Event } from '../api'
-import { homeLines, type HomeOptions, type HomeViewer } from '../home-lines'
+import { homeLines, type HomeOptions } from '../home-lines'
 
 /** Saturday, 31 Oct 2026, noon in Vitória. */
 const NOW = new Date('2026-10-31T12:00:00-03:00')
 
-const OWNER: HomeViewer = { canSeeDrafts: true, isMember: true }
-const VIEWER: HomeViewer = { canSeeDrafts: false, isMember: true }
-const SUPER_ADMIN: HomeViewer = { canSeeDrafts: true, isMember: false }
+const OWNER = 'OWNER'
+const VIEWER = 'VIEWER'
+const SUPER_ADMIN = 'SUPER_ADMIN'
 
 function event(id: number, name: string, dates: [string, string], extra: Partial<Event> = {}) {
   return {
@@ -46,7 +46,7 @@ const today = event(8, 'Passagem de som', ['2026-10-29', '2026-10-31'])
 const ALL = [festival, clip, tour, manaus, band, rehearsal, today]
 
 const lines = (options: Partial<HomeOptions> = {}) =>
-  homeLines(ALL, { tab: 'upcoming', query: '', now: NOW, viewer: VIEWER, ...options })
+  homeLines(ALL, { tab: 'upcoming', query: '', now: NOW, role: VIEWER, ...options })
 const names = (options: Partial<HomeOptions> = {}) => lines(options).map((l) => l.event.name)
 
 describe('homeLines tabs', () => {
@@ -78,7 +78,7 @@ describe('homeLines tabs', () => {
         tab: 'past',
         query: '',
         now: NOW,
-        viewer: VIEWER,
+        role: VIEWER,
       }).map((l) => l.event.name),
     ).toEqual(['Gravação do clipe', 'Show de setembro'])
   })
@@ -123,7 +123,7 @@ describe('homeLines line states', () => {
   })
 
   it('never says "você não vai" to the Super admin, who is not a Group member', () => {
-    expect(line('Ensaio da Banda', { viewer: SUPER_ADMIN })).toMatchObject({
+    expect(line('Ensaio da Banda', { role: SUPER_ADMIN })).toMatchObject({
       notGoing: false,
       faded: false,
     })
@@ -138,16 +138,16 @@ describe('homeLines line states', () => {
   })
 
   it('badges a Draft with RASCUNHO only for those who see Drafts', () => {
-    expect(line('Turnê Minas', { viewer: OWNER }).badge).toBe('draft')
-    expect(line('Turnê Minas', { viewer: SUPER_ADMIN }).badge).toBe('draft')
-    expect(line('Turnê Minas', { viewer: VIEWER }).badge).toBeNull()
+    expect(line('Turnê Minas', { role: OWNER }).badge).toBe('draft')
+    expect(line('Turnê Minas', { role: SUPER_ADMIN }).badge).toBe('draft')
+    expect(line('Turnê Minas', { role: VIEWER }).badge).toBeNull()
   })
 
   it('a Cancelled Draft is CANCELADO even for the Owner', () => {
     const cancelledDraft = { ...tour, cancelled: true }
 
     expect(
-      homeLines([cancelledDraft], { tab: 'upcoming', query: '', now: NOW, viewer: OWNER })[0].badge,
+      homeLines([cancelledDraft], { tab: 'upcoming', query: '', now: NOW, role: OWNER })[0].badge,
     ).toBe('cancelled')
   })
 
@@ -159,11 +159,11 @@ describe('homeLines line states', () => {
   it('writes the date column and the subtitle without converting the dates', () => {
     expect(line('Saída Manaus')).toMatchObject({
       start: { day: '20', month: 'NOV' },
-      endDay: '22',
+      end: { day: '22', month: 'NOV' },
       days: 3,
       subtitle: 'sex. · Manaus, AM',
     })
-    expect(line('Ensaio geral')).toMatchObject({ endDay: null, days: 1, subtitle: 'qui. · Sede' })
+    expect(line('Ensaio geral')).toMatchObject({ end: null, days: 1, subtitle: 'qui. · Sede' })
     expect(line('Ensaio da Banda').subtitle).toBe('dom. · Estúdio · você não vai')
   })
 })
@@ -187,7 +187,7 @@ describe('homeLines featured Event', () => {
         tab: 'upcoming',
         query: '',
         now: NOW,
-        viewer: VIEWER,
+        role: VIEWER,
       }).map((l) => [l.event.name, l.featured]),
     ).toEqual([
       ['Ensaio geral', false],
@@ -197,6 +197,16 @@ describe('homeLines featured Event', () => {
 
   it('features nothing in Passados, nor for someone who goes to nothing', () => {
     expect(featured({ tab: 'past' })).toEqual([])
-    expect(featured({ viewer: SUPER_ADMIN, query: 'banda' })).toEqual([])
+    expect(featured({ role: SUPER_ADMIN, query: 'banda' })).toEqual([])
+  })
+})
+
+describe('homeLines across months', () => {
+  it('keeps the month of the last day when it differs from the first', () => {
+    const newYear = event(10, 'Réveillon', ['2026-12-30', '2027-01-02'])
+
+    expect(
+      homeLines([newYear], { tab: 'upcoming', query: '', now: NOW, role: VIEWER })[0],
+    ).toMatchObject({ start: { day: '30', month: 'DEZ' }, end: { day: '02', month: 'JAN' } })
   })
 })

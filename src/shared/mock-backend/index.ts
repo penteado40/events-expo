@@ -7,3 +7,4 @@ export { DEMO_OWNER_ID, DEMO_VIEWER_ID, SUPER_ADMIN_ID } from './data'
 export const mockBackend = createMockBackend({
   latencyMs: process.env.NODE_ENV === 'test' ? 0 : 300,
 })
+export { identityOf, sessionEmail, type GetEmail } from './requester'

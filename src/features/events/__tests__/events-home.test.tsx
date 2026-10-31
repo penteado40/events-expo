@@ -5,18 +5,18 @@ import { mockBackend } from '@/shared/mock-backend'
 import { useSession, userSchema } from '@/shared/session'
 
 import { EventsHome } from '../components/events-home'
-import type { HomeViewer } from '../home-lines'
+import type { GroupRole } from '@/shared/domain/group-role'
 
-const VIEWER: HomeViewer = { canSeeDrafts: false, isMember: true }
-const OWNER: HomeViewer = { canSeeDrafts: true, isMember: true }
+const VIEWER: GroupRole = 'VIEWER'
+const OWNER: GroupRole = 'OWNER'
 
-async function renderHome(viewer: HomeViewer, userId = 5) {
+async function renderHome(role: GroupRole, userId = 5) {
   const user = userSchema.parse(mockBackend.user(userId))
   useSession.setState({ session: { id: `demo-${userId}`, user, live: false } })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   await render(
     <QueryClientProvider client={client}>
-      <EventsHome groupId={1} viewer={viewer} groupSwitcher={null} />
+      <EventsHome groupId={1} role={role} groupSwitcher={null} />
     </QueryClientProvider>,
   )
   await screen.findByText('Saída Manaus')

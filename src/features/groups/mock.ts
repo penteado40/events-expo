@@ -1,28 +1,24 @@
 import { z } from 'zod'
 
-import { mockBackend, type MockBackend } from '@/shared/mock-backend'
-import { useSession } from '@/shared/session'
+import {
+  identityOf,
+  mockBackend,
+  sessionEmail,
+  type GetEmail,
+  type MockBackend,
+} from '@/shared/mock-backend'
 
-import { groupSchema, type GroupsRepository } from './repository'
+import type { GroupsRepository } from './repository'
+import { groupSchema } from './schemas'
 
-type Options = {
-  /** Who is asking: the Session's User, as the API's AuthVerifier would know them. */
-  getEmail?: () => Promise<string | null>
-  backend?: MockBackend
-}
-
-const sessionEmail = async () => useSession.getState().session?.user.email ?? null
+type Options = { getEmail?: GetEmail; backend?: MockBackend }
 
 /** GroupsRepository over the shared mock backend (ADR-0002), answers validated like HTTP's. */
 export function createMockGroupsRepository({
   getEmail = sessionEmail,
   backend = mockBackend,
 }: Options = {}): GroupsRepository {
-  const identity = async () => {
-    const email = await getEmail()
-    return email === null ? null : { email }
-  }
   return {
-    list: async () => z.array(groupSchema).parse(await backend.groups(await identity())),
+    list: async () => z.array(groupSchema).parse(await backend.groups(await identityOf(getEmail))),
   }
 }

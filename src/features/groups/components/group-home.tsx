@@ -1,10 +1,9 @@
 import { useState, type ReactNode } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 
-import { ErrorState, GroupHeader, ListSkeleton } from '@/shared/components/ui'
-import { deviceToday, longDate } from '@/shared/domain/local-dates'
+import { ErrorState, GroupGreeting, GroupHeader, ListSkeleton } from '@/shared/components/ui'
 import { useSession } from '@/shared/session'
-import { palette, spacing, textStyles, useTheme } from '@/shared/theme'
+import { spacing, useTheme } from '@/shared/theme'
 
 import type { CurrentGroup } from '../current-group'
 import { useCurrentGroup } from '../hooks/use-current-group'
@@ -69,18 +68,11 @@ export function GroupHome({ onRefresh, children }: Props) {
 /** The header with only the date and the greeting, while there is no Group to show. */
 function Frame({ children }: { children: ReactNode }) {
   const { colors } = useTheme()
-  const firstName = useSession((state) => state.session?.user.name.split(' ')[0] ?? '')
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
       <GroupHeader>
-        <View style={styles.greeting}>
-          <Text style={styles.date}>{longDate(deviceToday(new Date()))}</Text>
-          <Text accessibilityRole="header" style={styles.hello}>
-            Olá, {firstName}
-            <Text style={{ color: palette.coral[100] }}>·</Text>
-          </Text>
-        </View>
+        <GroupGreeting />
       </GroupHeader>
       {children}
     </View>
@@ -90,7 +82,4 @@ function Frame({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   padded: { paddingTop: 18, paddingHorizontal: 20, paddingBottom: spacing.tabBarClearance },
-  greeting: { gap: 2 },
-  date: { ...textStyles.caption, fontSize: 14, color: palette.blue[100] },
-  hello: { ...textStyles.display, color: '#FFFFFF' },
 })

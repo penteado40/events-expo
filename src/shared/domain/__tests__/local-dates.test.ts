@@ -3,6 +3,7 @@ import {
   deviceToday,
   isFinished,
   longDate,
+  periodLabel,
   periodDays,
   todayIn,
   weekday,
@@ -87,5 +88,16 @@ describe('formatting, without converting', () => {
     [{ startDate: '2026-10-31', endDate: '2026-11-02', timezone: 'America/New_York' }, 3],
   ])('counts the days of a period, both ends included', (period, days) => {
     expect(periodDays(period)).toBe(days)
+  })
+})
+
+describe('periodLabel', () => {
+  it.each([
+    [{ startDate: '2026-11-20', endDate: '2026-11-22' }, '20 a 22 de nov.'],
+    [{ startDate: '2026-11-05', endDate: '2026-11-05' }, '5 de nov.'],
+    [{ startDate: '2026-12-30', endDate: '2027-01-02' }, '30 de dez. a 2 de jan.'],
+    [{ startDate: '2026-10-31', endDate: '2026-11-01' }, '31 de out. a 1 de nov.'],
+  ])('writes %p as %p', (dates, label) => {
+    expect(periodLabel({ ...dates, timezone: 'America/Sao_Paulo' })).toBe(label)
   })
 })

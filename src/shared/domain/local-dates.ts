@@ -78,3 +78,13 @@ export function longDate(date: LocalDate): string {
   const { month, day } = parts(date)
   return `${weekday(date)}, ${day} de ${MONTHS[month - 1]}.`
 }
+
+/** A period in words, without the weekday: "20 a 22 de nov.", "30 de dez. a 2 de jan.". */
+export function periodLabel({ startDate, endDate }: Period): string {
+  const start = parts(startDate)
+  const end = parts(endDate)
+  const dayOf = (d: { day: number; month: number }) => `${d.day} de ${MONTHS[d.month - 1]}.`
+  if (startDate === endDate) return dayOf(start)
+  const sameMonth = start.year === end.year && start.month === end.month
+  return sameMonth ? `${start.day} a ${dayOf(end)}` : `${dayOf(start)} a ${dayOf(end)}`
+}

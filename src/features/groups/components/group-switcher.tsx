@@ -2,16 +2,11 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Icon, Sheet } from '@/shared/components/ui'
+import { GROUP_ROLE_LABELS } from '@/shared/domain/group-role'
 import { initials } from '@/shared/domain/initials'
 import { fonts, palette, spacing, useTheme } from '@/shared/theme'
 
-import type { CurrentGroup, GroupRole } from '../current-group'
-
-const ROLE_LABEL: Record<GroupRole, string> = {
-  OWNER: 'Owner',
-  VIEWER: 'Viewer',
-  SUPER_ADMIN: 'Super admin',
-}
+import type { CurrentGroup } from '../current-group'
 
 type Props = {
   current: CurrentGroup
@@ -49,7 +44,7 @@ export function GroupSwitcher({ current, options, onChoose }: Props) {
                 setOpen(false)
               }}
               accessibilityRole="button"
-              accessibilityLabel={`${group.name}, ${ROLE_LABEL[group.role]}`}
+              accessibilityLabel={`${group.name}, ${GROUP_ROLE_LABELS[group.role]}`}
               accessibilityState={{ selected }}
               style={[
                 styles.option,
@@ -69,7 +64,7 @@ export function GroupSwitcher({ current, options, onChoose }: Props) {
               <View style={styles.optionText}>
                 <Text style={[styles.optionName, { color: colors.text }]}>{group.name}</Text>
                 <Text style={[styles.optionRole, { color: colors.textMuted }]}>
-                  {ROLE_LABEL[group.role]}
+                  {GROUP_ROLE_LABELS[group.role]}
                 </Text>
               </View>
               {selected && <Icon name="check" color={colors.action} size={22} strokeWidth={2.4} />}

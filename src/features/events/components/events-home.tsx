@@ -10,14 +10,14 @@ import {
   View,
 } from 'react-native'
 
-import { ErrorState, GroupHeader, Icon, ListSkeleton } from '@/shared/components/ui'
+import { ErrorState, GroupGreeting, GroupHeader, Icon, ListSkeleton } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
 import { initials } from '@/shared/domain/initials'
-import { deviceToday, longDate } from '@/shared/domain/local-dates'
+import type { GroupRole } from '@/shared/domain/group-role'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
-import { homeLines, type HomeTab, type HomeViewer } from '../home-lines'
+import { homeLines, type HomeTab } from '../home-lines'
 import { useGroupEvents } from '../hooks/use-group-events'
 import { EventLine } from './event-line'
 
@@ -29,7 +29,8 @@ const TABS: { tab: HomeTab; label: string; empty: string }[] = [
 
 type Props = {
   groupId: number
-  viewer: HomeViewer
+  /** The person's role in the Group. */
+  role: GroupRole
   /** The header's Group pill, which opens "Seus Groups". */
   groupSwitcher: ReactNode
 }
@@ -38,7 +39,7 @@ type Props = {
  * The Início of a Group (D-Início, PROJ-215): the blue header with the Group, the greeting and the
  * search; the tabs; the Group's Events. Pull to refresh; a return to the app refetches.
  */
-export function EventsHome({ groupId, viewer, groupSwitcher }: Props) {
+export function EventsHome({ groupId, role, groupSwitcher }: Props) {
   const { colors } = useTheme()
   const router = useRouter()
   const user = useSession((state) => state.session?.user)
@@ -47,8 +48,7 @@ export function EventsHome({ groupId, viewer, groupSwitcher }: Props) {
   const [pulling, setPulling] = useState(false)
   const events = useGroupEvents(groupId)
 
-  const now = new Date()
-  const lines = events.data ? homeLines(events.data, { tab, query, now, viewer }) : []
+  const lines = events.data ? homeLines(events.data, { tab, query, now: new Date(), role }) : []
   const empty = query.trim()
     ? `Nenhum Event encontrado para “${query.trim()}”.`
     : TABS.find((t) => t.tab === tab)!.empty
@@ -85,13 +85,7 @@ export function EventsHome({ groupId, viewer, groupSwitcher }: Props) {
             </Pressable>
           )}
         </View>
-        <View style={styles.greeting}>
-          <Text style={styles.date}>{longDate(deviceToday(now))}</Text>
-          <Text accessibilityRole="header" style={styles.hello}>
-            Olá, {user?.name.split(' ')[0]}
-            <Text style={{ color: palette.coral[100] }}>·</Text>
-          </Text>
-        </View>
+        <GroupGreeting />
         <View style={styles.search}>
           <Icon name="search" color={palette.blue[100]} size={18} />
           <TextInput
@@ -161,9 +155,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarLabel: { fontFamily: fonts.sans700, fontSize: 14, color: palette.blue[900] },
-  greeting: { gap: 2 },
-  date: { ...textStyles.caption, fontSize: 14, color: palette.blue[100] },
-  hello: { ...textStyles.display, color: '#FFFFFF' },
   search: {
     height: 46,
     borderRadius: 16,

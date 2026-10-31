@@ -5,9 +5,11 @@ import type { HttpClient } from '@/shared/lib/http'
 import { selectRepository } from '@/shared/lib/select-repository'
 
 import { createMockGroupsRepository } from './mock'
-import { groupSchema, type GroupsRepository } from './repository'
+import type { GroupsRepository } from './repository'
+import { groupSchema } from './schemas'
 
-export type { Group, GroupsRepository } from './repository'
+export type { GroupsRepository } from './repository'
+export type { Group } from './schemas'
 
 export function createHttpGroupsRepository(http: HttpClient): GroupsRepository {
   return { list: () => http.get('/groups', { schema: z.array(groupSchema) }) }

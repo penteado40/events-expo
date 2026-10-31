@@ -5,9 +5,11 @@ import type { HttpClient } from '@/shared/lib/http'
 import { selectRepository } from '@/shared/lib/select-repository'
 
 import { createMockEventsRepository } from './mock'
-import { eventSchema, type EventsRepository } from './repository'
+import type { EventsRepository } from './repository'
+import { eventSchema } from './schemas'
 
-export type { Event, EventsRepository } from './repository'
+export type { EventsRepository } from './repository'
+export type { Event } from './schemas'
 
 export function createHttpEventsRepository(http: HttpClient): EventsRepository {
   return {

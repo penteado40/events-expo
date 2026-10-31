@@ -8,14 +8,7 @@ export default function HomeScreen() {
     // "Atualizar" also re-reads the User, so a role just given comes with the Group.
     <GroupHome onRefresh={refreshSessionUser}>
       {({ group, switcher }) => (
-        <EventsHome
-          groupId={group.id}
-          viewer={{
-            canSeeDrafts: group.role !== 'VIEWER',
-            isMember: group.role !== 'SUPER_ADMIN',
-          }}
-          groupSwitcher={switcher}
-        />
+        <EventsHome groupId={group.id} role={group.role} groupSwitcher={switcher} />
       )}
     </GroupHome>
   )

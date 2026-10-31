@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 
 import { Badge } from '@/shared/components/ui'
-import { longDate } from '@/shared/domain/local-dates'
+import { longDate, periodLabel } from '@/shared/domain/local-dates'
 import { fonts, palette, textStyles, useTheme, type Tone } from '@/shared/theme'
 
 import type { HomeBadge, HomeLine } from '../home-lines'
@@ -14,11 +14,13 @@ const BADGES: Record<Exclude<HomeBadge, null>, { label: string; tone: Tone }> = 
 
 /** What a screen reader hears for a line: name, state, when and where. */
 function describe(line: HomeLine) {
-  const { event, badge, endDay, start } = line
-  const when = endDay
-    ? `de ${start.day} a ${endDay} de ${start.month.toLowerCase()}.`
-    : longDate(event.period.startDate)
-  return [event.name, badge && BADGES[badge].label.toLowerCase(), when, line.subtitle]
+  const { event, badge } = line
+  return [
+    event.name,
+    badge && BADGES[badge].label.toLowerCase(),
+    periodLabel(event.period),
+    line.subtitle,
+  ]
     .filter(Boolean)
     .join(', ')
 }
@@ -42,10 +44,13 @@ export function EventLine({ line }: { line: HomeLine }) {
         <Text style={[styles.month, { color: faded ? palette.gray[500] : colors.textMuted }]}>
           {line.start.month}
         </Text>
-        {line.endDay && (
+        {line.end && (
           <>
             <View style={[styles.span, { borderColor: theme.teamChip(tone).bg }]} />
-            <Text style={[styles.month, { color: colors.textMuted }]}>{line.endDay}</Text>
+            <Text style={[styles.month, { color: colors.textMuted }]}>{line.end.day}</Text>
+            {line.end.month !== line.start.month && (
+              <Text style={[styles.month, { color: colors.textMuted }]}>{line.end.month}</Text>
+            )}
           </>
         )}
       </View>
