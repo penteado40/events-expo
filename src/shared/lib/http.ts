@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { isSessionEndReason, type SessionEndReason } from '@/shared/session'
+
 import { ApiError, internalError, networkError } from './api-error'
 
 const TIMEOUT_MS = 15_000
@@ -15,10 +17,15 @@ const dataEnvelope = z.object({ data: z.unknown() })
 
 type Options = {
   baseUrl: string
-  /** The Session's token, sent as `Authorization: Bearer`. */
-  getToken: () => string | null
-  /** Called with the token that was refused when the API answers `UNAUTHENTICATED`. */
-  onUnauthenticated?: (token: string | null) => void
+  /** The identity's token, sent as `Authorization: Bearer`; asked for on every request. */
+  getToken: () => Promise<string | null>
+  /** Names the Session a request runs in, read when it starts. */
+  getSessionId?: () => string | null
+  /**
+   * Called when the API refuses the Session, with the id `getSessionId` gave when that request
+   * started (so a late failure never ends a newer Session) and the code.
+   */
+  onSessionRefused?: (sessionId: string | null, code: SessionEndReason) => void
   fetch?: typeof fetch
   timeoutMs?: number
 }
@@ -27,8 +34,6 @@ type RequestOptions<T> = {
   body?: unknown
   /** Validates the envelope's `data`; a mismatch is an `INTERNAL_ERROR`. */
   schema: z.ZodType<T>
-  /** Sent instead of the Session's token (e.g. right after login, before the Session exists). */
-  token?: string
 }
 
 export type HttpClient = ReturnType<typeof createHttpClient>
@@ -37,7 +42,8 @@ export type HttpClient = ReturnType<typeof createHttpClient>
 export function createHttpClient({
   baseUrl,
   getToken,
-  onUnauthenticated,
+  getSessionId = () => null,
+  onSessionRefused,
   // Looked up per call, so tests can stub the global.
   fetch: fetchFn = (...args) => fetch(...args),
   timeoutMs = TIMEOUT_MS,
@@ -45,13 +51,15 @@ export function createHttpClient({
   async function request<T>(
     method: string,
     path: string,
-    { body, schema, token = getToken() ?? undefined }: RequestOptions<T>,
+    { body, schema }: RequestOptions<T>,
   ): Promise<T> {
+    const sessionId = getSessionId()
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     let status: number
     let payload: unknown
     try {
+      const token = await getToken()
       const response = await fetchFn(`${baseUrl}${path}`, {
         method,
         headers: {
@@ -74,7 +82,7 @@ export function createHttpClient({
     const failure = errorEnvelope.safeParse(payload)
     if (failure.success) {
       const { code, message, details } = failure.data.error
-      if (code === 'UNAUTHENTICATED') onUnauthenticated?.(token ?? null)
+      if (isSessionEndReason(code)) onSessionRefused?.(sessionId, code)
       throw new ApiError(code, message, details)
     }
     const success = dataEnvelope.safeParse(payload)

@@ -27,20 +27,21 @@ describe('shouldRetry', () => {
 
 describe('clearCacheOnSignOut', () => {
   const session: Session = {
-    token: 't',
+    id: 'sess_1',
     live: true,
     user: {
       id: 1,
       name: 'Admin Local',
       email: 'admin@local.test',
-      role: 'SUPER_ADMIN',
-      createdAt: '2026-01-01T12:00:00.000Z',
+      phone: '+5527999990001',
+      isSuperAdmin: true,
+      memberships: [],
     },
   }
 
   it.each([
     ['"Sair"', () => useSession.getState().signOut()],
-    ['expiry', () => expireSession('t')],
+    ['expiry', () => expireSession('sess_1', 'UNAUTHENTICATED')],
   ])('drops every cached query on %s', (_, end) => {
     const client = createQueryClient()
     useSession.setState({ session })
