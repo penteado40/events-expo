@@ -57,7 +57,10 @@ describe.each(implementations)('AuthRepository contract (%s)', (_, createReposit
 
     await expect(repo.me()).resolves.toMatchObject({
       id: 5,
-      memberships: [{ groupId: 1, groupName: 'Vocal Livre', role: 'VIEWER' }],
+      memberships: [
+        { groupId: 1, groupName: 'Vocal Livre', role: 'VIEWER' },
+        { groupId: 2, groupName: 'Coral Jovem Vitória', role: 'VIEWER' },
+      ],
     })
   })
 

@@ -45,6 +45,11 @@ export function createFakeApi({
     try {
       const route = `${method} ${path}`
       if (route === 'GET /me') return json(200, { data: await backend.me(identity) })
+      if (route === 'GET /groups') return json(200, { data: await backend.groups(identity) })
+      const groupEvents = route.match(/^GET \/groups\/(\d+)\/events$/)
+      if (groupEvents) {
+        return json(200, { data: await backend.groupEvents(identity, Number(groupEvents[1])) })
+      }
       throw notFound()
     } catch (error) {
       if (!(error instanceof ApiError)) throw error
