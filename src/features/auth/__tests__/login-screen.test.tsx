@@ -7,7 +7,7 @@ import { fakeClerk } from '@/shared/session/__tests__/fake-clerk'
 import { LoginScreen } from '../components/login-screen'
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
-jest.mock('expo-auth-session', () => ({ makeRedirectUri: () => 'events-expo://sso-callback' }))
+jest.mock('expo-auth-session', () => ({ makeRedirectUri: () => 'events-expo://' }))
 
 async function renderLogin() {
   const client = new QueryClient({

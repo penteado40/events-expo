@@ -30,6 +30,9 @@ export function createFakeClerk() {
   const accounts = new Map<string, string>()
   let sessionCount = 0
   let pendingEmail: string | null = null
+  let statusHandlers: ((status: string) => void)[] = []
+  /** What the token cache restores once Clerk finishes loading. */
+  let restoring: Pick<typeof clerk, 'session' | 'user'> | null = null
 
   const clerk = {
     loaded: true,
@@ -39,6 +42,8 @@ export function createFakeClerk() {
     requireClientTrust: false,
     /** The email Google or Apple answers with; null = the person closed the browser. */
     ssoEmail: null as string | null,
+    /** Clerk refuses to sign up the SSO email (no open sign-up): back with no session. */
+    ssoSignUpRestricted: false,
     signOutCount: 0,
 
     addAccount(email: string, password: string) {
@@ -53,20 +58,39 @@ export function createFakeClerk() {
       clerk.session = null
       clerk.user = null
     },
-    on(_event: 'status', handler: (status: string) => void) {
-      handler('ready')
+    /** Clerk at cold start: not loaded yet, so no session or user until `finishLoading`. */
+    startLoading() {
+      restoring = { session: clerk.session, user: clerk.user }
+      clerk.loaded = false
+      clerk.session = null
+      clerk.user = null
     },
-    off() {},
+    finishLoading() {
+      Object.assign(clerk, restoring, { loaded: true })
+      restoring = null
+      statusHandlers.forEach((handler) => handler('ready'))
+    },
+    on(_event: 'status', handler: (status: string) => void) {
+      if (clerk.loaded) handler('ready')
+      else statusHandlers.push(handler)
+    },
+    off(_event: 'status', handler: (status: string) => void) {
+      statusHandlers = statusHandlers.filter((h) => h !== handler)
+    },
 
     signIn: createSignIn(),
     reset() {
       accounts.clear()
       sessionCount = 0
       pendingEmail = null
+      statusHandlers = []
+      restoring = null
+      clerk.loaded = true
       clerk.session = null
       clerk.user = null
       clerk.requireClientTrust = false
       clerk.ssoEmail = null
+      clerk.ssoSignUpRestricted = false
       clerk.signOutCount = 0
       clerk.signIn = createSignIn()
     },
@@ -155,7 +179,12 @@ export const fakeClerkModule = {
   useSSO: () => ({
     async startSSOFlow(_params: { strategy: string; redirectUrl?: string }) {
       const email = fakeClerk.ssoEmail
-      if (email === null) return { createdSessionId: null, authSessionResult: null }
+      if (email === null) {
+        return { createdSessionId: null, authSessionResult: { type: 'cancel' } }
+      }
+      if (fakeClerk.ssoSignUpRestricted) {
+        return { createdSessionId: null, authSessionResult: { type: 'success' } }
+      }
       fakeClerk.addAccount(email, `sso-${email}`)
       return {
         createdSessionId: 'sso-pending',

@@ -11,7 +11,7 @@ import type { AuthRepository } from './repository'
 
 type Options = {
   /** The email Clerk verified for the signed-in user, as the API's AuthVerifier reads it. */
-  getEmail: () => string | null
+  getEmail: () => Promise<string | null>
   backend?: MockBackend
 }
 
@@ -22,7 +22,7 @@ export function createMockAuthRepository({
 }: Options): AuthRepository {
   return {
     async me() {
-      const email = getEmail()
+      const email = await getEmail()
       return userSchema.parse(await backend.me(email === null ? null : { email }))
     },
   }

@@ -20,6 +20,8 @@ const CLERK_MESSAGES: Record<string, string> = {
   // No open sign-up (events-api ADR-0020): a social account of an email nobody invited.
   sign_up_restricted_waitlist: NOT_INVITED,
   not_allowed_access: NOT_INVITED,
+  // The app's own (SignInError): Google or Apple came back without an account to sign in.
+  sso_without_account: NOT_INVITED,
 }
 
 const API_MESSAGES: Record<string, string> = {

@@ -1,15 +1,13 @@
 import { StyleSheet, Text, View } from 'react-native'
 
-import { fonts, useTheme, type Tone } from '@/shared/theme'
+import { fonts, useTheme } from '@/shared/theme'
 
 import { Icon } from './icon'
 
-type Props = { message: string; tone?: Tone }
-
-/** A tinted box with an alert icon (D-Ativar): coral to warn, red for an error. Read as an alert. */
-export function Notice({ message, tone = 'red' }: Props) {
+/** A red box with an alert icon (the D-Ativar warning's shape) for an error. Read as an alert. */
+export function Notice({ message }: { message: string }) {
   const { badge } = useTheme()
-  const { bg, text } = badge(tone)
+  const { bg, text } = badge('red')
 
   return (
     <View

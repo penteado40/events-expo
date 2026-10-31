@@ -16,9 +16,7 @@ import { useSignOut } from '../hooks/use-sign-out'
 import { useSsoSignIn } from '../hooks/use-sso-sign-in'
 
 // The redirect URL needs the app's manifest, which tests don't have.
-jest.mock('expo-auth-session', () => ({
-  makeRedirectUri: ({ scheme, path }: { scheme: string; path: string }) => `${scheme}://${path}`,
-}))
+jest.mock('expo-auth-session', () => ({ makeRedirectUri: () => 'events-expo://' }))
 
 let client: QueryClient
 let fetchSpy: jest.SpyInstance
@@ -158,6 +156,19 @@ describe('useSsoSignIn', () => {
     expect(useSession.getState().session).toBeNull()
   })
 
+  it('refuses an email Clerk will not sign up with USER_NOT_INVITED, not as a cancel', async () => {
+    fakeClerk.ssoEmail = 'lu.pessoal@gmail.com'
+    fakeClerk.ssoSignUpRestricted = true
+    const { result } = await renderHook(() => useSsoSignIn(), { wrapper })
+
+    await act(async () => {
+      result.current.mutate('apple')
+    })
+
+    await waitFor(() => expect(result.current.error).toMatchObject({ code: 'sso_without_account' }))
+    expect(useSession.getState().session).toBeNull()
+  })
+
   it('does nothing when the person closes the browser', async () => {
     const { result } = await renderHook(() => useSsoSignIn(), { wrapper })
 
@@ -231,6 +242,18 @@ describe('checkSession (background GET /me on startup)', () => {
     useSession.setState({ session: saved })
 
     await checkSession()
+
+    expect(useSession.getState().session).toEqual({ ...saved, user: bruno })
+  })
+
+  it('waits for Clerk to load at cold start before asking who is signed in', async () => {
+    fakeClerk.restore(bruno.email)
+    fakeClerk.startLoading()
+    useSession.setState({ session: saved })
+
+    const checking = checkSession()
+    fakeClerk.finishLoading()
+    await checking
 
     expect(useSession.getState().session).toEqual({ ...saved, user: bruno })
   })

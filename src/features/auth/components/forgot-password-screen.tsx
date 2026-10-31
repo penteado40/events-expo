@@ -8,6 +8,7 @@ import { fonts, useTheme } from '@/shared/theme'
 import { usePasswordReset } from '../hooks/use-password-reset'
 import { signInErrorMessage } from '../sign-in-messages'
 import { AuthLayout } from './auth-layout'
+import { CodeField, EmailField } from './fields'
 
 /**
  * "Esqueci a senha", Clerk's flow in three steps: the email, the code Clerk sends to it, the new
@@ -38,15 +39,9 @@ export function ForgotPasswordScreen() {
       {error ? <Notice message={signInErrorMessage(error)} /> : null}
       {step === 'email' ? (
         <>
-          <TextField
-            label="E-mail"
+          <EmailField
             value={email}
             onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="emailAddress"
-            autoComplete="email"
             onSubmitEditing={() => sendCode.mutate(email)}
           />
           <Button
@@ -58,13 +53,9 @@ export function ForgotPasswordScreen() {
         </>
       ) : step === 'code' ? (
         <>
-          <TextField
-            label="Código"
+          <CodeField
             value={code}
             onChangeText={setCode}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
             onSubmitEditing={() => verifyCode.mutate(code)}
           />
           <Button

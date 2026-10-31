@@ -1,8 +1,8 @@
 import { useSignIn } from '@clerk/expo'
 import { useMutation } from '@tanstack/react-query'
 
+import { finishSignIn, throwIfError } from '../clerk-sign-in'
 import { clearStaleIdentity, openLiveSession } from '../open-live-session'
-import { finishSignIn, throwIfError } from './clerk-sign-in'
 
 type Credentials = { email: string; password: string }
 

@@ -1,12 +1,12 @@
-import { identity as clerkIdentity, useSession, type Identity } from '@/shared/session'
+import { identity, useSession, type Identity } from '@/shared/session'
 
 import { authRepository, type AuthRepository } from './api'
 
 type Dependencies = { repository?: AuthRepository; identity?: Identity }
 
 /** Signs out of a Clerk session left behind (offline "Sair", or an unfinished sign-in). */
-export async function clearStaleIdentity({ identity = clerkIdentity }: Dependencies = {}) {
-  if (identity.sessionId()) await identity.signOut()
+export async function clearStaleIdentity({ identity: current = identity }: Dependencies = {}) {
+  if (await current.sessionId()) await current.signOut()
 }
 
 /**
@@ -16,14 +16,14 @@ export async function clearStaleIdentity({ identity = clerkIdentity }: Dependenc
  */
 export async function openLiveSession({
   repository = authRepository,
-  identity = clerkIdentity,
+  identity: current = identity,
 }: Dependencies = {}) {
-  const id = identity.sessionId()
   try {
+    const id = await current.sessionId()
     if (!id) throw new Error('Clerk has no active session after signing in.')
     useSession.getState().signIn({ id, user: await repository.me(), live: true })
   } catch (error) {
-    await identity.signOut().catch(() => {})
+    await current.signOut().catch(() => {})
     throw error
   }
 }

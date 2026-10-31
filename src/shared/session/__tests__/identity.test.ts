@@ -20,14 +20,24 @@ describe('clerkIdentity', () => {
     fakeClerk.restore('bruno@vocallivre.test')
 
     await expect(clerkIdentity.getToken()).resolves.toBe(fakeTokenFor('bruno@vocallivre.test'))
-    expect(clerkIdentity.sessionId()).toBe('sess_1')
-    expect(clerkIdentity.email()).toBe('bruno@vocallivre.test')
+    await expect(clerkIdentity.sessionId()).resolves.toBe('sess_1')
+    await expect(clerkIdentity.email()).resolves.toBe('bruno@vocallivre.test')
   })
 
   it('has no token, session or email when signed out of Clerk', async () => {
     await expect(clerkIdentity.getToken()).resolves.toBeNull()
-    expect(clerkIdentity.sessionId()).toBeNull()
-    expect(clerkIdentity.email()).toBeNull()
+    await expect(clerkIdentity.sessionId()).resolves.toBeNull()
+    await expect(clerkIdentity.email()).resolves.toBeNull()
+  })
+
+  it('waits for Clerk to restore the stored session at cold start', async () => {
+    fakeClerk.restore('bruno@vocallivre.test')
+    fakeClerk.startLoading()
+
+    const email = clerkIdentity.email()
+    fakeClerk.finishLoading()
+
+    await expect(email).resolves.toBe('bruno@vocallivre.test')
   })
 })
 
@@ -39,8 +49,8 @@ describe('endIdentityWithSession', () => {
     signOut = jest.fn(async () => {})
     const identity: Identity = {
       getToken: async () => null,
-      sessionId: () => null,
-      email: () => null,
+      sessionId: async () => null,
+      email: async () => null,
       signOut,
     }
     useSession.setState({ session: null })

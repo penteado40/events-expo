@@ -11,7 +11,11 @@ import { createMockAuthRepository } from '../mock'
 type SignedInAs = string | null
 
 const implementations: [string, (email: () => SignedInAs) => AuthRepository][] = [
-  ['mock', (email) => createMockAuthRepository({ getEmail: email, backend: createMockBackend() })],
+  [
+    'mock',
+    (email) =>
+      createMockAuthRepository({ getEmail: async () => email(), backend: createMockBackend() }),
+  ],
   [
     'HTTP',
     (email) =>

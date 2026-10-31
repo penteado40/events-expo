@@ -1,5 +1,6 @@
 import { ApiError, networkError } from '@/shared/lib/api-error'
 
+import { SignInError } from '../clerk-sign-in'
 import { sessionEndMessage, signInErrorMessage } from '../sign-in-messages'
 
 const clerkError = (code: string) => ({
@@ -54,6 +55,11 @@ describe('signInErrorMessage', () => {
     [
       'Clerk: sign-up closed for a social account of another email',
       clerkError('sign_up_restricted_waitlist'),
+      'Este e-mail não recebeu convite. Entre com o e-mail do convite da produção do seu Group.',
+    ],
+    [
+      'Google or Apple back without an account',
+      new SignInError('sso_without_account'),
       'Este e-mail não recebeu convite. Entre com o e-mail do convite da produção do seu Group.',
     ],
     [

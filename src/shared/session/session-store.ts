@@ -11,8 +11,13 @@ const sessionSchema = z.object({ id: z.string().min(1), user: userSchema, live: 
 
 export type Session = z.infer<typeof sessionSchema>
 
-/** Why the last Session ended without "Sair", for the login screen to say. */
-export type SessionEndReason = 'UNAUTHENTICATED' | 'USER_DEACTIVATED'
+/** The API codes that refuse who is asking, ending the Session; the login says which. */
+const SESSION_END_REASONS = ['UNAUTHENTICATED', 'USER_DEACTIVATED'] as const
+
+export type SessionEndReason = (typeof SESSION_END_REASONS)[number]
+
+export const isSessionEndReason = (code: string): code is SessionEndReason =>
+  (SESSION_END_REASONS as readonly string[]).includes(code)
 
 type SessionState = {
   session: Session | null

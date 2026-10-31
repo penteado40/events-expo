@@ -1,6 +1,8 @@
 import { clerkIdentity, type Identity } from './identity'
 import { createSessionStore, type SessionEndReason } from './session-store'
 
+export { isSessionEndReason } from './session-store'
+
 export type { Identity } from './identity'
 export type { Session, SessionEndReason } from './session-store'
 export type { GroupMembership, User } from './user'

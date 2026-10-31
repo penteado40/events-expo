@@ -14,6 +14,7 @@ import { usePasswordSignIn, useSignInCode } from '../hooks/use-password-sign-in'
 import { useSsoSignIn, type SsoProvider } from '../hooks/use-sso-sign-in'
 import { sessionEndMessage, signInErrorMessage } from '../sign-in-messages'
 import { AuthLayout } from './auth-layout'
+import { CodeField, EmailField } from './fields'
 
 // Closes the browser Google or Apple left open once it redirects back to the app.
 WebBrowser.maybeCompleteAuthSession()
@@ -89,13 +90,9 @@ export function LoginScreen() {
           <Text style={[styles.body, { color: colors.text }]}>
             Enviamos um código para {email.trim()} para confirmar que é você neste aparelho.
           </Text>
-          <TextField
-            label="Código"
+          <CodeField
             value={code}
             onChangeText={setCode}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
             onSubmitEditing={() => signInCode.mutate(code)}
           />
           <Button
@@ -116,16 +113,7 @@ export function LoginScreen() {
         </>
       ) : (
         <>
-          <TextField
-            label="E-mail"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="emailAddress"
-            autoComplete="email"
-          />
+          <EmailField value={email} onChangeText={setEmail} />
           <TextField
             label="Senha"
             value={password}

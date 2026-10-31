@@ -2,6 +2,7 @@ import { useSSO } from '@clerk/expo'
 import { useMutation } from '@tanstack/react-query'
 import * as AuthSession from 'expo-auth-session'
 
+import { SignInError } from '../clerk-sign-in'
 import { clearStaleIdentity, openLiveSession } from '../open-live-session'
 
 export type SsoProvider = 'google' | 'apple'
@@ -18,11 +19,17 @@ export function useSsoSignIn() {
   return useMutation<SsoSignInResult, unknown, SsoProvider>({
     mutationFn: async (provider) => {
       await clearStaleIdentity()
-      const { createdSessionId, setActive } = await startSSOFlow({
+      const { createdSessionId, setActive, authSessionResult } = await startSSOFlow({
         strategy: `oauth_${provider}`,
-        redirectUrl: AuthSession.makeRedirectUri({ scheme: 'events-expo', path: 'sso-callback' }),
+        // The app's scheme from app.json; the browser hands the redirect back to the flow.
+        redirectUrl: AuthSession.makeRedirectUri(),
       })
-      if (!createdSessionId || !setActive) return 'cancelled'
+      if (!createdSessionId || !setActive) {
+        // Back from the provider without a session: a sign-up Clerk won't finish, as there is no
+        // open sign-up. Only closing the browser is a cancel.
+        if (authSessionResult?.type === 'success') throw new SignInError('sso_without_account')
+        return 'cancelled'
+      }
       await setActive({ session: createdSessionId })
       await openLiveSession()
       return 'signed-in'

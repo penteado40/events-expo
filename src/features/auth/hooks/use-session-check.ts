@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 
 import { ApiError } from '@/shared/lib/api-error'
-import { expireSession, useSession } from '@/shared/session'
+import { expireSession, isSessionEndReason, useSession } from '@/shared/session'
 
 import { authRepository } from '../api'
 
@@ -16,11 +16,9 @@ export async function checkSession(repository = authRepository) {
   try {
     useSession.getState().updateUser(session.id, await repository.me())
   } catch (error) {
-    // The HTTP client already expired it; a module still on the mock (no HTTP) reaches here.
-    if (error instanceof ApiError && error.code === 'UNAUTHENTICATED') {
-      expireSession(session.id, 'UNAUTHENTICATED')
-    } else if (error instanceof ApiError && error.code === 'USER_DEACTIVATED') {
-      expireSession(session.id, 'USER_DEACTIVATED')
+    // Over HTTP the client already expired it; the mock (`auth` not live yet) has no client.
+    if (error instanceof ApiError && isSessionEndReason(error.code)) {
+      expireSession(session.id, error.code)
     }
     // Anything else keeps it: the app stays usable offline, and the next request tells the truth.
   }

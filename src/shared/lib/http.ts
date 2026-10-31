@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { isSessionEndReason, type SessionEndReason } from '@/shared/session'
+
 import { ApiError, internalError, networkError } from './api-error'
 
 const TIMEOUT_MS = 15_000
@@ -13,14 +15,6 @@ const errorEnvelope = z.object({
 })
 const dataEnvelope = z.object({ data: z.unknown() })
 
-/** Codes with which the API refuses who is asking: the Session can't go on. */
-const SESSION_REFUSALS = ['UNAUTHENTICATED', 'USER_DEACTIVATED'] as const
-
-export type SessionRefusal = (typeof SESSION_REFUSALS)[number]
-
-const isSessionRefusal = (code: string): code is SessionRefusal =>
-  (SESSION_REFUSALS as readonly string[]).includes(code)
-
 type Options = {
   baseUrl: string
   /** The identity's token, sent as `Authorization: Bearer`; asked for on every request. */
@@ -31,7 +25,7 @@ type Options = {
    * Called when the API refuses the Session, with the id `getSessionId` gave when that request
    * started (so a late failure never ends a newer Session) and the code.
    */
-  onSessionRefused?: (sessionId: string | null, code: SessionRefusal) => void
+  onSessionRefused?: (sessionId: string | null, code: SessionEndReason) => void
   fetch?: typeof fetch
   timeoutMs?: number
 }
@@ -88,7 +82,7 @@ export function createHttpClient({
     const failure = errorEnvelope.safeParse(payload)
     if (failure.success) {
       const { code, message, details } = failure.data.error
-      if (isSessionRefusal(code)) onSessionRefused?.(sessionId, code)
+      if (isSessionEndReason(code)) onSessionRefused?.(sessionId, code)
       throw new ApiError(code, message, details)
     }
     const success = dataEnvelope.safeParse(payload)
