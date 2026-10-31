@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 
 import { Button, Notice, TextField } from '@/shared/components/ui'
+import { CLERK_PUBLISHABLE_KEY } from '@/shared/lib/clerk-key'
 import { useSession } from '@/shared/session'
 import { fonts, palette, useTheme } from '@/shared/theme'
 
@@ -25,36 +26,15 @@ const DEMO_ACCOUNTS: { account: DemoAccount; label: string }[] = [
   { account: 'SUPER_ADMIN', label: 'Super admin' },
 ]
 
+type Props = {
+  /** False in a development build without Clerk's key: only Demo mode, and how to get the rest. */
+  withClerk?: boolean
+}
+
 /** D-Login: email and password, Google or Apple, all through Clerk; no open sign-up. */
-export function LoginScreen() {
-  const router = useRouter()
+export function LoginScreen({ withClerk = CLERK_PUBLISHABLE_KEY !== null }: Props) {
   const { colors } = useTheme()
-  const endedBecause = useSession((state) => state.endedBecause)
-  const passwordSignIn = usePasswordSignIn()
-  const signInCode = useSignInCode()
-  const ssoSignIn = useSsoSignIn()
   const enterDemo = useEnterDemo()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [code, setCode] = useState('')
-
-  const needsCode = passwordSignIn.data === 'needs-code'
-  const busy = passwordSignIn.isPending || signInCode.isPending || ssoSignIn.isPending
-  const error = needsCode ? signInCode.error : (passwordSignIn.error ?? ssoSignIn.error)
-  const message = error
-    ? signInErrorMessage(error)
-    : endedBecause
-      ? sessionEndMessage(endedBecause)
-      : null
-
-  const submit = () => {
-    ssoSignIn.reset()
-    passwordSignIn.mutate({ email, password })
-  }
-  const sso = (provider: SsoProvider) => {
-    passwordSignIn.reset()
-    ssoSignIn.mutate(provider)
-  }
 
   return (
     <AuthLayout
@@ -84,20 +64,65 @@ export function LoginScreen() {
         </>
       }
     >
+      {withClerk ? (
+        <ClerkSignIn />
+      ) : (
+        <Notice message="Para entrar pelo Clerk, ponha EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY no .env e reinicie o Expo. Enquanto isso, use o modo demo." />
+      )}
+    </AuthLayout>
+  )
+}
+
+/** The card's sign-in, which needs `<ClerkProvider>`. */
+function ClerkSignIn() {
+  const router = useRouter()
+  const { colors } = useTheme()
+  const endedBecause = useSession((state) => state.endedBecause)
+  const passwordSignIn = usePasswordSignIn()
+  const signInCode = useSignInCode()
+  const ssoSignIn = useSsoSignIn()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
+
+  const via = passwordSignIn.data === 'signed-in' ? undefined : passwordSignIn.data
+  const needsCode = via !== undefined
+  const busy = passwordSignIn.isPending || signInCode.isPending || ssoSignIn.isPending
+  const error = needsCode ? signInCode.error : (passwordSignIn.error ?? ssoSignIn.error)
+  const message = error
+    ? signInErrorMessage(error)
+    : endedBecause
+      ? sessionEndMessage(endedBecause)
+      : null
+
+  const submit = () => {
+    ssoSignIn.reset()
+    passwordSignIn.mutate({ email, password })
+  }
+  const confirmCode = () => {
+    if (via) signInCode.mutate({ via, code })
+  }
+  const sso = (provider: SsoProvider) => {
+    passwordSignIn.reset()
+    ssoSignIn.mutate(provider)
+  }
+
+  return (
+    <>
       {message ? <Notice message={message} /> : null}
       {needsCode ? (
         <>
           <Text style={[styles.body, { color: colors.text }]}>
-            Enviamos um código para {email.trim()} para confirmar que é você neste aparelho.
+            {via === 'authenticator-code'
+              ? 'Digite o código do seu app autenticador.'
+              : via === 'phone-code'
+                ? 'Enviamos um código por SMS para o telefone da sua conta.'
+                : `Enviamos um código para ${email.trim()} para confirmar que é você.`}
           </Text>
-          <CodeField
-            value={code}
-            onChangeText={setCode}
-            onSubmitEditing={() => signInCode.mutate(code)}
-          />
+          <CodeField value={code} onChangeText={setCode} onSubmitEditing={confirmCode} />
           <Button
             label="Confirmar"
-            onPress={() => signInCode.mutate(code)}
+            onPress={confirmCode}
             loading={signInCode.isPending}
             disabled={!code.trim()}
           />
@@ -161,7 +186,7 @@ export function LoginScreen() {
           </View>
         </>
       )}
-    </AuthLayout>
+    </>
   )
 }
 

@@ -52,10 +52,20 @@ describe('signInErrorMessage', () => {
       clerkError('too_many_requests'),
       'Muitas tentativas. Tente de novo em alguns minutos.',
     ],
-    [
-      'Clerk: sign-up closed for a social account of another email',
-      clerkError('sign_up_restricted_waitlist'),
+    ...[
+      'sign_up_mode_restricted',
+      'not_allowed_to_sign_up',
+      'invitation_account_not_exists',
+      'external_account_not_found',
+    ].map((code): [string, unknown, string] => [
+      `Clerk in Restricted mode: ${code}`,
+      clerkError(code),
       'Este e-mail não recebeu convite. Entre com o e-mail do convite da produção do seu Group.',
+    ]),
+    [
+      'Clerk: locked after too many attempts',
+      clerkError('user_locked'),
+      'Muitas tentativas erradas: a conta foi bloqueada por um tempo. Tente mais tarde.',
     ],
     [
       'Google or Apple back without an account',

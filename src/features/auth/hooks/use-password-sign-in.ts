@@ -1,13 +1,19 @@
 import { useSignIn } from '@clerk/expo'
 import { useMutation } from '@tanstack/react-query'
 
-import { finishSignIn, throwIfError } from '../clerk-sign-in'
+import {
+  finishSignIn,
+  startCodeStep,
+  throwIfError,
+  verifyCode,
+  type CodeVia,
+} from '../clerk-sign-in'
 import { clearStaleIdentity, openLiveSession } from '../open-live-session'
 
 type Credentials = { email: string; password: string }
 
-/** "Entrar": the next step is the Início (`signed-in`) or the code Clerk emailed (`needs-code`). */
-export type PasswordSignInResult = 'signed-in' | 'needs-code'
+/** "Entrar": the next step is the Início (`signed-in`) or a code, and where it comes from. */
+export type PasswordSignInResult = 'signed-in' | CodeVia
 
 /** "Entrar" with email and password: Clerk first, then the local User (`GET /me`). */
 export function usePasswordSignIn() {
@@ -16,11 +22,9 @@ export function usePasswordSignIn() {
     mutationFn: async ({ email, password }) => {
       await clearStaleIdentity()
       throwIfError(await signIn.password({ emailAddress: email.trim(), password }))
-      // A device Clerk doesn't trust yet gets an emailed code first (Clerk's client trust).
-      if (signIn.status === 'needs_client_trust') {
-        throwIfError(await signIn.mfa.sendEmailCode())
-        return 'needs-code'
-      }
+      // A device Clerk doesn't trust yet, or an account with MFA, needs a code first.
+      const via = await startCodeStep(signIn)
+      if (via) return via
       await finishSignIn(signIn)
       await openLiveSession()
       return 'signed-in'
@@ -28,12 +32,12 @@ export function usePasswordSignIn() {
   })
 }
 
-/** The code Clerk emailed to trust this device, after a correct password. */
+/** The code that finishes a sign-in, after a correct password. */
 export function useSignInCode() {
   const { signIn } = useSignIn()
-  return useMutation<void, unknown, string>({
-    mutationFn: async (code) => {
-      throwIfError(await signIn.mfa.verifyEmailCode({ code: code.trim() }))
+  return useMutation<void, unknown, { via: CodeVia; code: string }>({
+    mutationFn: async ({ via, code }) => {
+      await verifyCode(signIn, via, code)
       await finishSignIn(signIn)
       await openLiveSession()
     },

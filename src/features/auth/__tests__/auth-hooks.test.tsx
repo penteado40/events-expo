@@ -114,18 +114,51 @@ describe('usePasswordSignIn', () => {
     const code = await renderHook(() => useSignInCode(), { wrapper })
 
     await act(() => signIn.result.current.mutateAsync(credentials))
-    expect(signIn.result.current.data).toBe('needs-code')
+    expect(signIn.result.current.data).toBe('email-code')
     expect(useSession.getState().session).toBeNull()
 
     await act(async () => {
-      code.result.current.mutate('000000')
+      code.result.current.mutate({ via: 'email-code', code: '000000' })
     })
     await waitFor(() =>
       expect(code.result.current.error).toMatchObject({ code: 'form_code_incorrect' }),
     )
 
-    await act(() => code.result.current.mutateAsync(FAKE_CODE))
+    await act(() => code.result.current.mutateAsync({ via: 'email-code', code: FAKE_CODE }))
     expect(useSession.getState().session).toMatchObject({ live: true, user: bruno })
+  })
+
+  it.each([
+    [['totp', 'phone_code'], 'authenticator-code'],
+    [['phone_code', 'email_code'], 'phone-code'],
+    [['email_code'], 'email-code'],
+  ] as const)(
+    'asks for the second factor when the account has MFA (%j → %s)',
+    async (factors, via) => {
+      fakeClerk.secondFactors = [...factors]
+      const signIn = await renderHook(() => usePasswordSignIn(), { wrapper })
+      const code = await renderHook(() => useSignInCode(), { wrapper })
+
+      await act(() => signIn.result.current.mutateAsync(credentials))
+      expect(signIn.result.current.data).toBe(via)
+
+      await act(() => code.result.current.mutateAsync({ via, code: FAKE_CODE }))
+      expect(useSession.getState().session).toMatchObject({ live: true, user: bruno })
+    },
+  )
+
+  it('refuses an MFA with only factors the app has no step for', async () => {
+    fakeClerk.secondFactors = ['passkey']
+    const { result } = await renderHook(() => usePasswordSignIn(), { wrapper })
+
+    await act(async () => {
+      result.current.mutate(credentials)
+    })
+
+    await waitFor(() =>
+      expect(result.current.error).toMatchObject({ code: 'sign_in_needs_second_factor' }),
+    )
+    expect(fakeClerk.session).toBeNull()
   })
 })
 
@@ -156,13 +189,39 @@ describe('useSsoSignIn', () => {
     expect(useSession.getState().session).toBeNull()
   })
 
+  it.each([
+    ['google', 'browser'],
+    ['apple', 'native-apple'],
+  ] as const)('signs in with %s through the %s flow on iOS', async (provider, flow) => {
+    fakeClerk.ssoEmail = 'lu.andrade@example.com'
+    const { result } = await renderHook(() => useSsoSignIn(), { wrapper })
+
+    await act(() => result.current.mutateAsync(provider))
+
+    expect(fakeClerk.lastSsoFlow).toBe(flow)
+  })
+
+  it("refuses Apple's native sheet for an email nobody invited", async () => {
+    fakeClerk.ssoEmail = 'lu.pessoal@icloud.com'
+    fakeClerk.ssoSignUpRestricted = true
+    const { result } = await renderHook(() => useSsoSignIn(), { wrapper })
+
+    await act(async () => {
+      result.current.mutate('apple')
+    })
+
+    await waitFor(() =>
+      expect(result.current.error).toMatchObject({ code: 'sign_up_mode_restricted' }),
+    )
+  })
+
   it('refuses an email Clerk will not sign up with USER_NOT_INVITED, not as a cancel', async () => {
     fakeClerk.ssoEmail = 'lu.pessoal@gmail.com'
     fakeClerk.ssoSignUpRestricted = true
     const { result } = await renderHook(() => useSsoSignIn(), { wrapper })
 
     await act(async () => {
-      result.current.mutate('apple')
+      result.current.mutate('google')
     })
 
     await waitFor(() => expect(result.current.error).toMatchObject({ code: 'sso_without_account' }))

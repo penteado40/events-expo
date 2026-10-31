@@ -7,7 +7,10 @@ const DEACTIVATED = 'Seu acesso foi retirado. Se for engano, fale com a produç�
 const WRONG_CREDENTIALS = 'E-mail ou senha incorretos.'
 const WEAK_PASSWORD = 'Escolha outra senha, com pelo menos 8 caracteres e difícil de adivinhar.'
 
-/** Clerk's error codes the person can act on; Clerk's own messages are in English. */
+/**
+ * Clerk's error codes the person can act on (its `ERROR_CODES`, @clerk/shared); Clerk's own
+ * messages are in English.
+ */
 const CLERK_MESSAGES: Record<string, string> = {
   form_password_incorrect: WRONG_CREDENTIALS,
   form_identifier_not_found: WRONG_CREDENTIALS,
@@ -17,9 +20,13 @@ const CLERK_MESSAGES: Record<string, string> = {
   form_password_length_too_short: WEAK_PASSWORD,
   form_password_validation_failed: WEAK_PASSWORD,
   too_many_requests: 'Muitas tentativas. Tente de novo em alguns minutos.',
-  // No open sign-up (events-api ADR-0020): a social account of an email nobody invited.
-  sign_up_restricted_waitlist: NOT_INVITED,
-  not_allowed_access: NOT_INVITED,
+  user_locked: 'Muitas tentativas erradas: a conta foi bloqueada por um tempo. Tente mais tarde.',
+  // No open sign-up (events-api ADR-0020, Clerk in Restricted mode): Google or Apple with an
+  // email nobody invited.
+  sign_up_mode_restricted: NOT_INVITED,
+  not_allowed_to_sign_up: NOT_INVITED,
+  invitation_account_not_exists: NOT_INVITED,
+  external_account_not_found: NOT_INVITED,
   // The app's own (SignInError): Google or Apple came back without an account to sign in.
   sso_without_account: NOT_INVITED,
 }

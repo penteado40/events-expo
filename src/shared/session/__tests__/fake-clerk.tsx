@@ -18,6 +18,7 @@ type SignInStatus =
   | 'needs_identifier'
   | 'needs_first_factor'
   | 'needs_client_trust'
+  | 'needs_second_factor'
   | 'needs_new_password'
   | 'complete'
 
@@ -40,11 +41,15 @@ export function createFakeClerk() {
     user: null as { primaryEmailAddress: { emailAddress: string } } | null,
     /** When true, a correct password still asks for the emailed code (Clerk's client trust). */
     requireClientTrust: false,
+    /** The account's MFA strategies (`totp`, `phone_code`, `email_code`); empty = MFA off. */
+    secondFactors: [] as string[],
     /** The email Google or Apple answers with; null = the person closed the browser. */
     ssoEmail: null as string | null,
     /** Clerk refuses to sign up the SSO email (no open sign-up): back with no session. */
     ssoSignUpRestricted: false,
     signOutCount: 0,
+    /** Which Google or Apple flow ran last: Clerk's browser flow, or Apple's native sheet. */
+    lastSsoFlow: null as 'browser' | 'native-apple' | null,
 
     addAccount(email: string, password: string) {
       accounts.set(email, password)
@@ -89,9 +94,11 @@ export function createFakeClerk() {
       clerk.session = null
       clerk.user = null
       clerk.requireClientTrust = false
+      clerk.secondFactors = []
       clerk.ssoEmail = null
       clerk.ssoSignUpRestricted = false
       clerk.signOutCount = 0
+      clerk.lastSsoFlow = null
       clerk.signIn = createSignIn()
     },
   }
@@ -107,8 +114,14 @@ export function createFakeClerk() {
   function createSignIn() {
     const ok = { error: null }
     const fail = (error: ClerkErrorLike) => ({ error })
+    async function verifyCode({ code }: { code: string }) {
+      if (code !== FAKE_CODE) return fail(clerkError('form_code_incorrect'))
+      signIn.status = 'complete'
+      return ok
+    }
     const signIn = {
       status: 'needs_identifier' as SignInStatus,
+      supportedSecondFactors: [] as { strategy: string }[],
       async password({ emailAddress, password }: { emailAddress: string; password: string }) {
         if (clerk.session) return fail(clerkError('session_exists'))
         if (!accounts.has(emailAddress)) return fail(clerkError('form_identifier_not_found'))
@@ -116,16 +129,21 @@ export function createFakeClerk() {
           return fail(clerkError('form_password_incorrect'))
         }
         pendingEmail = emailAddress
-        signIn.status = clerk.requireClientTrust ? 'needs_client_trust' : 'complete'
+        signIn.supportedSecondFactors = clerk.secondFactors.map((strategy) => ({ strategy }))
+        signIn.status =
+          clerk.secondFactors.length > 0
+            ? 'needs_second_factor'
+            : clerk.requireClientTrust
+              ? 'needs_client_trust'
+              : 'complete'
         return ok
       },
       mfa: {
         sendEmailCode: async () => ok,
-        async verifyEmailCode({ code }: { code: string }) {
-          if (code !== FAKE_CODE) return fail(clerkError('form_code_incorrect'))
-          signIn.status = 'complete'
-          return ok
-        },
+        sendPhoneCode: async () => ok,
+        verifyEmailCode: verifyCode,
+        verifyPhoneCode: verifyCode,
+        verifyTOTP: verifyCode,
       },
       async create({ identifier }: { identifier: string }) {
         if (clerk.session) return fail(clerkError('session_exists'))
@@ -178,6 +196,7 @@ export const fakeClerkModule = {
   useSignIn: () => ({ signIn: fakeClerk.signIn, errors: {}, fetchStatus: 'idle' }),
   useSSO: () => ({
     async startSSOFlow(_params: { strategy: string; redirectUrl?: string }) {
+      fakeClerk.lastSsoFlow = 'browser'
       const email = fakeClerk.ssoEmail
       if (email === null) {
         return { createdSessionId: null, authSessionResult: { type: 'cancel' } }
@@ -194,4 +213,20 @@ export const fakeClerkModule = {
     },
   }),
   ClerkProvider: ({ children }: { children: ReactNode }) => children,
+}
+
+/** What `jest.mock('@clerk/expo/apple')` answers with: Apple's native sheet (iOS). */
+export const fakeClerkAppleModule = {
+  useSignInWithApple: () => ({
+    async startAppleAuthenticationFlow() {
+      fakeClerk.lastSsoFlow = 'native-apple'
+      const email = fakeClerk.ssoEmail
+      // Apple's ERR_REQUEST_CANCELED comes back as no session.
+      if (email === null) return { createdSessionId: null }
+      // Clerk in Restricted mode refuses to sign up an email nobody invited.
+      if (fakeClerk.ssoSignUpRestricted) throw clerkError('sign_up_mode_restricted')
+      fakeClerk.addAccount(email, `sso-${email}`)
+      return { createdSessionId: 'sso-pending', setActive: async () => fakeClerk.restore(email) }
+    },
+  }),
 }

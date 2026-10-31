@@ -4,9 +4,10 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 import { useSessionCheck } from '@/features/auth'
+import { CLERK_PUBLISHABLE_KEY } from '@/shared/lib/clerk-key'
 import {
   clearCacheOnSignOut,
   createQueryClient,
@@ -17,18 +18,19 @@ import { useAppFonts, useTheme } from '@/shared/theme'
 
 SplashScreen.preventAutoHideAsync()
 
-/** Read as a literal `process.env.EXPO_PUBLIC_…` so Expo inlines it (see `.env.example`). */
-const CLERK_PUBLISHABLE_KEY: string =
-  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ??
-  missing('EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set: the app signs in through Clerk.')
-
 const queryClient = createQueryClient()
 clearCacheOnSignOut(queryClient)
 endIdentityWithSession()
 refetchOnAppFocus()
 
-function missing(message: string): never {
-  throw new Error(message)
+/** Clerk around the app; a development build without its key runs without it (Demo mode only). */
+function WithClerk({ children }: { children: ReactNode }) {
+  if (CLERK_PUBLISHABLE_KEY === null) return children
+  return (
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      {children}
+    </ClerkProvider>
+  )
 }
 
 export default function RootLayout() {
@@ -52,7 +54,7 @@ export default function RootLayout() {
   if (!ready) return null
 
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+    <WithClerk>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider value={navigationTheme}>
           <StatusBar style="auto" />
@@ -69,6 +71,6 @@ export default function RootLayout() {
           </Stack>
         </ThemeProvider>
       </QueryClientProvider>
-    </ClerkProvider>
+    </WithClerk>
   )
 }

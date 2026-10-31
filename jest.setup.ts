@@ -38,6 +38,10 @@ jest.mock(
 // Clerk is a native SDK with a remote service: tests use a fake with accounts, codes and sessions
 // (src/shared/session/__tests__/fake-clerk.tsx), reset before each test.
 jest.mock('@clerk/expo', () => require('./src/shared/session/__tests__/fake-clerk').fakeClerkModule)
+jest.mock(
+  '@clerk/expo/apple',
+  () => require('./src/shared/session/__tests__/fake-clerk').fakeClerkAppleModule,
+)
 jest.mock('@clerk/expo/token-cache', () => ({ tokenCache: undefined }))
 
 beforeEach(() => {

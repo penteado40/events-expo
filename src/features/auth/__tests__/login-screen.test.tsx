@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
 import { useSession } from '@/shared/session'
 import { fakeClerk } from '@/shared/session/__tests__/fake-clerk'
@@ -15,7 +15,7 @@ async function renderLogin() {
   })
   await render(
     <QueryClientProvider client={client}>
-      <LoginScreen />
+      <LoginScreen withClerk />
     </QueryClientProvider>,
   )
 }
@@ -68,6 +68,36 @@ describe('LoginScreen', () => {
 
     expect(await screen.findByLabelText('Código')).toBeOnTheScreen()
     expect(screen.getByText(/Enviamos um código para bruno.reis@example.com/)).toBeOnTheScreen()
+  })
+
+  it.each([
+    ['totp', 'Digite o código do seu app autenticador.'],
+    ['phone_code', 'Enviamos um código por SMS para o telefone da sua conta.'],
+  ])('asks for the %s second factor of an account with MFA', async (factor, text) => {
+    fakeClerk.addAccount('bruno.reis@example.com', 'senha-forte-1')
+    fakeClerk.secondFactors = [factor]
+    await renderLogin()
+
+    await signInWith('bruno.reis@example.com', 'senha-forte-1')
+
+    expect(await screen.findByText(text)).toBeOnTheScreen()
+    await fireEvent.changeText(screen.getByLabelText('Código'), '424242')
+    await fireEvent.press(screen.getByRole('button', { name: 'Confirmar' }))
+    await waitFor(() => expect(useSession.getState().session).toMatchObject({ live: true }))
+  })
+
+  it('offers only Demo mode, and says how to get Clerk, in a development build without its key', async () => {
+    const client = new QueryClient()
+    await render(
+      <QueryClientProvider client={client}>
+        <LoginScreen withClerk={false} />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByText(/EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY/)).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Entrar' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Owner' }))
+    expect(useSession.getState().session).toMatchObject({ live: false, user: { id: 2 } })
   })
 
   it('enters Demo mode as the sample Viewer in a development build', async () => {
