@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 
+import { API_URL } from '@/shared/lib/api-client'
+import { createFakeApi } from '@/shared/mock-backend/fake-api'
 import { useSession } from '@/shared/session'
 import { fakeClerk } from '@/shared/session/__tests__/fake-clerk'
 
@@ -26,7 +28,15 @@ async function signInWith(email: string, password: string) {
   await fireEvent.press(screen.getByRole('button', { name: 'Entrar' }))
 }
 
-beforeEach(() => useSession.setState({ session: null, endedBecause: null }))
+let fetchSpy: jest.SpyInstance
+
+beforeEach(() => {
+  useSession.setState({ session: null, endedBecause: null })
+  // `auth` is live: `GET /me` goes to the fake API, over the mock backend.
+  fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(createFakeApi({ baseUrl: API_URL }))
+})
+
+afterEach(() => fetchSpy.mockRestore())
 
 describe('LoginScreen', () => {
   it('says there is no open sign-up', async () => {

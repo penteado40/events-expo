@@ -2,8 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import { API_URL } from '@/shared/lib/api-client'
 import { createHttpClient } from '@/shared/lib/http'
-import { BASE_URL } from '@/shared/mock-backend/fake-api'
+import { BASE_URL, createFakeApi } from '@/shared/mock-backend/fake-api'
 import { FAKE_CODE, fakeClerk } from '@/shared/session/__tests__/fake-clerk'
 import { useSession, type Session, type User } from '@/shared/session'
 
@@ -41,14 +42,11 @@ beforeEach(() => {
   client = new QueryClient({ defaultOptions: { mutations: { retry: false, gcTime: Infinity } } })
   useSession.setState({ session: null, endedBecause: null })
   fakeClerk.addAccount(credentials.email, credentials.password)
-  // `auth` is not live yet: nothing here may reach the network.
-  fetchSpy = jest.spyOn(globalThis, 'fetch')
+  // `auth` is live: `GET /me` goes to the fake API, over the mock backend.
+  fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(createFakeApi({ baseUrl: API_URL }))
 })
 
-afterEach(() => {
-  expect(fetchSpy).not.toHaveBeenCalled()
-  fetchSpy.mockRestore()
-})
+afterEach(() => fetchSpy.mockRestore())
 
 describe('usePasswordSignIn', () => {
   it('signs in to Clerk, reads the User and opens a Live session', async () => {

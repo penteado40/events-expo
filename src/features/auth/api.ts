@@ -15,8 +15,8 @@ export function createHttpAuthRepository(http: HttpClient): AuthRepository {
 }
 
 /**
- * The feature's only door to its data. Until `auth` is live, a development build answers a real
- * Clerk sign-in from the sample Users, by the email Clerk verified.
+ * The feature's only door to its data. `auth` is live, so a sign-in reads the User from the
+ * events-api; the mock (the sample Users, by the email Clerk verified) is only Demo mode's.
  */
 export const authRepository = selectRepository<AuthRepository>('auth', {
   http: createHttpAuthRepository(apiClient),
