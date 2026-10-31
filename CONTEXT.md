@@ -5,13 +5,13 @@ App mobile dos integrantes de um Group (Owners e Viewers) e do Super admin: ver 
 ## Sessão
 
 **Session** (sessão):
-O estado de login guardado no aparelho: qual User está dentro e de que forma entrou. Termina com "Sair" ou quando a API a recusa.
+O estado de login guardado no aparelho: qual User está dentro (o User local de `GET /me`, com a Membership) e de que forma entrou. O token não fica nela: é do Clerk, pedido a cada requisição. Termina com "Sair" ou quando a API a recusa (sessão do Clerk inválida ou Deactivated user).
 _Avoid_: login (é o ato de entrar), token (é só a credencial)
 
 **Demo mode** (modo demo):
-Uma Session aberta pelo botão "Modo demo", sem email nem senha, em que tudo vem de dados de exemplo locais. Existe só durante o desenvolvimento; o app publicado não tem Demo mode.
+Uma Session aberta pelo botão "Modo demo" como um User de exemplo (Owner, Viewer ou Super admin), sem Clerk, em que tudo vem de dados de exemplo locais. Existe só durante o desenvolvimento; o app publicado não tem Demo mode.
 _Avoid_: mock (é a implementação), modo offline
 
 **Live session** (sessão real):
-Uma Session aberta pelo botão "Entrar", apoiada em um login real na events-api. Toda Session é ou Live session ou Demo mode.
+Uma Session aberta por um login real no Clerk (e-mail e senha, Google ou Apple), aceito pela events-api. Toda Session é ou Live session ou Demo mode.
 _Avoid_: produção, modo real

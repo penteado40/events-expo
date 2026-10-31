@@ -11,14 +11,15 @@ const implementations = {
 }
 
 const session = (live: boolean): Session => ({
-  token: 't',
+  id: 'sess_1',
   live,
   user: {
     id: 1,
     name: 'Admin Local',
     email: 'admin@local.test',
-    role: 'SUPER_ADMIN',
-    createdAt: '2026-01-01T12:00:00.000Z',
+    phone: '+5527999990001',
+    isSuperAdmin: true,
+    memberships: [],
   },
 })
 

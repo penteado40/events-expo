@@ -38,7 +38,9 @@
       ],
       "expo-secure-store",
       "expo-font",
-      "expo-status-bar"
+      "expo-status-bar",
+      "@clerk/expo",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
