@@ -84,6 +84,16 @@ describe('EventsHome', () => {
     expect(screen.getByText('Nenhum Event encontrado para “lisboa”.')).toBeOnTheScreen()
   })
 
+  it('keeps the header and the tabs fixed: only the list of Events scrolls', async () => {
+    await renderHome(VIEWER)
+    const list = within(screen.getByTestId('home-list'))
+
+    expect(list.getByText('Saída Manaus')).toBeOnTheScreen()
+    expect(list.queryByText(/^Olá, Lu/)).toBeNull()
+    expect(list.queryByLabelText('Buscar evento')).toBeNull()
+    expect(list.queryByRole('tab', { name: 'Próximos' })).toBeNull()
+  })
+
   it('pulling down refetches the Events and refreshes the Group around them', async () => {
     const onRefresh = jest.fn(async () => {})
     await renderHome(VIEWER, 5, onRefresh)
