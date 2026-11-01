@@ -54,6 +54,21 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     return found
   }
 
+  /**
+   * The requester of every call but `GET /me`. A Live session's User exists in the real API but
+   * not in the sample data: for the modules not live yet, the mock takes them as a User of no
+   * Group (an empty Início), never `USER_NOT_INVITED`, which only sign-in answers.
+   */
+  function requester(identity: VerifiedIdentity | null): UserRow {
+    if (!identity) throw unauthenticated()
+    const email = identity.email.toLowerCase()
+    const found = data.users.find((u) => u.email === email)
+    if (found?.deactivatedAt) throw userDeactivated()
+    return (
+      found ?? { id: 0, name: email, email, phone: '', isSuperAdmin: false, deactivatedAt: null }
+    )
+  }
+
   const isMember = (userId: number, groupId: number) =>
     data.groupMembers.some((m) => m.userId === userId && m.groupId === groupId)
 
@@ -79,9 +94,9 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
      */
     async groups(identity: VerifiedIdentity | null) {
       await delay()
-      const requester = authenticate(identity)
+      const asker = requester(identity)
       return data.groups
-        .filter((g) => requester.isSuperAdmin || isMember(requester.id, g.id))
+        .filter((g) => asker.isSuperAdmin || isMember(asker.id, g.id))
         .map(({ id, name }) => ({ id, name }))
         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
     },
@@ -92,13 +107,13 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
      */
     async groupEvents(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
-      const requester = authenticate(identity)
+      const asker = requester(identity)
       const group = data.groups.find((g) => g.id === groupId)
-      if (!group || !(requester.isSuperAdmin || isMember(requester.id, groupId))) throw notFound()
+      if (!group || !(asker.isSuperAdmin || isMember(asker.id, groupId))) throw notFound()
       return data.events
         .filter((e) => e.groupId === groupId)
         .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
-        .map((e) => eventJson(e, requester))
+        .map((e) => eventJson(e, asker))
     },
 
     /** A sample User as `GET /me` would return it, for Demo mode. */

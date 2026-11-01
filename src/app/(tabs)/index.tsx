@@ -7,8 +7,13 @@ export default function HomeScreen() {
   return (
     // "Atualizar" also re-reads the User, so a role just given comes with the Group.
     <GroupHome onRefresh={refreshSessionUser}>
-      {({ group, switcher }) => (
-        <EventsHome groupId={group.id} role={group.role} groupSwitcher={switcher} />
+      {({ group, switcher, refresh }) => (
+        <EventsHome
+          groupId={group.id}
+          role={group.role}
+          groupSwitcher={switcher}
+          onRefresh={refresh}
+        />
       )}
     </GroupHome>
   )

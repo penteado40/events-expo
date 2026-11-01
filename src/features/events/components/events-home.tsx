@@ -33,13 +33,15 @@ type Props = {
   role: GroupRole
   /** The header's Group pill, which opens "Seus Groups". */
   groupSwitcher: ReactNode
+  /** Pulling down also refreshes what is around the list: the Groups and the User's role. */
+  onRefresh?: () => Promise<unknown>
 }
 
 /**
  * The Início of a Group (D-Início, PROJ-215): the blue header with the Group, the greeting and the
  * search; the tabs; the Group's Events. Pull to refresh; a return to the app refetches.
  */
-export function EventsHome({ groupId, role, groupSwitcher }: Props) {
+export function EventsHome({ groupId, role, groupSwitcher, onRefresh }: Props) {
   const { colors } = useTheme()
   const router = useRouter()
   const user = useSession((state) => state.session?.user)
@@ -56,7 +58,7 @@ export function EventsHome({ groupId, role, groupSwitcher }: Props) {
   const refresh = async () => {
     setPulling(true)
     try {
-      await events.refetch()
+      await Promise.all([events.refetch(), onRefresh?.()])
     } finally {
       setPulling(false)
     }
@@ -64,6 +66,7 @@ export function EventsHome({ groupId, role, groupSwitcher }: Props) {
 
   return (
     <ScrollView
+      testID="home-list"
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"

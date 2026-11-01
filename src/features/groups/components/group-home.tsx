@@ -13,8 +13,15 @@ import { NoGroup } from './no-group'
 type Props = {
   /** Also re-read when "Atualizar" looks for a Group again, e.g. the User's Membership. */
   onRefresh?: () => Promise<unknown>
-  /** The Início of the current Group, with the header's Group pill to place. */
-  children: (props: { group: CurrentGroup; switcher: ReactNode }) => ReactNode
+  /**
+   * The Início of the current Group, with the header's Group pill to place and `refresh`, which
+   * reloads the Groups (and `onRefresh`) for its pull-to-refresh.
+   */
+  children: (props: {
+    group: CurrentGroup
+    switcher: ReactNode
+    refresh: () => Promise<unknown>
+  }) => ReactNode
 }
 
 /**
@@ -25,23 +32,23 @@ type Props = {
 export function GroupHome({ onRefresh, children }: Props) {
   const { loading, error, group, options, choose, refetch } = useCurrentGroup()
   const [refreshing, setRefreshing] = useState(false)
+  const reload = () => Promise.all([refetch(), onRefresh?.()])
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      await reload()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   if (group) {
     const switcher = <GroupSwitcher current={group} options={options} onChoose={choose} />
     return (
       <View key={group.id} style={styles.screen}>
-        {children({ group, switcher })}
+        {children({ group, switcher, refresh: reload })}
       </View>
     )
-  }
-
-  const refresh = async () => {
-    setRefreshing(true)
-    try {
-      await Promise.all([refetch(), onRefresh?.()])
-    } finally {
-      setRefreshing(false)
-    }
   }
 
   return (

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { Pressable, Text } from 'react-native'
 
 import { networkError } from '@/shared/lib/api-error'
 import { mockBackend } from '@/shared/mock-backend'
@@ -14,17 +14,18 @@ function demoSession(userId: number): Session {
   return { id: `demo-${userId}`, user, live: false }
 }
 
-async function renderHome() {
+async function renderHome(onRefresh?: () => Promise<unknown>) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <GroupHome>
-        {({ group, switcher }) => (
+      <GroupHome onRefresh={onRefresh}>
+        {({ group, switcher, refresh }) => (
           <>
             <Text>
               Início de {group.name} como {group.role}
             </Text>
             {switcher}
+            <Pressable accessibilityRole="button" accessibilityLabel="Puxar" onPress={refresh} />
           </>
         )}
       </GroupHome>
@@ -103,5 +104,18 @@ describe('GroupHome', () => {
     await waitFor(() =>
       expect(screen.getByText('Início de Coral Jovem Vitória como VIEWER')).toBeOnTheScreen(),
     )
+  })
+
+  it('gives the Início a refresh that reloads the Groups and the User', async () => {
+    useSession.setState({ session: demoSession(5) })
+    const onRefresh = jest.fn(async () => {})
+    await renderHome(onRefresh)
+    await screen.findByText(/^Início de/)
+    const listGroups = jest.spyOn(mockBackend, 'groups')
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Puxar' }))
+
+    await waitFor(() => expect(listGroups).toHaveBeenCalledTimes(1))
+    expect(onRefresh).toHaveBeenCalledTimes(1)
   })
 })

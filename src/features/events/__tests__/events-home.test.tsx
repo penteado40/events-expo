@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, within } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native'
 
 import { mockBackend } from '@/shared/mock-backend'
 import { useSession, userSchema } from '@/shared/session'
@@ -10,13 +10,13 @@ import type { GroupRole } from '@/shared/domain/group-role'
 const VIEWER: GroupRole = 'VIEWER'
 const OWNER: GroupRole = 'OWNER'
 
-async function renderHome(role: GroupRole, userId = 5) {
+async function renderHome(role: GroupRole, userId = 5, onRefresh?: () => Promise<unknown>) {
   const user = userSchema.parse(mockBackend.user(userId))
   useSession.setState({ session: { id: `demo-${userId}`, user, live: false } })
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   await render(
     <QueryClientProvider client={client}>
-      <EventsHome groupId={1} role={role} groupSwitcher={null} />
+      <EventsHome groupId={1} role={role} groupSwitcher={null} onRefresh={onRefresh} />
     </QueryClientProvider>,
   )
   await screen.findByText('Saída Manaus')
@@ -29,7 +29,10 @@ beforeEach(() => {
   jest.useFakeTimers({ now: new Date('2026-10-31T09:00:00-03:00'), advanceTimers: true })
 })
 
-afterEach(() => jest.useRealTimers())
+afterEach(() => {
+  jest.useRealTimers()
+  jest.restoreAllMocks()
+})
 
 describe('EventsHome', () => {
   it('greets the person with the date', async () => {
@@ -79,5 +82,16 @@ describe('EventsHome', () => {
 
     await fireEvent.changeText(screen.getByLabelText('Buscar evento'), 'lisboa')
     expect(screen.getByText('Nenhum Event encontrado para “lisboa”.')).toBeOnTheScreen()
+  })
+
+  it('pulling down refetches the Events and refreshes the Group around them', async () => {
+    const onRefresh = jest.fn(async () => {})
+    await renderHome(VIEWER, 5, onRefresh)
+    const listEvents = jest.spyOn(mockBackend, 'groupEvents')
+
+    await act(() => screen.getByTestId('home-list').props.refreshControl.props.onRefresh())
+
+    expect(listEvents).toHaveBeenCalledTimes(1)
+    expect(onRefresh).toHaveBeenCalledTimes(1)
   })
 })
