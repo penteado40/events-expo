@@ -123,8 +123,12 @@ export function EventsHome({ groupId, role, groupSwitcher, onRefresh }: Props) {
         </View>
         <Animated.View style={[styles.fold, greetingFold]}>
           <View
+            style={styles.greeting}
             onLayout={(e) => {
-              greetingHeight.set(e.nativeEvent.layout.height)
+              // The greeting's own height, never the fold's: a folded wrapper must not measure 0,
+              // or the header could no longer open again at the top.
+              const height = e.nativeEvent.layout.height
+              if (height > 0) greetingHeight.set(height)
             }}
           >
             <GroupGreeting />
@@ -207,6 +211,7 @@ export function EventsHome({ groupId, role, groupSwitcher, onRefresh }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   fold: { overflow: 'hidden' },
+  greeting: { flexShrink: 0 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   avatar: {
     width: spacing.touchTarget,
