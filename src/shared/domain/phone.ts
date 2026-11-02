@@ -7,6 +7,9 @@ const BRAZIL = /^\+55(\d{2})(\d{4,5})(\d{4})$/
 
 const EXAMPLE = '+55 27 99999-9999'
 
+/** A phone that is not one, as the field says it. */
+export const PHONE_INVALID = `Telefone inválido. Use o formato ${EXAMPLE}.`
+
 /**
  * A phone typed with any usual separators, in E.164 (`+5527999990005`) as the events-api stores
  * it; null when it is not a phone with the country code. Contact only (WhatsApp), never sign-in.
@@ -29,7 +32,7 @@ export function phoneProblem(raw: string): string | null {
   const [min, max] = value.startsWith('+55') ? [12, 13] : [8, 15]
   if (digits !== null && digits >= min && digits <= max) return null
   if (digits !== null && digits < min) return `Telefone incompleto. Use o formato ${EXAMPLE}.`
-  return `Telefone inválido. Use o formato ${EXAMPLE}.`
+  return PHONE_INVALID
 }
 
 /** A stored phone as people read it: Brazilian ones grouped (`+55 27 99999-0005`), others as stored. */

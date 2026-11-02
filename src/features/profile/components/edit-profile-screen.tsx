@@ -19,7 +19,7 @@ import { useUpdateProfile } from '../hooks/use-update-profile'
 import {
   errorsFromApi,
   profileChanges,
-  profileForm,
+  initialProfileForm,
   type ProfileErrors,
   type ProfileForm,
 } from '../profile-form'
@@ -40,7 +40,7 @@ function EditProfile({ user }: { user: User }) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const update = useUpdateProfile()
-  const [form, setForm] = useState<ProfileForm>(() => profileForm(user))
+  const [form, setForm] = useState<ProfileForm>(() => initialProfileForm(user))
   const [errors, setErrors] = useState<ProfileErrors>({})
 
   const edit = (field: keyof ProfileForm) => (value: string) => {

@@ -55,6 +55,14 @@ describe.each(implementations)('ProfileRepository contract (%s)', (_, createRepo
     })
   })
 
+  it("refuses to edit the email, which is the login's, with VALIDATION_ERROR", async () => {
+    const repo = createRepository('lu.andrade@example.com')
+
+    await expect(
+      repo.updateMe({ email: 'outro@example.com' } as Parameters<typeof repo.updateMe>[0]),
+    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+  })
+
   it('refuses a Deactivated user with USER_DEACTIVATED', async () => {
     const repo = createRepository('carla.dias@example.com')
 

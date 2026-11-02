@@ -1,4 +1,4 @@
-import { formatPhone, phoneProblem } from '@/shared/domain/phone'
+import { formatPhone, PHONE_INVALID, phoneProblem } from '@/shared/domain/phone'
 import { ApiError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
 
@@ -12,10 +12,10 @@ export type ProfileErrors = { name?: string; phone?: string; form?: string }
 
 const NAME_MAX = 100
 const NAME_TOO_LONG = `Use um nome de até ${NAME_MAX} caracteres.`
-const PHONE_INVALID = 'Telefone inválido. Use o formato +55 27 99999-9999.'
+const NAME_MISSING = 'Informe seu nome.'
 
 /** The fields as they open: the User's name and phone, the phone as people read it. */
-export const profileForm = (user: User): ProfileForm => ({
+export const initialProfileForm = (user: User): ProfileForm => ({
   name: user.name,
   phone: formatPhone(user.phone),
 })
@@ -30,10 +30,10 @@ export function profileChanges(
 ): { errors: ProfileErrors; changes: ProfileChanges | null } {
   const name = form.name.trim()
   const errors: ProfileErrors = {}
-  if (name === '') errors.name = 'Informe seu nome.'
+  if (name === '') errors.name = NAME_MISSING
   else if (name.length > NAME_MAX) errors.name = NAME_TOO_LONG
 
-  const phoneChanged = form.phone.trim() !== profileForm(user).phone
+  const phoneChanged = form.phone.trim() !== initialProfileForm(user).phone
   const problem = phoneChanged ? phoneProblem(form.phone) : null
   if (problem) errors.phone = problem
 
@@ -53,7 +53,9 @@ export function errorsFromApi(error: unknown, sent: ProfileChanges): ProfileErro
   if (!(error instanceof ApiError)) return { form: 'Não foi possível salvar. Tente de novo.' }
   if (error.code !== 'VALIDATION_ERROR') return { form: error.message }
   const details = Array.isArray(error.details) ? (error.details as { path?: unknown }[]) : []
-  if (details.some((detail) => detail.path === 'name')) return { name: NAME_TOO_LONG }
+  if (details.some((detail) => detail.path === 'name')) {
+    return { name: sent.name?.trim() ? NAME_TOO_LONG : NAME_MISSING }
+  }
   if (sent.phone !== undefined) return { phone: PHONE_INVALID }
   return { form: error.message }
 }
