@@ -6,6 +6,9 @@ import { SignInError, throwIfError } from '../clerk-sign-in'
 import { clearStaleIdentity, openLiveSession } from '../open-live-session'
 import { useSsoSignIn } from './use-sso-sign-in'
 
+/** Clerk's live status: read anew after each await, never narrowed by an earlier check. */
+const statusOf = (signUp: { status: string }): string => signUp.status
+
 /** What Clerk says the Activation link is for, once it has read the ticket. */
 export type Invitation = { email: string }
 
@@ -35,9 +38,13 @@ export function useActivation({ ticket, alreadyActive }: ActivationLink) {
 
   const activate = useMutation<void, unknown, string>({
     mutationFn: async (password) => {
+      // Clerk created the account on an earlier try whose `GET /me` failed (offline): the ticket is
+      // spent, so the way in now is the login.
+      if (statusOf(signUp) === 'complete') throw new SignInError('activation_already_done')
       throwIfError(await signUp.password({ password }))
       // Anything left besides the password (an instance setting the app has no step for).
-      if (signUp.status !== 'complete') throw new SignInError(`sign_up_${signUp.status}`)
+      const status = statusOf(signUp)
+      if (status !== 'complete') throw new SignInError(`sign_up_${status}`)
       throwIfError(await signUp.finalize())
       await openLiveSession()
     },

@@ -78,6 +78,24 @@ describe('useActivation', () => {
     expect(useSession.getState().session).toBeNull()
   })
 
+  it('sends to the login a retry after the account was created but GET /me failed', async () => {
+    const { result } = await renderActivation()
+    fetchSpy.mockRejectedValueOnce(new TypeError('Network request failed'))
+    await act(async () => {
+      result.current.activate.mutate('minha-senha-1')
+    })
+    await waitFor(() => expect(result.current.activate.error).toMatchObject({ code: 'NETWORK' }))
+
+    await act(async () => {
+      result.current.activate.mutate('minha-senha-1')
+    })
+
+    await waitFor(() =>
+      expect(result.current.activate.error).toMatchObject({ code: 'activation_already_done' }),
+    )
+    expect(useSession.getState().session).toBeNull()
+  })
+
   it.each(['google', 'apple'] as const)(
     'activates with %s of the invitation email',
     async (provider) => {

@@ -8,6 +8,7 @@ import { CLERK_PUBLISHABLE_KEY } from '@/shared/lib/clerk-key'
 import { fonts, useTheme } from '@/shared/theme'
 
 import { activationTitle, type ActivationLink } from '../activation-link'
+import { SignInError } from '../clerk-sign-in'
 import { useActivation } from '../hooks/use-activation'
 import type { SsoProvider } from '../hooks/use-sso-sign-in'
 import { activationErrorMessage } from '../sign-in-messages'
@@ -67,6 +68,7 @@ function ClerkActivation({ link }: { link: ActivationLink }) {
 
   const busy = invitation.isPending || activate.isPending || sso.isPending
   const error = activate.error ?? sso.error
+  const alreadyDone = error instanceof SignInError && error.code === 'activation_already_done'
   const submit = () => {
     if (!password || busy) return
     sso.reset()
@@ -104,6 +106,9 @@ function ClerkActivation({ link }: { link: ActivationLink }) {
         pending={sso.isPending ? sso.variables : null}
         disabled={busy}
       />
+      {alreadyDone ? (
+        <Button label="Ir para o login" variant="link" onPress={() => router.replace('/login')} />
+      ) : null}
     </>
   )
 }

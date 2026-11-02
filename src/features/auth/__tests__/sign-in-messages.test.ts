@@ -97,6 +97,11 @@ describe('activationErrorMessage', () => {
       new SignInError('activation_link_gone'),
       LINK_GONE,
     ],
+    [
+      'the account was created on an earlier try',
+      new SignInError('activation_already_done'),
+      'Sua conta já está ativa. Entre pelo login com o e-mail do convite.',
+    ],
     ['Google or Apple with another email', new SignInError('activation_other_email'), OTHER_EMAIL],
     [
       'Clerk in Restricted mode refusing another email',

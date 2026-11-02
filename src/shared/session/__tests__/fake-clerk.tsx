@@ -26,9 +26,8 @@ type SignInStatus =
 
 /**
  * A stand-in for Clerk in tests: invitations whose ticket signs up their email, accounts with a
- * password, an optional email-code step for an
- * untrusted device, Google/Apple answering with a chosen email, and the session it ends up in.
- * Only the slice of `@clerk/expo` the app uses.
+ * password, an optional email-code step for an untrusted device, Google/Apple answering with a
+ * chosen email, and the session it ends up in. Only the slice of `@clerk/expo` the app uses.
  */
 export function createFakeClerk() {
   const accounts = new Map<string, string>()

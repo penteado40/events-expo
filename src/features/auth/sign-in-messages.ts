@@ -71,12 +71,15 @@ const OTHER_EMAIL_CODES = new Set([
   'USER_NOT_INVITED',
 ])
 
+const ALREADY_DONE = 'Sua conta já está ativa. Entre pelo login com o e-mail do convite.'
+
 /**
  * What "Ativar conta" says about a failure: a link that no longer works asks for a new one; an
  * account of another email names the invitation's; anything else as the login says it.
  */
 export function activationErrorMessage(error: unknown, invitedEmail: string | null): string {
   const code = error instanceof ApiError ? error.code : clerkCode(error)
+  if (code === 'activation_already_done') return ALREADY_DONE
   if (code && LINK_GONE_CODES.has(code)) return LINK_GONE
   if (code && OTHER_EMAIL_CODES.has(code)) {
     return `Essa conta não é do e-mail do convite. Entre com ${invitedEmail ?? 'o e-mail em que o convite chegou'}.`
