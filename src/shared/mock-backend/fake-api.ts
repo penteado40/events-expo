@@ -1,6 +1,12 @@
 import { ApiError } from '@/shared/lib/api-error'
 
-import { createMockBackend, notFound, type MockBackend, type VerifiedIdentity } from './backend'
+import {
+  createMockBackend,
+  notFound,
+  type MeChanges,
+  type MockBackend,
+  type VerifiedIdentity,
+} from './backend'
 
 /** The base URL tests serve the fake API from. */
 export const BASE_URL = 'http://api.test/api/v1'
@@ -45,6 +51,10 @@ export function createFakeApi({
     try {
       const route = `${method} ${path}`
       if (route === 'GET /me') return json(200, { data: await backend.me(identity) })
+      if (route === 'PATCH /me') {
+        const body = JSON.parse(String(init?.body ?? '{}')) as MeChanges
+        return json(200, { data: await backend.updateMe(identity, body) })
+      }
       if (route === 'GET /groups') return json(200, { data: await backend.groups(identity) })
       const groupEvents = route.match(/^GET \/groups\/(\d+)\/events$/)
       if (groupEvents) {

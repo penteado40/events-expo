@@ -1,4 +1,5 @@
-import { ApiError } from '@/shared/lib/api-error'
+import { normalizePhone } from '@/shared/domain/phone'
+import { ApiError, validationError } from '@/shared/lib/api-error'
 
 import { createDataset, type EventRow, type UserRow } from './data'
 
@@ -15,6 +16,9 @@ const userNotInvited = () =>
 const userDeactivated = () =>
   new ApiError('USER_DEACTIVATED', 'Seu acesso à plataforma foi retirado.')
 export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
+
+/** The body of `PATCH /me`: what is left out stays. The email is Clerk's and never edited here. */
+export type MeChanges = { name?: string; phone?: string }
 
 type Options = { latencyMs?: number }
 
@@ -86,6 +90,29 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     async me(identity: VerifiedIdentity | null) {
       await delay()
       return userJson(authenticate(identity))
+    },
+
+    /**
+     * `PATCH /me` (events-api PROJ-165): the User edits their own name and phone, answered as
+     * `GET /me`. Validated as the API's DTO (name trimmed, 1–100; at least one field; no other
+     * field) and its Phone (E.164 once the separators are dropped), whose refusal has no details.
+     */
+    async updateMe(identity: VerifiedIdentity | null, changes: MeChanges) {
+      await delay()
+      const found = authenticate(identity)
+      const { name, phone, ...rest } = changes
+      if (Object.keys(rest).length > 0 || (name === undefined && phone === undefined)) {
+        throw validationError()
+      }
+      const trimmed = name?.trim()
+      if (trimmed !== undefined && (trimmed.length < 1 || trimmed.length > 100)) {
+        throw validationError([{ path: 'name', message: 'Informe um nome de 1 a 100 caracteres.' }])
+      }
+      const e164 = phone === undefined ? undefined : normalizePhone(phone.trim())
+      if (e164 === null) throw validationError()
+      if (trimmed !== undefined) found.name = trimmed
+      if (e164 !== undefined) found.phone = e164
+      return userJson(found)
     },
 
     /**

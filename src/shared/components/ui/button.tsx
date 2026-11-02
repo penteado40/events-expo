@@ -5,9 +5,9 @@ import { fonts, palette, spacing, useTheme } from '@/shared/theme'
 
 /**
  * Media kit, Botões: `primary` (blue, the screen's one action), `secondary` (outlined), `dark`
- * (Apple's), `link` (text only, like "Esqueci a senha").
+ * (Apple's), `link` (text only, like "Esqueci a senha"), `danger` (outlined in red, like "Sair").
  */
-type Variant = 'primary' | 'secondary' | 'dark' | 'link'
+type Variant = 'primary' | 'secondary' | 'dark' | 'link' | 'danger'
 
 type Props = {
   label: string
@@ -30,13 +30,14 @@ export function Button({
   icon,
   style,
 }: Props) {
-  const { colors } = useTheme()
+  const { colors, badge } = useTheme()
   const inactive = disabled || loading
   const look = {
     primary: { bg: colors.action, text: colors.onAction, border: 'transparent' },
     secondary: { bg: colors.surface, text: colors.text, border: colors.border },
     dark: { bg: palette.gray[900], text: '#FFFFFF', border: 'transparent' },
     link: { bg: 'transparent', text: colors.link, border: 'transparent' },
+    danger: { bg: colors.surface, text: badge('red').text, border: badge('red').bg },
   }[variant]
   const off = disabled && !loading && variant !== 'link'
 

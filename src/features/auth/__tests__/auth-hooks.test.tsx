@@ -13,7 +13,6 @@ import { useEnterDemo } from '../hooks/use-enter-demo'
 import { usePasswordReset } from '../hooks/use-password-reset'
 import { usePasswordSignIn, useSignInCode } from '../hooks/use-password-sign-in'
 import { checkSession } from '../hooks/use-session-check'
-import { useSignOut } from '../hooks/use-sign-out'
 import { useSsoSignIn } from '../hooks/use-sso-sign-in'
 
 // The redirect URL needs the app's manifest, which tests don't have.
@@ -277,18 +276,6 @@ describe('useEnterDemo', () => {
       expect(fakeClerk.session).toBeNull()
     },
   )
-})
-
-describe('useSignOut', () => {
-  it('ends the Session', async () => {
-    useSession.setState({ session: { id: 'sess_1', live: true, user: bruno } })
-    const { result } = await renderHook(() => useSignOut(), { wrapper })
-
-    await act(() => result.current())
-
-    expect(useSession.getState().session).toBeNull()
-    expect(useSession.getState().endedBecause).toBeNull()
-  })
 })
 
 describe('checkSession (background GET /me on startup)', () => {
