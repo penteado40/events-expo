@@ -1,11 +1,29 @@
-import { createSessionStore } from './session-store'
+import { clerkIdentity, type Identity } from './identity'
+import { createSessionStore, type SessionEndReason } from './session-store'
 
-export type { Session } from './session-store'
-export type { User } from './user'
-export { userSchema } from './user'
+export { isSessionEndReason } from './session-store'
+
+export type { Identity } from './identity'
+export type { Session, SessionEndReason } from './session-store'
+export type { GroupMembership, User } from './user'
+export { groupMembershipSchema, userSchema } from './user'
 
 /** The device's Session (CONTEXT.md). */
 export const useSession = createSessionStore()
 
-/** Ends the Session the API refused (`UNAUTHENTICATED`). */
-export const expireSession = (token: string | null) => useSession.getState().expire(token)
+/** The person's Clerk identity; the Session's token comes from it. */
+export const identity: Identity = clerkIdentity
+
+/** Ends the Session the API refused (`UNAUTHENTICATED`, or the User was deactivated). */
+export const expireSession = (id: string | null, reason: SessionEndReason) =>
+  useSession.getState().expire(id, reason)
+
+/**
+ * When a Live session ends ("Sair" or expiry), signs out of Clerk too, so the next "Entrar"
+ * starts clean. Offline the Clerk sign-out may fail; signing in clears what it left. Returns the
+ * unsubscribe.
+ */
+export const endIdentityWithSession = (current: Identity = identity) =>
+  useSession.subscribe((state, previous) => {
+    if (previous.session?.live && !state.session) current.signOut().catch(() => {})
+  })

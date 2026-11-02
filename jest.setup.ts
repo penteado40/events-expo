@@ -27,10 +27,24 @@ beforeEach(() => {
 
 // Reanimated needs its native worklets runtime: use its mocks, so component tests can render screens.
 jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'))
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/lib/module/mock'))
 
 // Safe-area insets come from a native provider: the library's mock answers with zero insets.
 jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,
 )
+
+// Clerk is a native SDK with a remote service: tests use a fake with accounts, codes and sessions
+// (src/shared/session/__tests__/fake-clerk.tsx), reset before each test.
+jest.mock('@clerk/expo', () => require('./src/shared/session/__tests__/fake-clerk').fakeClerkModule)
+jest.mock(
+  '@clerk/expo/apple',
+  () => require('./src/shared/session/__tests__/fake-clerk').fakeClerkAppleModule,
+)
+jest.mock('@clerk/expo/token-cache', () => ({ tokenCache: undefined }))
+
+beforeEach(() => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('./src/shared/session/__tests__/fake-clerk').fakeClerk.reset()
+})

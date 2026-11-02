@@ -10,6 +10,8 @@ describe('themeFor', () => {
     ['surfaceBrand', '#EEF3FB', '#142038'],
     ['text', '#15171C', '#F2F4F8'],
     ['textMuted', '#5B6170', '#A7AEBD'],
+    ['border', '#C9CDD6', '#3A4357'],
+    ['divider', '#ECEEF3', '#252D3E'],
     ['action', '#1F4FAE', '#2F63C9'],
     ['onAction', '#FFFFFF', '#FFFFFF'],
     ['link', '#1F4FAE', '#DBE7FF'],

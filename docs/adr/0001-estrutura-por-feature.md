@@ -11,3 +11,4 @@ Como a maioria dos endpoints ainda não existe, cada feature fala com os dados p
 - Trocar um módulo para HTTP é adicionar a implementação HTTP no `api.ts` e o nome em `LIVE_MODULES`; as telas não mudam. A mesma suíte de contrato roda contra o mock e contra o HTTP.
 - Uma feature pode ter módulos puros próprios na raiz (ex.: `account-rows.ts`), fora da lista acima. Regras usadas por mais de uma feature sobem para `src/shared/domain/`, um arquivo por conceito.
 - Regras de domínio que cruzam features (ex.: `canVerify`, que precisa do User da Session e do Event) têm de morar em `shared/`, e não em uma feature.
+- Exceção do login (PROJ-212): entrar é do Clerk (events-api ADR-0020), não de um repositório. Os hooks de entrada da feature `auth` chamam o SDK do Clerk (`useSignIn`, `useSSO`) diretamente e só depois o `api.ts` (`GET /me`). Fora de React, o Clerk fica atrás da porta `Identity` em `shared/session/`, que o cliente HTTP usa para pedir o token a cada requisição.

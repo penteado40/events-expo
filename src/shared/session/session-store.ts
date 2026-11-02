@@ -3,24 +3,37 @@ import { z } from 'zod'
 import { createPersistedStore } from './create-persisted-store'
 import { userSchema, type User } from './user'
 
-/** Who is signed in on this device and how (see CONTEXT.md). `live` = backed by the real events-api. */
-const sessionSchema = z.object({ token: z.string().min(1), user: userSchema, live: z.boolean() })
+/**
+ * Who is signed in on this device and how (see CONTEXT.md). `live` = backed by the real events-api.
+ * `id` names this Session: the Clerk session's id in a Live session. The token stays with Clerk.
+ */
+const sessionSchema = z.object({ id: z.string().min(1), user: userSchema, live: z.boolean() })
 
 export type Session = z.infer<typeof sessionSchema>
 
+/** The API codes that refuse who is asking, ending the Session; the login says which. */
+const SESSION_END_REASONS = ['UNAUTHENTICATED', 'USER_DEACTIVATED'] as const
+
+export type SessionEndReason = (typeof SESSION_END_REASONS)[number]
+
+export const isSessionEndReason = (code: string): code is SessionEndReason =>
+  (SESSION_END_REASONS as readonly string[]).includes(code)
+
 type SessionState = {
   session: Session | null
+  /** Set when the API ended the Session; cleared by the next sign-in. Never persisted. */
+  endedBecause: SessionEndReason | null
   /** True once the stored Session has been read from SecureStore. */
   hydrated: boolean
   signIn: (session: Session) => void
   signOut: () => void
   /**
-   * Ends the Session because the API refused `token`. Only if it is still the current one: however
+   * Ends the Session `id` because the API refused it. Only if it is still the current one: however
    * many requests fail in parallel it clears once, and a late failure never ends a newer Session.
    */
-  expire: (token: string | null) => void
-  /** Replaces the stored User with fresh `GET /me` data, if the Session behind `token` is still open. */
-  updateUser: (token: string, user: User) => void
+  expire: (id: string | null, reason: SessionEndReason) => void
+  /** Replaces the stored User with fresh `GET /me` data, if the Session `id` is still open. */
+  updateUser: (id: string, user: User) => void
 }
 
 type Options = {
@@ -32,21 +45,25 @@ export function createSessionStore({ isDev = __DEV__ }: Options = {}) {
   return createPersistedStore<SessionState, Pick<SessionState, 'session'>>(
     (set) => ({
       session: null,
+      endedBecause: null,
       hydrated: false,
-      signIn: (session) => set({ session }),
+      signIn: (session) => set({ session, endedBecause: null }),
       signOut: () => set({ session: null }),
-      expire: (token) =>
-        set((state) => (state.session?.token === token ? { session: null } : state)),
-      updateUser: (token, user) =>
+      expire: (id, reason) =>
         set((state) =>
-          state.session?.token === token ? { session: { ...state.session, user } } : state,
+          id !== null && state.session?.id === id ? { session: null, endedBecause: reason } : state,
+        ),
+      updateUser: (id, user) =>
+        set((state) =>
+          state.session?.id === id ? { session: { ...state.session, user } } : state,
         ),
     }),
     {
       name: 'session',
       partialize: (state) => ({ session: state.session }),
       merge: (persisted, current) => {
-        // A malformed keychain entry starts the app signed out instead of restoring garbage.
+        // A malformed keychain entry (or a V1 Session) starts the app signed out instead of
+        // restoring garbage.
         const stored = sessionSchema.safeParse(
           (persisted as { session?: unknown } | undefined)?.session,
         )

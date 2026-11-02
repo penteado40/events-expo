@@ -1,5 +1,20 @@
-import { EmptyScreen } from '@/shared/components/ui'
+import { refreshSessionUser } from '@/features/auth'
+import { EventsHome } from '@/features/events'
+import { GroupHome } from '@/features/groups'
 
+/** Início: the current Group (or none yet) around its list of Events. */
 export default function HomeScreen() {
-  return <EmptyScreen title="Início" />
+  return (
+    // "Atualizar" also re-reads the User, so a role just given comes with the Group.
+    <GroupHome onRefresh={refreshSessionUser}>
+      {({ group, switcher, refresh }) => (
+        <EventsHome
+          groupId={group.id}
+          role={group.role}
+          groupSwitcher={switcher}
+          onRefresh={refresh}
+        />
+      )}
+    </GroupHome>
+  )
 }

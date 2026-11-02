@@ -5,14 +5,15 @@ import type { StoreApi, UseBoundStore } from 'zustand'
 import { createSessionStore, type Session } from '../session-store'
 
 const admin: Session = {
-  token: 'mock-token-1',
+  id: 'demo-1',
   live: false,
   user: {
     id: 1,
     name: 'Admin Local',
     email: 'admin@local.test',
-    role: 'SUPER_ADMIN',
-    createdAt: '2026-01-01T12:00:00.000Z',
+    phone: '+5527999990001',
+    isSuperAdmin: true,
+    memberships: [],
   },
 }
 
@@ -53,7 +54,7 @@ describe('Session store', () => {
   })
 
   it('keeps a stored live Session in a release build', async () => {
-    const live: Session = { ...admin, token: 'jwt', live: true }
+    const live: Session = { ...admin, id: 'sess_1', live: true }
     const dev = await open(createSessionStore({ isDev: true }))
     await act(() => dev.current.signIn(live))
 
@@ -64,13 +65,37 @@ describe('Session store', () => {
 
   it('expires the Session refused by the API, but not a newer one', async () => {
     const session = await open(createSessionStore())
-    await act(() => session.current.signIn({ ...admin, token: 'new' }))
+    await act(() => session.current.signIn({ ...admin, id: 'new' }))
 
-    await act(() => session.current.expire('old'))
-    expect(session.current.session).toMatchObject({ token: 'new' })
+    await act(() => session.current.expire('old', 'UNAUTHENTICATED'))
+    expect(session.current.session).toMatchObject({ id: 'new' })
+    await act(() => session.current.expire(null, 'UNAUTHENTICATED'))
+    expect(session.current.session).toMatchObject({ id: 'new' })
 
-    await act(() => session.current.expire('new'))
+    await act(() => session.current.expire('new', 'USER_DEACTIVATED'))
     expect(session.current.session).toBeNull()
+    expect(session.current.endedBecause).toBe('USER_DEACTIVATED')
+  })
+
+  it('forgets why the last Session ended on the next sign-in and on reopening', async () => {
+    const session = await open(createSessionStore())
+    await act(() => session.current.signIn(admin))
+    await act(() => session.current.expire(admin.id, 'UNAUTHENTICATED'))
+
+    const reopened = await open(createSessionStore())
+    expect(reopened.current.endedBecause).toBeNull()
+
+    await act(() => session.current.signIn(admin))
+    expect(session.current.endedBecause).toBeNull()
+  })
+
+  it('ends a Session for "Sair" without a reason to show', async () => {
+    const session = await open(createSessionStore())
+    await act(() => session.current.signIn(admin))
+
+    await act(() => session.current.signOut())
+
+    expect(session.current.endedBecause).toBeNull()
   })
 
   it('refreshes the stored User only while the same Session is open', async () => {
@@ -78,17 +103,27 @@ describe('Session store', () => {
     await act(() => session.current.signIn(admin))
     const renamed = { ...admin.user, name: 'Admin Renomeado' }
 
-    await act(() => session.current.updateUser('other-token', renamed))
+    await act(() => session.current.updateUser('other-session', renamed))
     expect(session.current.session?.user.name).toBe('Admin Local')
 
-    await act(() => session.current.updateUser(admin.token, renamed))
+    await act(() => session.current.updateUser(admin.id, renamed))
     expect(session.current.session).toEqual({ ...admin, user: renamed })
   })
 
-  it('starts signed out when the stored Session is malformed', async () => {
+  it.each([
+    ['malformed', { id: 'x', user: { id: 'nope' } }],
+    [
+      'from V1, with its own token',
+      {
+        token: 'mock-token-1',
+        live: true,
+        user: { id: 1, name: 'A', email: 'a@local.test', role: 'SUPER_ADMIN' },
+      },
+    ],
+  ])('starts signed out when the stored Session is %s', async (_, stored) => {
     await SecureStore.setItemAsync(
       'session',
-      JSON.stringify({ state: { session: { token: 'x', user: { id: 'nope' } } }, version: 0 }),
+      JSON.stringify({ state: { session: stored }, version: 0 }),
     )
 
     const reopened = await open(createSessionStore())

@@ -5,4 +5,4 @@ export type DataModule = 'auth' | 'groups' | 'events' | 'schedule' | 'items' | '
  * Modules whose repositories talk to the real events-api in a Live session.
  * Every other module uses its mock (development builds only).
  */
-export const LIVE_MODULES: readonly DataModule[] = []
+export const LIVE_MODULES: readonly DataModule[] = ['auth']

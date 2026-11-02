@@ -36,6 +36,10 @@ type Colors = {
   surfaceBrand: string
   text: string
   textMuted: string
+  /** Text fields and outlined buttons. */
+  border: string
+  /** Hairlines inside a card (the "ou" of the login). */
+  divider: string
   /** Buttons and the floating bar: always blue, even inside a colored Event. */
   action: string
   onAction: string
@@ -75,6 +79,8 @@ const light: Theme = {
     surfaceBrand: palette.blue[50],
     text: palette.gray[900],
     textMuted: palette.gray[700],
+    border: '#C9CDD6',
+    divider: palette.gray[100],
     action: palette.blue[700],
     onAction: '#FFFFFF',
     link: palette.blue[700],
@@ -93,6 +99,8 @@ const dark: Theme = {
     surfaceBrand: '#142038',
     text: '#F2F4F8',
     textMuted: '#A7AEBD',
+    border: '#3A4357',
+    divider: '#252D3E',
     action: palette.blue[500],
     onAction: '#FFFFFF',
     link: palette.blue[100],
