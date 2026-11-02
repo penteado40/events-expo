@@ -38,17 +38,21 @@ export function ProfileScreen() {
           },
         ]}
       >
-        <Text accessibilityRole="header" style={[textStyles.display, styles.title]}>
-          Perfil<Text style={{ color: palette.coral[100] }}>·</Text>
-        </Text>
-        <Pressable
-          onPress={() => router.push('/profile/edit')}
-          accessibilityRole="button"
-          accessibilityLabel="Editar perfil"
-          style={({ pressed }) => [styles.edit, pressed && { opacity: 0.75 }]}
-        >
-          <Text style={styles.editLabel}>Editar</Text>
-        </Pressable>
+        <View style={styles.titleRow}>
+          <Text accessibilityRole="header" style={[textStyles.display, styles.title]}>
+            Perfil<Text style={{ color: palette.coral[100] }}>·</Text>
+          </Text>
+          <Pressable
+            onPress={() => router.push('/profile/edit')}
+            accessibilityRole="button"
+            accessibilityLabel="Editar perfil"
+            // The pill is 36 high, like the design's; the touch area stays 44.
+            hitSlop={(spacing.touchTarget - EDIT_HEIGHT) / 2}
+            style={({ pressed }) => [styles.edit, pressed && { opacity: 0.75 }]}
+          >
+            <Text style={styles.editLabel}>Editar</Text>
+          </Pressable>
+        </View>
       </View>
 
       <Identity user={user} demo={demo} />
@@ -156,21 +160,21 @@ function GroupRow({ membership, last }: { membership: GroupMembership; last: boo
   )
 }
 
+const EDIT_HEIGHT = 36
+
 const styles = StyleSheet.create({
   header: {
     minHeight: 230,
     paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { color: '#FFFFFF' },
   edit: {
-    height: spacing.touchTarget,
+    height: EDIT_HEIGHT,
     paddingHorizontal: 16,
-    borderRadius: 22,
+    borderRadius: EDIT_HEIGHT / 2,
     backgroundColor: 'rgba(255,255,255,0.16)',
     justifyContent: 'center',
   },
