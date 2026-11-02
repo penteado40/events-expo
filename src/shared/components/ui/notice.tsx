@@ -4,15 +4,21 @@ import { fonts, useTheme } from '@/shared/theme'
 
 import { Icon } from './icon'
 
-/** A red box with an alert icon (the D-Ativar warning's shape) for an error. Read as an alert. */
-export function Notice({ message }: { message: string }) {
+type Props = {
+  message: string
+  /** False for a warning that is always there, like D-Ativar's: not announced as an alert. */
+  alert?: boolean
+}
+
+/** A red box with an alert icon (the D-Ativar warning's shape), for an error unless told. */
+export function Notice({ message, alert = true }: Props) {
   const { badge } = useTheme()
   const { bg, text } = badge('red')
 
   return (
     <View
-      accessibilityRole="alert"
-      accessibilityLiveRegion="polite"
+      accessibilityRole={alert ? 'alert' : undefined}
+      accessibilityLiveRegion={alert ? 'polite' : undefined}
       style={[styles.box, { backgroundColor: bg }]}
     >
       <Icon name="alert" color={text} size={18} />

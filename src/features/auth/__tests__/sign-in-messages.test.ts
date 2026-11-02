@@ -1,7 +1,7 @@
 import { ApiError, networkError } from '@/shared/lib/api-error'
 
 import { SignInError } from '../clerk-sign-in'
-import { sessionEndMessage, signInErrorMessage } from '../sign-in-messages'
+import { activationErrorMessage, sessionEndMessage, signInErrorMessage } from '../sign-in-messages'
 
 const clerkError = (code: string) => ({
   code: 'api_response_error',
@@ -80,6 +80,48 @@ describe('signInErrorMessage', () => {
     ['anything else', new Error('boom'), 'Não foi possível entrar. Tente de novo.'],
   ])('%s', (_, error, expected) => {
     expect(signInErrorMessage(error)).toBe(expected)
+  })
+})
+
+const LINK_GONE =
+  'Este convite já foi usado ou não vale mais. Se você ainda não entrou, peça um novo à produção do seu Group.'
+const OTHER_EMAIL = 'Essa conta não é do e-mail do convite. Entre com lu.andrade@example.com.'
+
+describe('activationErrorMessage', () => {
+  it.each<[string, unknown, string]>([
+    ['Clerk: expired ticket', clerkError('ticket_expired_code'), LINK_GONE],
+    ['Clerk: revoked or unknown ticket', clerkError('ticket_invalid_code'), LINK_GONE],
+    ['Clerk: the invited account already exists', clerkError('form_identifier_exists'), LINK_GONE],
+    [
+      'the link was used before, or came without a ticket',
+      new SignInError('activation_link_gone'),
+      LINK_GONE,
+    ],
+    ['Google or Apple with another email', new SignInError('activation_other_email'), OTHER_EMAIL],
+    [
+      'Clerk in Restricted mode refusing another email',
+      clerkError('sign_up_mode_restricted'),
+      OTHER_EMAIL,
+    ],
+    [
+      'Google or Apple back without an account',
+      new SignInError('sso_without_account'),
+      OTHER_EMAIL,
+    ],
+    ['the API: no User has this email', new ApiError('USER_NOT_INVITED', 'x'), OTHER_EMAIL],
+    [
+      'anything else, as the login says it',
+      clerkError('form_password_pwned'),
+      'Escolha outra senha, com pelo menos 8 caracteres e difícil de adivinhar.',
+    ],
+  ])('%s', (_, error, expected) => {
+    expect(activationErrorMessage(error, 'lu.andrade@example.com')).toBe(expected)
+  })
+
+  it('names no email before Clerk has read the invitation', () => {
+    expect(activationErrorMessage(new SignInError('activation_other_email'), null)).toBe(
+      'Essa conta não é do e-mail do convite. Entre com o e-mail em que o convite chegou.',
+    )
   })
 })
 

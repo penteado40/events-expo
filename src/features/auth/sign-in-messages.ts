@@ -52,6 +52,38 @@ export function signInErrorMessage(error: unknown): string {
   return (code && CLERK_MESSAGES[code]) || 'Não foi possível entrar. Tente de novo.'
 }
 
+const LINK_GONE =
+  'Este convite já foi usado ou não vale mais. Se você ainda não entrou, peça um novo à produção do seu Group.'
+
+/** Clerk's and the app's codes for an Activation link that can't be used: used, revoked, expired. */
+const LINK_GONE_CODES = new Set([
+  'ticket_expired_code',
+  'ticket_invalid_code',
+  // The ticket's account exists already: the invitation was accepted before.
+  'form_identifier_exists',
+  'activation_link_gone',
+])
+
+/** Every way an account of another email is refused, by Clerk, the app or the API. */
+const OTHER_EMAIL_CODES = new Set([
+  ...Object.keys(CLERK_MESSAGES).filter((code) => CLERK_MESSAGES[code] === NOT_INVITED),
+  'activation_other_email',
+  'USER_NOT_INVITED',
+])
+
+/**
+ * What "Ativar conta" says about a failure: a link that no longer works asks for a new one; an
+ * account of another email names the invitation's; anything else as the login says it.
+ */
+export function activationErrorMessage(error: unknown, invitedEmail: string | null): string {
+  const code = error instanceof ApiError ? error.code : clerkCode(error)
+  if (code && LINK_GONE_CODES.has(code)) return LINK_GONE
+  if (code && OTHER_EMAIL_CODES.has(code)) {
+    return `Essa conta não é do e-mail do convite. Entre com ${invitedEmail ?? 'o e-mail em que o convite chegou'}.`
+  }
+  return signInErrorMessage(error)
+}
+
 /** What the login says when the API ended the last Session. */
 export function sessionEndMessage(reason: SessionEndReason): string {
   return reason === 'USER_DEACTIVATED' ? DEACTIVATED : 'Sua sessão terminou. Entre de novo.'
