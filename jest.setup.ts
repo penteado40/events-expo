@@ -27,7 +27,7 @@ beforeEach(() => {
 
 // Reanimated needs its native worklets runtime: use its mocks, so component tests can render screens.
 jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'))
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/lib/module/mock'))
 
 // Safe-area insets come from a native provider: the library's mock answers with zero insets.
 jest.mock(

@@ -17,6 +17,14 @@ const ICONS = {
     </>
   ),
   back: <Path d="M15 5l-7 7 7 7" />,
+  chevronDown: <Path d="m6 9 6 6 6-6" />,
+  check: <Path d="M5 12.5l4.5 4.5L19 7.5" />,
+  search: (
+    <>
+      <Circle cx={11} cy={11} r={7} />
+      <Path d="m20 20-4-4" />
+    </>
+  ),
   alert: (
     <>
       <Circle cx={12} cy={12} r={9} />
@@ -33,10 +41,10 @@ const ICONS = {
 
 export type IconName = keyof typeof ICONS
 
-type Props = { name: IconName; color: ColorValue; size?: number }
+type Props = { name: IconName; color: ColorValue; size?: number; strokeWidth?: number }
 
 /** A decorative icon: the control around it carries the accessibility label. */
-export function Icon({ name, color, size = 24 }: Props) {
+export function Icon({ name, color, size = 24, strokeWidth = 1.8 }: Props) {
   return (
     <Svg
       width={size}
@@ -44,7 +52,7 @@ export function Icon({ name, color, size = 24 }: Props) {
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
-      strokeWidth={1.8}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       accessible={false}

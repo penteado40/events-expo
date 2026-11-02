@@ -11,3 +11,4 @@ Os dados de exemplo do protótipo (`EVENTS`: Events, memberships, RSVPs, Registr
 
 - Exceção à ADR-0001: `shared/mock-backend/` só pode ser importado pelo `mock.ts` das features e pelos testes; telas, hooks e o `api.ts` não o alcançam. O `eslint-plugin-boundaries` fiscaliza isso.
 - O estado vive só em memória (volta ao inicial ao recarregar o app).
+- Numa Live session, os módulos fora de `LIVE_MODULES` ainda respondem pelo mock com o User da Session, que existe na events-api mas não nos dados de exemplo. O mock o trata como um User sem nenhum Group (Início vazio), nunca com `USER_NOT_INVITED`, que só o `GET /me` do login responde (PROJ-215).
