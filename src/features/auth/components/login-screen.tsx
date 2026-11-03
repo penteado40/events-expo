@@ -1,13 +1,11 @@
 import { useRouter } from 'expo-router'
-import * as WebBrowser from 'expo-web-browser'
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
-import Svg, { Path } from 'react-native-svg'
 
 import { Button, Notice, TextField } from '@/shared/components/ui'
 import { CLERK_PUBLISHABLE_KEY } from '@/shared/lib/clerk-key'
 import { useSession } from '@/shared/session'
-import { fonts, palette, useTheme } from '@/shared/theme'
+import { fonts, useTheme } from '@/shared/theme'
 
 import type { DemoAccount } from '../api'
 import { useEnterDemo } from '../hooks/use-enter-demo'
@@ -16,9 +14,7 @@ import { useSsoSignIn, type SsoProvider } from '../hooks/use-sso-sign-in'
 import { sessionEndMessage, signInErrorMessage } from '../sign-in-messages'
 import { AuthLayout } from './auth-layout'
 import { CodeField, EmailField } from './fields'
-
-// Closes the browser Google or Apple left open once it redirects back to the app.
-WebBrowser.maybeCompleteAuthSession()
+import { SocialButtons } from './social-buttons'
 
 const DEMO_ACCOUNTS: { account: DemoAccount; label: string }[] = [
   { account: 'OWNER', label: 'Owner' },
@@ -159,53 +155,20 @@ function ClerkSignIn() {
             variant="link"
             onPress={() => router.push({ pathname: '/forgot-password', params: { email } })}
           />
-          <View style={styles.or}>
-            <View style={[styles.line, { backgroundColor: colors.divider }]} />
-            <Text style={[styles.orText, { color: palette.gray[500] }]}>ou</Text>
-            <View style={[styles.line, { backgroundColor: colors.divider }]} />
-          </View>
-          <View style={styles.social}>
-            <Button
-              label="Google"
-              variant="secondary"
-              onPress={() => sso('google')}
-              loading={ssoSignIn.isPending && ssoSignIn.variables === 'google'}
-              disabled={busy}
-              icon={<Text style={[styles.google, { color: colors.link }]}>G</Text>}
-              style={styles.socialButton}
-            />
-            <Button
-              label="Apple"
-              variant="dark"
-              onPress={() => sso('apple')}
-              loading={ssoSignIn.isPending && ssoSignIn.variables === 'apple'}
-              disabled={busy}
-              icon={<AppleLogo />}
-              style={styles.socialButton}
-            />
-          </View>
+          <SocialButtons
+            divider="ou"
+            onPress={sso}
+            pending={ssoSignIn.isPending ? ssoSignIn.variables : null}
+            disabled={busy}
+          />
         </>
       )}
     </>
   )
 }
 
-function AppleLogo() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="#FFFFFF" accessible={false}>
-      <Path d="M16.5 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.8-.8-3-.8c-1.6 0-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.2.8 1.1 1.7 2.3 2.9 2.3 1.1 0 1.6-.7 3-.7s1.8.7 3 .7 2-1.1 2.8-2.2c.9-1.3 1.2-2.5 1.3-2.6 0 0-2.5-1-2.5-3.7zM14.3 5.6c.6-.8 1.1-1.8 1-2.8-.9 0-2 .6-2.7 1.4-.6.7-1.1 1.7-1 2.7 1 .1 2-.5 2.7-1.3z" />
-    </Svg>
-  )
-}
-
 const styles = StyleSheet.create({
   body: { fontFamily: fonts.sans400, fontSize: 15, lineHeight: 21 },
-  or: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  line: { flex: 1, height: 1 },
-  orText: { fontFamily: fonts.sans400, fontSize: 13 },
-  social: { flexDirection: 'row', gap: 10 },
-  socialButton: { flex: 1, height: 50 },
-  google: { fontFamily: fonts.sans700, fontSize: 16 },
   footer: {
     marginTop: 18,
     marginHorizontal: 32,

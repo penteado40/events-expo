@@ -18,6 +18,8 @@ type Props = {
   subtitle: string
   /** Shows the round back button on the header instead of the brand mark. */
   onBack?: () => void
+  /** Shown instead of the brand mark, like D-Ativar's "CONVITE" badge. */
+  eyebrow?: ReactNode
   /** The white card that floats over the header's bottom edge. */
   children: ReactNode
   /** Below the card. */
@@ -28,7 +30,7 @@ type Props = {
  * The entry screens' frame (D-Login): the blue header with the timeline's dots, the title with the
  * "·", and a card floating over its edge.
  */
-export function AuthLayout({ title, subtitle, onBack, children, footer }: Props) {
+export function AuthLayout({ title, subtitle, onBack, eyebrow, children, footer }: Props) {
   const { colors, header } = useTheme()
   const insets = useSafeAreaInsets()
 
@@ -64,7 +66,7 @@ export function AuthLayout({ title, subtitle, onBack, children, footer }: Props)
               <Icon name="back" color="#FFFFFF" size={20} />
             </Pressable>
           ) : (
-            <BrandMark />
+            (eyebrow ?? <BrandMark />)
           )}
           <View style={styles.titles}>
             <Text accessibilityRole="header" style={styles.title}>

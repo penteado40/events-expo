@@ -14,6 +14,8 @@ const clerkError = (code: string, message = code): ClerkErrorLike => ({
   errors: [{ code, message }],
 })
 
+type SignUpStatus = 'abandoned' | 'missing_requirements' | 'complete'
+
 type SignInStatus =
   | 'needs_identifier'
   | 'needs_first_factor'
@@ -23,12 +25,14 @@ type SignInStatus =
   | 'complete'
 
 /**
- * A stand-in for Clerk in tests: accounts with a password, an optional email-code step for an
- * untrusted device, Google/Apple answering with a chosen email, and the session it ends up in.
- * Only the slice of `@clerk/expo` the app uses.
+ * A stand-in for Clerk in tests: invitations whose ticket signs up their email, accounts with a
+ * password, an optional email-code step for an untrusted device, Google/Apple answering with a
+ * chosen email, and the session it ends up in. Only the slice of `@clerk/expo` the app uses.
  */
 export function createFakeClerk() {
   const accounts = new Map<string, string>()
+  /** Clerk invitations by ticket: the invited email, until accepted or revoked. */
+  const invitations = new Map<string, { email: string; state: 'pending' | 'revoked' }>()
   let sessionCount = 0
   let pendingEmail: string | null = null
   let statusHandlers: ((status: string) => void)[] = []
@@ -53,6 +57,16 @@ export function createFakeClerk() {
 
     addAccount(email: string, password: string) {
       accounts.set(email, password)
+    },
+    hasAccount: (email: string) => accounts.has(email),
+    /** The events-api's Activation link: a Clerk invitation, as the ticket its link carries. */
+    invite(email: string) {
+      const ticket = `tkt_${invitations.size + 1}`
+      invitations.set(ticket, { email, state: 'pending' })
+      return ticket
+    },
+    revokeInvitation(ticket: string) {
+      invitations.get(ticket)!.state = 'revoked'
     },
     /** Starts already signed in, as Clerk's token cache restores it. */
     restore(email: string) {
@@ -84,8 +98,10 @@ export function createFakeClerk() {
     },
 
     signIn: createSignIn(),
+    signUp: createSignUp(),
     reset() {
       accounts.clear()
+      invitations.clear()
       sessionCount = 0
       pendingEmail = null
       statusHandlers = []
@@ -100,6 +116,7 @@ export function createFakeClerk() {
       clerk.signOutCount = 0
       clerk.lastSsoFlow = null
       clerk.signIn = createSignIn()
+      clerk.signUp = createSignUp()
     },
   }
 
@@ -182,6 +199,46 @@ export function createFakeClerk() {
     return signIn
   }
 
+  /** The Core 3 `SignUpFuture` resource, enough of it for accepting an invitation. */
+  function createSignUp() {
+    const ok = { error: null }
+    const fail = (error: ClerkErrorLike) => ({ error })
+    let ticketUsed: string | null = null
+    const signUp = {
+      status: 'abandoned' as SignUpStatus,
+      emailAddress: null as string | null,
+      missingFields: [] as string[],
+      async ticket({ ticket }: { ticket: string }) {
+        if (clerk.session) return fail(clerkError('session_exists'))
+        const invitation = invitations.get(ticket)
+        if (!invitation || invitation.state === 'revoked') {
+          return fail(clerkError('ticket_invalid_code'))
+        }
+        if (accounts.has(invitation.email)) return fail(clerkError('form_identifier_exists'))
+        ticketUsed = ticket
+        signUp.emailAddress = invitation.email
+        signUp.status = 'missing_requirements'
+        signUp.missingFields = ['password']
+        return ok
+      },
+      async password({ password }: { password: string }) {
+        if (!signUp.emailAddress) return fail(clerkError('form_param_missing'))
+        if (password.length < 8) return fail(clerkError('form_password_length_too_short'))
+        accounts.set(signUp.emailAddress, password)
+        invitations.delete(ticketUsed!)
+        signUp.status = 'complete'
+        signUp.missingFields = []
+        return ok
+      },
+      async finalize() {
+        if (signUp.status !== 'complete') return fail(clerkError('sign_up_not_complete'))
+        activate(signUp.emailAddress!)
+        return ok
+      },
+    }
+    return signUp
+  }
+
   return clerk
 }
 
@@ -194,6 +251,7 @@ export const fakeClerk = createFakeClerk()
 export const fakeClerkModule = {
   getClerkInstance: () => fakeClerk,
   useSignIn: () => ({ signIn: fakeClerk.signIn, errors: {}, fetchStatus: 'idle' }),
+  useSignUp: () => ({ signUp: fakeClerk.signUp, errors: {}, fetchStatus: 'idle' }),
   useSSO: () => ({
     async startSSOFlow(_params: { strategy: string; redirectUrl?: string }) {
       fakeClerk.lastSsoFlow = 'browser'
