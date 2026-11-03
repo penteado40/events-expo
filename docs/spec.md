@@ -1,238 +1,208 @@
-# Spec: events-expo, members' mobile app (liquid glass design)
+# Spec: events-expo na V2 (design D), app da primeira fatia
 
-> Canonical spec. Copies in Jira PROJ-84 and GitHub #1 are snapshots; edit this file. Stories live in Jira under epic PROJ-84 (PROJ-85 … PROJ-92; Início: PROJ-101 … PROJ-105). Architecture: [ADR-0001](adr/0001-estrutura-por-feature.md), [ADR-0002](adr/0002-mock-backend-compartilhado.md), [ADR-0003](adr/0003-inicio-sobre-o-event-summary.md). App terms: [`CONTEXT.md`](../CONTEXT.md).
+> Spec canônica. Origem: PRD da V2 no Jira (PROJ-210, épico PROJ-84); a descrição do PROJ-210 é uma cópia. Edite este arquivo, não ela. Design: canvas [events-expo · Design D](https://claude.ai/artifact/XBggR1iFpMS3Ht8x7Hw8k6) (páginas App e Media kit). Arquitetura: [ADR-0001](adr/0001-estrutura-por-feature.md), [ADR-0002](adr/0002-mock-backend-compartilhado.md); o [ADR-0003](adr/0003-inicio-sobre-o-event-summary.md) foi substituído por este PRD. Termos do app: [`CONTEXT.md`](../CONTEXT.md); termos de domínio: `CONTEXT.md` da events-api.
+>
+> A spec da V1 (liquid glass, RSVP, Registry, Verification) e o handoff de design `docs/design/` foram removidos; estão no histórico do git.
 
 ## Problem Statement
 
-Members of Events (Owners, Managers, Viewers) and the platform's Super admin have no mobile way to follow their Events. Today they can't see who RSVP'd, what's on the Registry, or — most importantly — do the **Verification** of Contributions that Guests marked as paid via Pix. A Guest marking a Contribution as `PAID` is only a declaration, not proof (ADR-0004): someone with the right role has to check the Pix and mark it `VERIFIED` or `REJECTED`, and there's no convenient place to do that from a phone.
-
-On top of that, the backend (`penteado40/events-api`) only exposes auth today (`POST /auth/login`, `GET /me`). The `events`, `members`, `rsvp` and `registry` modules are planned (issues #5, #6, #10, #13, #17 there) but don't exist yet, so any app built now must work before those endpoints land and switch to them without rework.
+A produção do Vocal Livre monta cada viagem num PDF ("SAÍDA 18 a 20 de setembro MANAUS-AM") e manda pelo WhatsApp. Cada integrante precisa achar no PDF o que é dele (o seu voo, o seu quarto, o seu carro), e quando algo muda (a passagem de som foi das 15h para as 16h, a Jacque saiu do Carro 1) sai um PDF novo e ninguém sabe o que mudou. A events-api pivotou para Groups (PROJ-51, primeira fatia PROJ-122, PRD events-api #57) e vai servir essa programação, mas o events-expo ainda é o app da V1 (RSVP, Registry, Verification de Pix), com outro domínio, outro login e outro visual. Sem o app, o critério de sucesso da primeira fatia ("o Vocal Livre roda uma viagem real no sistema em vez do PDF") não se cumpre.
 
 ## Solution
 
-A members' mobile app (Expo + expo-router, TypeScript strict, runs in Expo Go) that recreates the high-fidelity "liquid glass" design handoff (`design_handoff_events_app_glass`): dark background with fixed colored orbs and a 32 pt grid, glass materials (Card, Card accent, Pill, Sheet), IBM Plex Sans/Mono, UI in pt-BR.
-
-The member logs in with their real events-api account (during development, they can also enter Demo mode, with no network), lands on Início (what's happening now, the numbers of their active Events, what's coming up and how many Contributions they have to check), browses the Events they can access, opens an Event to see a Summary, RSVPs, the Registry ("Presentes") and the Contributions to check ("Conferir"), and — if they are Owner, Manager or Super admin — verifies or rejects a `PAID` Contribution from a floating bottom sheet, optionally opening the Receipt first. Viewers see everything read-only.
-
-Data comes through repository interfaces that mirror the planned API contract. A mock implementation (built from the prototype's sample data) backs them today; each module switches to HTTP by adding it to a list of live modules once its backend endpoints exist. Demo mode always uses the mock, and exists only in development builds.
+Reescrever o events-expo para a primeira fatia da V2, com o design D (canvas "events-expo · Design D", páginas App e Media kit). Um integrante entra com o login do Clerk (e-mail e senha, Google ou Apple), escolhe o Group, vê os Events (onde e quando), abre um Event em que é Participant e encontra só a programação dele: o Resumo com os Highlights ("Seu quarto: 101") e a Timeline dia a dia, na hora local de cada lugar, com o que mudou desde a última visita riscado ao lado do novo, o que é novo com selo e o que deixou de alcançá-lo como fantasma. A produção (Owners) faz tudo pelo app: adiciona pessoas e Teams, cria o Event em Draft, ajusta os Participants, cria e edita Event items com Fields de texto e de pessoas, Personal notes, Highlight e Audience, publica, cancela e descancela. O Super admin cria Groups e define Owners. O visual tem cor base azul, Events e Teams com cores automáticas e estados em selos coloridos, nos modos claro e escuro.
 
 ## User Stories
 
-### Session and login
-1. As a member, I want to log in with my events-api email and password, so that I can access my Events from my phone.
-2. As a member, I want the "Entrar" button to show "Entrando…" while the login is in progress, so that I know the app is working.
-3. As a member, I want to see a clear message when login fails (e.g. "Email ou senha inválidos."), so that I understand what went wrong.
-4. As a member, I want a connection message ("Não foi possível conectar. Verifique sua internet e tente de novo.") when the server is unreachable, so that I can tell a connection problem apart from wrong credentials.
-5. As a member, I want my session kept on the device securely, so that I don't have to log in every time I open the app.
-6. As a member, I want the app to open straight into Início when I have a saved session, so that startup is fast.
-7. As a member, I want the app to re-check my session in the background on startup, so that a revoked or expired session sends me back to login.
-8. As a member whose password changed or whose 12 h JWT expired, I want any `401 UNAUTHENTICATED` response to log me out and return me to login, so that I'm never stuck in a broken session.
-9. As a member, I want the email I last typed and signed in with through "Entrar" to still be there after I tap "Sair" (even after restarting the app), so that logging back in is quicker. Entering through "Modo demo" never reads or changes this saved email; after "Sair" from Demo mode the field is empty.
-10. As a developer, I want a "Modo demo" button on the login screen in development builds (`__DEV__`) only, which lets me pick the demo Super admin, the demo User or the demo Manager, so that I can explore the app as any of those roles with no network. Release builds have no Demo mode; a stored demo Session is dropped at startup.
-11. As a demo user, I want my demo session restored when I reopen the app, so that I can continue exploring.
-12. As a member, I want to know there's no sign-up in the app, so that I understand only a Super admin creates Users.
+### Entrada e conta
 
-### Events list
-13. As a Super admin, I want to see all Events on the platform, so that I can oversee every Event.
-14. As a User, I want to see only the Events I'm a member of, so that I only deal with what's mine.
-15. As a member, I want the header to show how many Events I see and whether that's "super admin" or "seus eventos", so that I know the scope of the list.
-16. As a member, I want the "Para conferir" total on Início (story 66), not above the Events list, so that the list is only the Events and the pending work has one home.
-17. As a member, I want each Event card to show date and time (`dd.mm.aa · HH:MM`), my role (Owner, Manager, Viewer or Super admin, plus "· principal" if I'm the Primary owner), the Event name, its type and city (just the type when the Event has no city), so that I can identify it quickly.
-18. As a member, I want a chip with "N pendentes" on Events that have `PAID` Contributions, so that I know where to go first.
-18a. As a member, I want a neutral "N confirmados" / "1 confirmado" chip on every Event card, "0 confirmados" included, stacked right above the "pendentes" chip, to the right of the name and city (8px apart, the bottom chip aligned with the city, so the card doesn't grow), so that I see attendance at a glance. It counts the Event summary's `rsvpCount`, so Managers and Viewers of an archived Event see the real number too.
-19. As a member, I want archived Events shown with reduced opacity and an "arquivado" chip before the date, so that I can tell they're no longer active.
-20. As a User who isn't a member of any Event, I want a clear empty state ("Nenhum evento ainda." / "Um Super admin precisa te adicionar como membro."), so that I understand why the list is empty.
-21. As a member, I want glass skeletons while Events load, so that the screen doesn't jump when data arrives.
-21a. As a member, I want to pull the Events list to refresh it, and the app to refresh it when I come back to it, so that the pending chips are current.
-22. As a member, I want a data error shown with its message and a "Tentar de novo" button, so that I can recover from a failed load.
-23. As a member, I want tapping an Event card to open its detail on the Summary tab, so that I can dig in.
-23a. As a member, I want tapping the "confirmados" chip to open the detail on RSVPs and the "pendentes" chip to open it on Conferir, without the card also opening the Summary, so that I get there in one tap. An archived Event's chip still opens RSVPs, which explains what a Manager or Viewer can't see (story 32a).
-23b. As a member using a screen reader, I want each Event card read as one button with its counts ("Ana & Rafael, arquivado, 5 confirmados, 3 pendentes", leaving out what isn't shown) and the chips' destinations as its actions ("Ver RSVPs"; "Ver Conferir" when something is pending), so that I reach the same tabs. The chips themselves aren't accessibility elements; their touch area reaches 44pt outwards without overlapping each other.
+1. Como integrante, quero entrar com e-mail e senha, Google ou Apple pelo Clerk, para usar o login que já tenho.
+2. Como integrante convidado, quero abrir o Activation link e definir minha senha ou escolher Google ou Apple com o e-mail do convite, para entrar pela primeira vez.
+3. Como integrante, quero uma mensagem clara quando entro com uma conta Google ou Apple de outro e-mail (`USER_NOT_INVITED`), para entender que preciso usar o e-mail do convite.
+4. Como integrante, quero ver que não há cadastro aberto ("quem convida é a produção do seu Group"), para não procurar um botão de criar conta.
+5. Como integrante, quero recuperar a senha pelo fluxo do Clerk, para voltar a entrar sem depender da produção.
+6. Como integrante, quero continuar logado entre aberturas do app, para não digitar a senha toda vez.
+7. Como integrante, quero ser levado ao login quando a sessão expira ou é recusada (`UNAUTHENTICATED`), para nunca ficar numa tela quebrada.
+8. Como Deactivated user, quero ser recusado com uma mensagem, para entender que não tenho mais acesso.
+9. Como integrante sem nenhum Group ainda, quero ver "Você ainda não está em nenhum Group" com um botão de atualizar, para saber que falta a produção me adicionar.
+10. Como integrante, quero ver no Perfil meu nome, e-mail (só leitura), telefone e meus Groups com o papel em cada um, para conferir minha conta.
+11. Como integrante, quero editar meu nome e meu telefone (com DDI, validado), para que a produção e os colegas falem comigo pelo WhatsApp.
+12. Como integrante, quero sair da conta, para trocar de usuário.
+13. Como integrante de vários Groups, quero trocar de Group por uma folha a partir do Início, para ver a programação de cada um.
+14. Como desenvolvedor, quero o Demo mode em builds de desenvolvimento, com Owner, Viewer e Super admin de exemplo, para explorar o app sem backend.
 
-### Event detail
-24. As a member, I want a back button and a `#{id} · {papel}` label at the top, so that I know which Event and role I'm acting as.
-25. As a member, I want the Event name, date, type label (Casamento, Aniversário, Corporativo, Chá de bebê, Festa, Outro) and venue (`venueName · city`, whichever exist) at the top, and to tap the venue with a "↗" to open it in maps when the Event has a `mapsUrl`, so that I have context and can find the place.
-26. As a member of an archived Event, I want "ARQUIVADO · site não aceita escritas" shown, so that I know the Site is read-only.
-27. As a member, I want segmented tabs (Resumo · RSVPs · Presentes · Conferir) that stay pinned while scrolling, so that I can switch sections anytime.
-28. As a member, I want a lime dot on "Conferir" when there are `PAID` Contributions, so that I notice pending work.
-29. As a member, I want the Summary to show how many Guests confirmed ("Confirmados", the number of RSVPs, one full-width card), the total `VERIFIED` amount in the Event's currency, and the number to check (`paidContributionCount`, the same number as the "Conferir" dot, the chip and the hero), so that I get the Event's status at a glance.
-30. As a member, I want the Summary to show the Event's Site URL (without `https://`) and to tap it ("↗") to open the Site in the browser, archived Events included, so that I can reference the public Site.
-31. As a member, I want the Summary to list the Event's members with their roles (Primary owner first, then Owner → Manager → Viewer, by name within each role; "Nenhum membro." when there are none), so that I know who else manages it.
-32. As a member, I want the RSVPs tab to list each Guest who confirmed, with name, email and the date (`dd/mm` in the Event's timezone), most recent first, so that I can follow attendance. An RSVP is only a confirmation: there's no "não vou", and whoever isn't going isn't listed (events-api ADR-0015). With no RSVPs, "Nenhum RSVP.".
-32a. As a Manager or Viewer of an archived Event, I want the RSVPs tab to show "ARQUIVADO · só Owners veem os convidados." instead of the list, and the Summary's "Confirmados" to show "—", so that I understand why Guest data is gone (events-api ADR-0011: after archiving, only Owners and the Super admin see Guest data; the others see the Event summary).
-33. As a member, I want the Presentes tab to show each Registry item's image (striped placeholder when there's none or it fails to load), name, number of Contributions ("1 contribuição" / "N contribuições" / "nenhuma contribuição"; counts `PAID` + `VERIFIED`) and reference price, in the API's order, so that I can follow the Registry. Registry items hold no Guest data, so the tab stays visible on archived Events.
-34. As a member of an Event without a Registry, I want "Sem lista de presentes.", so that the empty tab isn't confusing.
-35. As a member, I want the Conferir tab to list Contributions with `PAID` first, oldest `paidAt` first (a queue), then `VERIFIED` and `REJECTED` together, most recent first (history), each showing the Guest, amount, Registry item (a skeleton bar while the Registry loads; "—" when it isn't in the Registry or the Registry failed to load) and status (pendente / verificada / rejeitada), so that the pending ones are on top. With none, "Nenhuma contribuição.".
-35a. As a Manager or Viewer of an archived Event, I want the Conferir tab to show "ARQUIVADO · só Owners veem os convidados." instead of the list (the "Conferir" dot still follows `paidContributionCount`), so that the rule is the same as the RSVPs tab's.
-36. As a Viewer, I want a notice "VIEWER · somente leitura. A conferência cabe a Managers e Owners." at the top of the Conferir tab (empty list included; on an archived Event the archived notice replaces it), so that I understand why I can't act.
-37. As a member, I want to return to the Events list without losing its scroll position, so that I don't have to find my place again.
-37a. As a member, I want to pull the Event detail to refresh the Event and the active tab, so that I can check whether a new Pix arrived.
-37b. As a member, I want switching tabs after scrolling past the header to keep the tabs pinned and start the new tab at its top, so that I never land in the middle of another list.
+### Início do Group
 
-### Contribution sheet and Verification
-38. As a member, I want tapping a Contribution to open a floating bottom sheet, so that I can see its details without leaving the Event.
-39. As a member, I want the sheet to show `Contribuição #{id}`, its status, the amount, the Guest, the Registry item, when it was marked paid and whether a Receipt is attached, so that I have everything needed to check the Pix.
-39a. As a member opening a Contribution that isn't in the Event's list (a stale link, a `PENDING` one), I want "Contribuição não encontrada." inside the sheet, so that a bad link doesn't break the screen.
-40. As a member, I want to tap "anexado ↗" to open the Receipt in the in-app browser ("abrindo…" while its short-lived URL loads; a failure shows only its message below the table), so that I can compare it with my bank statement before deciding. Without a Receipt, "não anexado" is plain text.
-41. As an Owner, Manager or Super admin, I want "Verificar Pix" and "Rejeitar" buttons on a `PAID` Contribution, so that I can complete the Verification. On an archived Event only Owners and the Super admin verify (events-api ADR-0011, refinement "o Owner ainda faz a Verification"); a Manager can't even see its Contributions.
-41a. As a verifier, I want both buttons to ask first (native `Alert`, "Cancelar" plus the action): "Verificar contribuição #301?" / "O Pix de R$ 450,00 de Beatriz Nogueira chegou?" ("Verificar"), and "Rejeitar contribuição #301?" / "O Pix de R$ 450,00 de Beatriz Nogueira não chegou?" ("Rejeitar", destructive), so that a mistap neither vouches for a Pix nor accuses a Guest.
-41b. As a verifier, I want to revise a Verification (events-api ADR-0004's refinement: `VERIFIED ↔ REJECTED`, never back to `PAID`) through a secondary button below the sheet's table ("rever · marcar como rejeitada" on a `VERIFIED` one, asking "Marcar #298 como rejeitada?" / "Ela sai do total verificado."; "rever · marcar como verificada" on a `REJECTED` one, asking "Marcar #290 como verificada?" / "Ela entra no total verificado."), so that a Pix that shows up days later, or one verified by mistake, can be fixed.
-42. As a verifier, I want Início's "Para conferir" total and "Conferir por evento", the card's pending chip, the "Conferir" dot, "Para conferir" and the "Verificado" stat to update immediately after I verify, reject or revise, and the sheet to close at once, so that the app feels instant.
-43. As a verifier, I want a failed Verification to roll back the optimistic change and show, at the top of the Event detail (below the header, above the tabs and pinned with them, so it's on screen however far the tab scrolled; whatever the tab; even if I left the Event and came back), "Não foi possível verificar|rejeitar a contribuição #301." with `CODE · message`, until I dismiss it (×) or verify again, so that the screen never lies about the real state.
-44. As a Viewer opening a `PAID` Contribution, I want "Viewers não fazem a conferência." instead of buttons, so that the rule is explicit.
-45. As a member, I want to close the sheet by tapping outside it or swiping it down, so that it's quick to dismiss.
-46. As a member, I want the sheet to have its own route, so that a Contribution can be linked to directly.
+15. Como integrante, quero ver o Início com a saudação, a data e a busca de Events, para começar pelo que importa.
+16. Como integrante, quero ver os Events do Group em ordem de data, com coluna de data, onde e quando, para saber o que vem.
+17. Como integrante, quero filtrar entre "Próximos", "Que eu vou" e "Passados", para achar um Event.
+18. Como Participant, quero o próximo Event em destaque com capa na cor dele, o selo "VOCÊ VAI", o número de itens para mim e "N mudanças" desde a última visita, para abrir direto o que importa.
+19. Como Viewer que não é Participant, quero ver o Event com "você não vai", para saber que ele existe sem achar que fui esquecido.
+20. Como integrante, quero ver um Event cancelado com o nome riscado e o selo "CANCELADO", para não me programar para ele.
+21. Como Owner, quero ver os Events em Draft com o selo "RASCUNHO", para lembrar o que falta publicar.
+22. Como integrante, quero um atalho "Hoje" na barra, que abre a Timeline do Event em andamento ou do próximo em que vou, para ver o dia sem procurar.
+23. Como integrante, quero puxar para atualizar e ver os dados atualizados ao voltar ao app, para não ficar com a versão velha.
 
-### Início
-61. As a member, I want to land on Início after logging in and when a saved Session is restored, so that the first thing I see is what needs me.
-62. As a member, I want Início to greet me with today's date (device timezone, e.g. "qui., 1 de out.") and "Olá, {primeiro nome}", so that the screen feels mine.
-63. As a member, I want an "ACONTECENDO AGORA" section with each active Event that has started and not ended yet ("agora" in lime; without `endsAt`, an Event lasts until the end of its day in its timezone), right below the greeting, so that the Event in progress is one tap away. Hidden when there is none.
-64. As a member, I want a 2×2 grid about my active Events: "EVENTOS ATIVOS" (subtitle "N arquivados" / "1 arquivado" / "nenhum arquivado"), "CONFIRMADOS" (RSVPs, "nos eventos ativos"), "VERIFICADO" (`VERIFIED` amount in R$, "em contribuições") and "PRESENTES" (Registry items, "itens nas listas"), each opening Eventos, so that I see the overall state at a glance.
-65. As a member, I want a "PRÓXIMOS EVENTOS" card with the nearest upcoming active Event (day and month in its timezone, name, "tipo · local", and "hoje" / "amanhã" / "em N dias" in lime, counted in calendar days in the Event's timezone), so that I know what's next. When 2 or more Events start in the next 30 days, the card shows a stack of glass cards behind it and tapping it expands, in place, the list of those Events over a blurred and dimmed screen (tab bar included; scrolls if long; tapping outside closes); otherwise tapping it opens the Event's detail on Resumo. Tapping an Event in the expanded list closes it and opens that Event on Resumo. Hidden when there is no upcoming Event.
-66. As an Owner, Manager or Super admin, I want a lime "PARA CONFERIR" hero with the number of `PAID` Contributions across the Events where I do the Verification (`canVerify`), so that I know how much Verification work is waiting. Hidden when I can't verify any Event (only Viewer, or only Manager of archived Events); shown with 0 otherwise.
-67. As a verifier, I want a "CONFERIR POR EVENTO" card right below it, with one row per Event where I do the Verification and that has `PAID` Contributions (name and a lime "N pendentes" / "1 pendente" chip), each opening the Event's detail on Conferir, so that I know where to start. Hidden when there is none.
-68. As a member, I want Início to load with glass skeletons shaped like its cards, show an error with "Tentar de novo" when it fails, refresh on pull and when I come back to it, so that it behaves like the other screens.
-69. As a User who isn't a member of any Event, I want Início to show only the greeting and a card with "Nenhum evento ainda." / "Um Super admin precisa te adicionar como membro.", so that I understand why it's empty.
-70. As a member, I want the Event detail's back button to return where I came from (Início or Eventos), so that I keep my place.
-71. As a screen reader user, I want every Início card to be a button whose label carries its value (e.g. "3 eventos ativos") and a touch area of at least 44 pt, so that the screen is usable without sight.
+### Event para quem vai
 
-### Profile and navigation
-47. As a member, I want a floating tab bar with "Eventos", "Início" and "Perfil", in that order (hidden in the Event detail), so that I can move between them.
-48. As a member, I want the Profile to show my initials avatar and name, so that I know who is signed in. As a developer in Demo mode, I want a small `demo` chip next to the name, so that I never mistake sample data for real data.
-49. As a member, I want the Profile to show my email, "Papel · Super admin" if I'm a Super admin, and "Membro desde" with the date I was created, so that I can check my account.
-50. As a member, I want a "Sair" button that clears my session and returns to login, so that I can switch accounts.
+24. Como integrante, quero ver o cabeçalho do Event com a capa na cor dele, nome, onde, período e o fuso ("horário de Manaus"), para ter o contexto.
+25. Como Participant, quero ver onde e quando riscados ao lado do novo quando mudaram desde a última visita, para perceber uma mudança de data ou de cidade.
+26. Como Participant, quero ver o Resumo: General info primeiro, depois um cartão por Event item com Field em Highlight, só com esses Fields, para ter o essencial numa tela.
+27. Como Participant, quero ver nos cartões os Fields de pessoas filtrados para mim ("Seu carro: Carro 1 - EC", "Seu quarto: 101"), para não procurar meu nome.
+28. Como Participant, quero ver a Timeline dia a dia, primeiro os itens com data e sem hora ("a definir") e depois os com hora, em ordem, para seguir o dia.
+29. Como Participant, quero ver cada hora na hora local do lugar, com o rótulo do fuso quando difere do Event ("horário de Vitória"), nunca convertida, para chegar no horário certo.
+30. Como Participant, quero um seletor de dias no topo da Timeline que pula para o dia, para navegar numa viagem longa.
+31. Como Participant, quero ver os dias que têm itens, inclusive fora do período do Event, para não perder o que vem antes.
+32. Como Participant, quero ver, desde a minha última visita, o valor antigo riscado ao lado do novo em coral ("~~15:00~~ 16:00"), só a diferença líquida, para saber o que mudou sem ler tudo.
+33. Como Participant, quero que um item que passou a me alcançar apareça com o selo "NOVO", para notar o que entrou.
+34. Como Participant, quero que um item que deixou de me alcançar apareça como fantasma, riscado e com "você não está mais neste item", só com o que eu já via, até a próxima visita, para entender por que sumiu.
+35. Como Participant, quero que um item que estava em Draft apareça só como novo quando for publicado, nunca riscado, para não ver mudanças de algo que nunca vi.
+36. Como Participant, quero que o Last seen seja marcado quando abro o Event, para que as marcas sumam na visita seguinte.
+37. Como Participant, quero ver um item cancelado com o selo "CANCELADO" e o nome riscado, para não ir a ele.
+38. Como Participant, quero abrir um Event item e ver nome, dia, hora local, fuso e todos os Fields na ordem da produção, para ter todos os detalhes.
+39. Como Participant, quero ver num Field de pessoas quem está comigo, com "Ver todos" para os outros Fields de pessoas do item (os outros carros), para saber com quem vou.
+40. Como Participant, quero ver minha Personal note ("Sua nota · só você e a produção"), e as dos outros só quando o Field as deixa visíveis para todos, para respeitar a privacidade.
+41. Como Participant, quero ver, num Field de pessoas, quem entrou marcado e quem saiu riscado desde a última visita, para saber da troca de carro.
+42. Como Participant, quero ver quem saiu do Event marcado como "fora do Event" nos Fields de pessoas, para não contar com essa pessoa.
+43. Como Participant, quero ver nomes soltos (o motorista local) com o selo "SEM LOGIN", para saber que é alguém de fora.
+44. Como Participant, quero tocar numa pessoa e abrir o WhatsApp dela pelo telefone, para falar com ela rápido.
+45. Como Participant, quero ver quem fez a última alteração de um item e quando ("Alterado por Bruno Reis há 2 h"), para saber a quem perguntar.
+46. Como Viewer que não é Participant, quero abrir o Event e ver só onde e quando, a explicação de que a programação não aparece para mim e a lista de quem vai, para entender e falar com a produção se for o caso.
+47. Como integrante, quero ver a lista de Participants de qualquer Event do Group, para saber quem vai.
+48. Como Participant de um Event cancelado, quero ver o aviso de que ele não vai acontecer e a programação congelada só para consulta, para não me confundir.
+49. Como Participant de um Event publicado sem itens para mim, quero ver "A programação ainda não saiu", para saber que não é erro.
 
-### Look and feel
-51. As an iOS 26+ user, I want native liquid glass on cards, pills, tab bar and sheet, so that the app feels native.
-52. As a user on older iOS, I want a frosted blur fallback with the same tint, border and highlight, so that the design holds.
-53. As an Android user, I want real blur on floating elements (tab bar, sticky tabs, sheet, back button) and tinted glass on list cards, so that the app looks right without hurting scroll performance.
-54. As a member, I want a subtle press feedback (scale 0.98 and stronger top highlight) on glass elements, and the active pill sliding between tabs, so that interactions feel alive.
+### Produção (Owner)
 
-### Developer
-55. As a developer, I want every data access to go through repository interfaces that mirror the events-api contract, so that swapping mock for HTTP touches one place.
-56. As a developer, I want to turn a module to HTTP by adding it to the list of live modules, so that backend modules can land one at a time.
-57. As a developer, I want the mock to simulate ~300 ms latency in dev, so that loading states get exercised before the real API exists.
-58. As a developer, I want the API base URL in `EXPO_PUBLIC_API_URL` (default `http://localhost:3000/api/v1`), so that I can point to the local backend, the Android emulator host or a device on the LAN.
-59. As a developer, I want screens forbidden (by lint) from importing the mock directly, so that the data seam can't be bypassed.
-60. As a developer, I want `tsc --noEmit`, lint and unit tests to pass cleanly, so that the codebase stays healthy.
+50. Como Owner, quero criar um Event com nome, onde (cidade ou local), fuso padrão e datas de início e fim, sem hora, para começar a montar a programação.
+51. Como Owner, quero ser avisado que o Event nasce em Draft (o Group vê só onde e quando), para saber quando publicar.
+52. Como Owner, quero editar nome, onde, fuso e datas, inclusive de um Finished event, para corrigir ou completar depois.
+53. Como Owner, quero ver o Event em Draft com os Participants, a General info e um resumo por dia, com "+ Item", para montar tudo antes de publicar.
+54. Como Owner, quero ver o aviso "FORA DO PERÍODO" em itens com data fora do período do Event, para conferir se foi intencional.
+55. Como Owner, quero publicar o Event, para que os Participants vejam a programação.
+56. Como Owner, quero cancelar o Event (com confirmação) e descancelar depois, para registrar que ele não vai acontecer sem perder nada.
+57. Como Owner, quero que um Event cancelado fique congelado no app (sem editar) até descancelar, para respeitar a regra da API.
+58. Como Owner, quero que os Participants nasçam como cópia de todos os Group members ou de um ou mais Teams, para não montar a lista do zero.
+59. Como Owner, quero marcar e desmarcar Participants, com atalhos por Team, para ajustar quem vai.
+60. Como Owner, quero saber que quem sai deixa de ver os itens e fica marcado como fora do Event nos Fields de pessoas, para entender o efeito.
+61. Como Owner, quero criar um Event item com nome, data e hora opcionais (hora só com data, sempre locais) e lugar opcional (nome, endereço e fuso; sem fuso vale o do Event), para descrever cada passo.
+62. Como Owner, quero que o item nasça publicado num Event em Draft e em Draft num Event publicado, com o selo "RASCUNHO" e o botão Publicar, para soltar a mudança quando estiver pronta.
+63. Como Owner, quero apagar um item em Draft, para descartar o que não vai acontecer.
+64. Como Owner, quero cancelar e descancelar um item publicado, para manter o histórico visível com o selo.
+65. Como Owner, quero adicionar, editar, apagar e reordenar Fields de texto, para registrar obs, contatos, voltagem e o que levar.
+66. Como Owner, quero adicionar Fields de pessoas com Participants e nomes soltos, para montar carros e quartos.
+67. Como Owner, quero vincular um nome solto a um User, trocando o nome em todos os Fields do Event, para corrigir quando a pessoa ganhar conta.
+68. Como Owner, quero escrever uma Personal note para cada pessoa de um Field de pessoas e escolher se as notas ficam visíveis só para cada um ou para todos no item, para guardar localizadores e "dirigindo".
+69. Como Owner, quero ligar e desligar o Highlight de cada Field ("no Resumo"), para decidir o que vai para o Resumo.
+70. Como Owner, quero escolher quem vê o item: "Todos que vão" (acompanha os Participants) ou uma lista escolhida montada com Teams (copiados naquele momento) e avulsos, para alcançar só quem precisa.
+71. Como Owner, quero saber que quem está num Field de pessoas também vê o item, para não ter que repetir no Audience.
+72. Como Owner, quero ver quantas pessoas o Audience alcança antes de aplicar, para conferir.
+73. Como Owner, quero reordenar à mão a General info, os itens sem hora de um dia e os empates de hora, sabendo que isso não avisa ninguém, para deixar na ordem certa.
+74. Como Owner, quero ver todos os itens, inclusive Drafts e de qualquer Audience, para enxergar a programação inteira.
+75. Como Owner, quero abrir as ações de um item (editar, mudar a ordem, cancelar, apagar) e ver a última mudança dele, para agir rápido.
+
+### Group: pessoas e Teams
+
+76. Como integrante, quero ver as pessoas do Group separadas em Owners e Viewers, com Teams, telefone (WhatsApp) e "convite pendente" para quem ainda não entrou, para saber quem é quem.
+77. Como Owner, quero adicionar uma pessoa como Viewer com nome, e-mail, telefone e Teams opcionais, para trazer um integrante novo.
+78. Como Owner, quero receber o Activation link para repassar pelo WhatsApp ou copiar quando a pessoa ainda não tem conta, para garantir que o convite chegue.
+79. Como Owner, quero ver a mensagem certa quando a pessoa já é do Group (`ALREADY_A_GROUP_MEMBER`), para não duplicar.
+80. Como Owner, quero gerar um novo Activation link para um Viewer pendente, sabendo que o anterior para de funcionar, para resolver um convite que não chegou.
+81. Como Owner, quero remover um Viewer do Group (com confirmação), para tirar quem saiu.
+82. Como Owner, quero criar, renomear e apagar Teams e adicionar e tirar pessoas deles, para usar como atalho nos Participants e nos Audiences.
+83. Como Owner, quero ver a explicação de que escolher um Team só copia quem está nele naquele momento, para não esperar que mudar o Team mude o que já foi montado.
+84. Como Viewer, quero ver as Pessoas e os Teams sem os botões de editar, para consultar sem medo de mexer.
+
+### Super admin
+
+85. Como Super admin, quero ver os Groups da plataforma com o número de Owners e pessoas e o selo "SEM OWNER", para cuidar da plataforma.
+86. Como Super admin, quero criar um Group com nome e, opcionalmente, o primeiro Owner pelo e-mail, para abrir a plataforma a um grupo novo.
+87. Como Super admin, quero definir um Owner pelo e-mail (Viewer vira Owner, e-mail novo vira convite) e rebaixar um Owner, para manter a produção do Group.
+88. Como Super admin, quero ver que o último Owner não pode ser rebaixado nem sair, para respeitar a regra da API.
+
+### Estados e acessibilidade
+
+89. Como integrante, quero esqueletos com a forma dos cartões enquanto carrega, para a tela não pular.
+90. Como integrante sem conexão, quero ver a última versão salva com o aviso de quando ela é e "Tentar de novo", para consultar a programação no avião.
+91. Como integrante, quero erros com mensagem clara e "Tentar de novo", sem códigos nem detalhes do backend, para me recuperar sozinho.
+92. Como integrante, quero o app no modo claro ou escuro, seguindo o sistema, para usar à noite no ônibus.
+93. Como usuário de leitor de tela, quero rótulos nos botões só com ícone, estados lidos por texto (nunca só pela cor) e áreas de toque de 44 pt, para usar o app sem enxergar.
 
 ## Implementation Decisions
 
-**Project & tooling**
-- Standalone Expo project in this repo (`penteado40/events-expo`), separate from the NestJS backend, scaffolded with `npx create-expo-app@latest --template default` followed by `npm run reset-project` (leftover example `components/`, `hooks/`, `constants/` removed). Expo SDK 57 (the newest supported by Expo Go); moving to SDK 58 is its own Jira task once Expo Go moves to it. Target is Expo Go (no dev build unless something forces it). npm as package manager.
-- TypeScript strict, alias `@/` → `src/`. `expo lint` (eslint-config-expo, flat config) + Prettier using the backend's `.prettierrc.json`; `npm run lint` runs both. Module boundaries are enforced with `eslint-plugin-boundaries` (see Architecture).
-- All code, routes, file names and identifiers in English; only user-facing copy in pt-BR. Domain terms follow the events-api `CONTEXT.md` (Event, EventMember, RSVP, Registry item, Contribution, Receipt, Verification, Primary owner).
-- Dark mode only, portrait only.
-- Workflow: one `feat|fix/proj-<n>` branch per Jira ticket, PR to `main`. CI (`.github/workflows/ci.yml`, Node from `.nvmrc`) runs on every PR and push to `main`: `checks` (`npm ci`, typecheck, lint, test) and `gitleaks`, both required by the protection on `main` (admins included). `expo-doctor` runs as a separate job that is not required: it compares against the versions Expo recommends that day, so it can turn red with no code change; bumping flagged patches (`npx expo install --fix`) is a deliberate commit. Agents push only the ticket's branch and open the PR; the owner merges.
-- User-facing copy never exposes where data comes from or backend internals: no endpoints, hosts, API vs. mock, raw error codes, raw field names or raw values (e.g. `SUPER_ADMIN`, ISO dates). Codes stay on `ApiError` for logic and tests only. The one exception is the `demo` chip on Perfil, which exists only in development builds.
+**Escopo e ponto de partida**
 
-**Architecture (ADR-0001)**
-- Feature-based layout: `src/features/<feature>/` (`api.ts`, `repository.ts`, `mock.ts`, `schemas.ts`, `hooks/`, `components/`), shared code in `src/shared/` (`components/ui`, `lib`, `theme`, `session`), routes in `src/app/` that only compose screens from features, with no business logic.
-- Boundaries (`eslint-plugin-boundaries`): `app` imports `features` and `shared`; a feature imports only itself and `shared`; `shared` imports only `shared`; a feature's `mock.ts` is imported only by its own `api.ts` and by its own tests; `shared/mock-backend/` is imported only by features' `mock.ts` files and by tests (ADR-0002).
-- Server state: TanStack Query. Every API call goes through the feature's `api.ts` and is exposed through custom hooks (`useX` / `useXMutation`).
-- Client state: Zustand, only for global UI/session state.
-- Validation and types: Zod with inferred types (`z.infer`); the same schemas validate mock and HTTP responses. Forms with React Hook Form + `zodResolver`.
-- Features in the first slices: `auth` (`AuthRepository = { login, me }`, `useLogin`, `useMe`, `useSessionCheck` called by the root layout, login form) and `profile` (screen over the Session; no `api.ts`).
+- Reescrita do app sobre o domínio V2; o código das features da V1 (events, members, rsvps, registry, contributions) sai. Ficam a estrutura por feature (ADR-0001 do app), o seam de repositórios com `selectRepository` e `LIVE_MODULES`, o cliente HTTP compartilhado, TanStack Query, Zustand, Zod e o `eslint-plugin-boundaries`.
+- O ADR-0002 do app (mock backend compartilhado) continua, com um mock backend V2. O ADR-0003 (Início sobre o Event summary da V1) é substituído: o Início é uma leitura da lista de Events do Group.
+- `CONTEXT.md` do app: Session, Live session e Demo mode continuam; os termos de domínio vêm do `CONTEXT.md` da events-api (Group, Event, Event item, Field, Personal note, Highlight, Audience, Participant, Team, Draft, Cancelled, Finished event, Summary, Timeline, General info, Change, Last seen). A nota do glossário que cita RSVP e Registry sai.
+- Design: canvas "events-expo · Design D". A página App tem as 33 telas; a página Media kit tem marca, cores, tipografia, ícones, componentes, cartões e navegação.
 
-**Routes (expo-router, under `src/app/`)**
-- `(auth)/login`, `(tabs)/index` (Início, the tabs' `initialRouteName`, so `/` after login and on Session restore; the old entry route `src/app/index.tsx` is gone, the root layout's `Stack.Protected` guards send a signed-out person to Login), `(tabs)/events`, `(tabs)/profile`, `events/[id]` (optional `?tab=contributions` opens it on Conferir; anything else on Resumo; back is `router.back()`, falling back to `/` when there is no history), `events/[id]/contributions/[cid]`. `events/[id]` starts in PROJ-87 as the detail's top bar only (back button, `#{id} · {papel}`, the Event name, via `get(id)`); PROJ-88 grows it into the full detail.
-- Auth gate at the root layout redirects based on the session state.
-- `(tabs)` uses expo-router `Tabs` with a custom floating tab bar (300 wide, three columns Eventos · Início · Perfil, centered, bottom 28, Pill material, active pill sliding via Reanimated ~250 ms ease-out). Detail is outside `(tabs)` so the tab bar is hidden there; native push transition. It opens on the tab in its `tab` search param (`/events/[id]?tab=summary|rsvps|registry|contributions`; absent or unknown: `summary`); changing tabs afterwards doesn't touch the URL.
-- The Event detail's segmented tabs (Resumo/RSVPs/Presentes/Conferir) are local state, sticky on scroll (one `ScrollView`, `stickyHeaderIndices`); returning from the sheet keeps the current tab and scroll. Switching tabs past the header scrolls to where the tabs sit pinned, so the new tab starts at its top; before that the offset stays. Pull-to-refresh refetches the Event and the active tab's queries.
-- The detail composes features through slots (ADR-0001: features don't import each other): `features/events` exports `EventDetailScreen` (top bar, header, archived notice, sticky tabs, tab state, pull-to-refresh) taking each tab's content as a prop; the route builds the Resumo from `RsvpStats` (`rsvps`), `ContributionStats` (`contributions`), `SiteCard` (`events`) and `MembersCard` (`members`), each with its own skeleton and error box. Tabs not built yet show "Em breve.". A failed Event query replaces the header and tabs with the error box.
-- The Verification is a mutation keyed under the Event (`[...eventKey(id), 'verification']`): the sheet starts it and closes (its callbacks outlive the sheet), the optimistic change patches the Events list, the Event and its Contributions, and once the last one settles the Event's queries and the Events list are invalidated (the Registry's `contributionCount` reconciles then, not optimistically). Its mutations stay cached (`gcTime: Infinity`) until the next Verification removes the settled ones or "×" removes the failed one; the Event detail reads the most recent failure with `useMutationState` through a `notice` slot inside the sticky tabs block (ADR-0001). While the sheet animates closed it keeps showing the Contribution as decided on, not the optimistic change underneath.
-- The Contribution sheet is a route presented as `transparentModal`, rendering `@gorhom/bottom-sheet` in detached mode (8 pt inset sides/bottom, radius 40, Sheet material, `rgba(0,0,0,.35)` backdrop, tap-outside closes, spring animation). With no `GET` for one Contribution, the sheet reads the Event's Contributions list query (from cache when it comes from Conferir; fetched on a direct link) and finds `cid` in it; the Event itself comes from `get(id)`. For a Manager or Viewer of an archived Event it doesn't call the list and shows the archived notice.
-- Registry item names reach Conferir and the sheet through the route (ADR-0001): the route builds an `id → name` map from `registry`'s query (`useRegistryItemNames`: undefined while loading, empty if the load failed) and passes it to `contributions`' components.
+**Identidade (Clerk)**
 
-**UI kit**
-- Design tokens (colors, type scale, radii, spacing) from the handoff README, as one module.
-- A single `Glass` component with variants `card | accent | pill | sheet` choosing the implementation with `isLiquidGlassAvailable()`: `GlassView` (`regular`, tintColor = the material's tint) on iOS 26+; `BlurView` (tint dark, intensity ~20) under tint/border/top highlight on older iOS; on Android real blur (`dimezisBlurView`) only for floating elements (pill/sheet variants: tab bar, sticky tabs, sheet, back button) and tint + border + highlight without blur for card variants. Shadows via RN `boxShadow`.
-- Fixed background: `#07080a`, three radial orbs via `react-native-svg` `RadialGradient`, 32 pt grid of 1 px `rgba(255,255,255,.05)` lines; does not scroll.
-- Fonts: `@expo-google-fonts/ibm-plex-sans` (400/500/600) and `@expo-google-fonts/ibm-plex-mono` (400/500); splash held until fonts and the stored session are loaded.
-- Press feedback: scale 0.98 + stronger top highlight (Reanimated).
-- Loading: glass skeletons shaped like the real cards, pulsing (`SkeletonBlock`); a value still loading inside something already drawn (a stat's number, a Registry item name in Conferir and the sheet) gets its own skeleton bar too. No loading spinner anywhere: the only spinner is pull-to-refresh's, which means "refreshing". "—" means only "nothing to show" (the value doesn't exist, its source failed to load, or the viewer can't see it), never "loading". Query errors: the login's error box (message only) plus "Tentar de novo".
-- Money formatted with `Intl` pt-BR using the Event's `currency`, always with centavos ("R$ 1.090,00"): `formatMoney(amount, currency)` in `shared/domain/money.ts`. Amounts are decimals in reais until the backend modules land.
-- External links (the venue's `mapsUrl`, the Site) open with `Linking` and carry a "↗".
-- Event dates and times are shown in the Event's own `timezone` (the time on the invitation), never the device's: `formatEventDate(startsAt, timezone)` in `shared/domain/events.ts`, via `Intl.DateTimeFormat` with `timeZone`. The mock stores the prototype's local times as UTC with `timezone: 'America/Sao_Paulo'`.
-- Receipt opens with `expo-web-browser`.
-- Remote images (Registry items) load with `expo-image` (disk cache, so refetches don't flicker) over the striped placeholder (`react-native-svg` pattern, 48×48, radius 14), which shows while loading, without an image and on error.
-- Each tab owns its queries and fetches lazily when first shown (no prefetch from the detail); RSVPs come from cache when the Resumo already loaded them.
+- O login próprio da V1 sai. O app usa o SDK do Clerk para Expo (e-mail e senha, Google, Apple) e manda o token de sessão do Clerk em `Authorization: Bearer` em toda requisição (ADR-0020 da events-api, PROJ-163).
+- A Session do app passa a guardar o User local (de `GET /me`) e o modo (Live ou Demo); o token fica com o Clerk. O cliente HTTP pede o token ao Clerk a cada requisição.
+- `UNAUTHENTICATED` encerra a Session e limpa o cache, como hoje. `USER_NOT_INVITED` mostra a mensagem do e-mail do convite. Deactivated user mostra a mensagem de acesso retirado.
+- O Activation link chega como convite do Clerk e abre o app por deep link (PROJ-170, PROJ-176). Reset de senha é do Clerk.
+- "Ativar conta" (D-Ativar, desde a PROJ-213): o Activation link é um convite do Clerk (ADR-0020 da events-api) com redirect para `events-expo://activate`, a rota `(auth)/activate`, fora de uma Session. O Clerk acrescenta `__clerk_ticket` e `__clerk_status`; a events-api acrescenta `inviter`, `group` e `name` para o título ("Bruno te convidou para o Vocal Livre") e a linha do convidado, todos opcionais (sem eles, "Ative sua conta" e só o e-mail). `signUp.ticket` dá o e-mail do convite, mostrado travado; "Ativar e entrar" define a senha (`signUp.password`, depois `finalize`), e Google ou Apple passam pelo fluxo do login mas só com esse e-mail: uma conta de outro e-mail é desconectada e recusada, mesmo que exista. Depois, `GET /me` abre a Live session e o guard leva ao Início. Um link usado, revogado ou expirado (códigos `ticket_*` do Clerk, conta já existente, `__clerk_status=sign_in`, sem ticket) pede um novo à produção, com "Ir para o login".
+- `GET /me` traz nome, e-mail, telefone, a Membership (`[{ groupId, groupName, role }]`) e se é Super admin (PROJ-178). `PATCH /me` edita nome e telefone (PROJ-165).
+- Desvio do PROJ-122: o design D mostra Google e Apple; isso já está no PROJ-159.
 
-**Session**
-- The Session lives in `src/shared/session/`: two Zustand stores persisted with the `persist` middleware and a SecureStore adapter: `useSession` (`{ token, user, live }`) and `useLastEmail`. "Sair" clears only the Session. The email is saved when the person signs in through "Entrar" (mock or HTTP); "Modo demo" never reads or writes it. The splash waits for both stores to hydrate.
-- Startup is optimistic: splash only until storage is read; with a live session the app enters immediately and calls `GET /me` in the background. Demo sessions are restored too.
-- Any `UNAUTHENTICATED` error from any repository calls `expireSession()` in `shared/session`, which clears the Session once (however many requests fail in parallel); `Stack.Protected` then returns to Login, silently, with no message. Only the `UNAUTHENTICATED` code triggers it, never the 401 status alone (a wrong password is `401 INVALID_CREDENTIALS`). "Sair" and expiry both clear the TanStack Query cache.
-- Background `GET /me` on startup (`useSessionCheck`, once per cold start, Live sessions only): 200 replaces `session.user` with the fresh data; `UNAUTHENTICATED` expires the Session; `NETWORK` or any other error keeps the saved Session silently.
-- Demo users live in the mock backend (`src/shared/mock-backend/`, ADR-0002), next to the memberships that reference their ids. Two since PROJ-87: the Super admin `{ id: 1, name: 'Admin Local', email: 'admin@local.test', role: 'SUPER_ADMIN', createdAt: '2026-01-01T12:00:00.000Z' }` and the handoff's User `{ id: 7, name: 'Cláudia Lima', email: 'claudia.lima@gmail.com', role: 'USER', createdAt: '2026-09-27T22:58:10.000Z' }`. The mock backend also holds the other Event members of the sample data, and a User who is a member of no Event (the empty list); only the Super admin has a password for the mock's "Entrar". Since PROJ-89 a third demo user, the archived Offsite Kora's Manager `{ id: 8, name: 'Otávio Kern' }`, shows an archived Event without Guest data. Tapping "Modo demo" swaps the button for three pills, "Super admin", "Cláudia Lima · user" and "Otávio Kern · manager"; the chosen one opens the Demo mode Session. Perfil shows Email, Papel ("Super admin", only for `SUPER_ADMIN`; no row for `USER`) and "Membro desde" (`createdAt` formatted pt-BR, e.g. "28 de set. de 2026"), labels and values in Plex Sans; no `id` row, no `name` row (the name is in the header).
-- "Modo demo" is rendered only when `__DEV__`. With `auth` in `LIVE_MODULES` (since PROJ-212), "Entrar" signs in through Clerk, then calls the HTTP `GET /me` and opens a Live session, in development and release alike; without the backend running, development uses "Modo demo". Every Session is either a Live session or Demo mode. The mock login (`admin@local.test / admin123`; otherwise `INVALID_CREDENTIALS`) remains the reference for the contract suite.
-- "Ativar conta" (D-Ativar, since PROJ-213): the Activation link is a Clerk invitation (events-api ADR-0020) whose redirect is `events-expo://activate`, the `(auth)/activate` route, outside a Session. Clerk appends `__clerk_ticket` and `__clerk_status`; the events-api adds `inviter`, `group` and `name` for the title ("Bruno te convidou para o Vocal Livre") and the invitee row, all optional ("Ative sua conta" and the email alone without them). `signUp.ticket` gives the invitation's email, shown locked; "Ativar e entrar" sets the password (`signUp.password`, then `finalize`), and Google or Apple go through the login's flow but only with that email: an account of another one is signed out and refused, even if it is someone's. Then `GET /me` opens the Live session and the guard lands on Início. A used, revoked or expired link (Clerk's `ticket_*` codes, an existing account, `__clerk_status=sign_in`, no ticket) asks for a new one from the production, with "Ir para o login".
-- The login form validates with the same Zod schema before the request (`VALIDATION_ERROR` · "Dados inválidos."); the API's own `VALIDATION_ERROR` message shows only if invalid input gets through.
+**Módulos e repositórios** (cada um com repositório, schemas Zod compartilhados entre mock e HTTP, hooks TanStack)
 
-**Data layer (the main seam)**
-- Repository interfaces, one per feature in its `repository.ts` (re-exported by `api.ts`, which picks the implementation), mirroring the events-api contract (issues #5, #6, #10, #13, #17 there):
-  - `AuthRepository`: `login({ email, password })` → `POST /auth/login` → `{ token, user }`; `me()` → `GET /me`.
-  - `EventsRepository`: `list()` → `GET /events` (all for Super admin, member's Events otherwise); `get(id)` → `GET /events/:id`. Both return the same item: the Event plus the requester's `membership: { role, isPrimaryOwner } | null` (null for the Super admin, who is never an Event member; shipped by events-api PROJ-55 under that name, since **Viewer** is already a role) `paidContributionCount` and the Event summary (`summary: { rsvpCount, verifiedAmount, registryItemCount }`, ADR-0003), so the list needs no per-Event requests. `paidContributionCount` is requested on events-api PROJ-67 and `summary` on PROJ-100; `events` can't join `LIVE_MODULES` before both land. Until then the mock counts the summary from its RSVPs, `VERIFIED` Contributions and Registry items.
-  - `MembersRepository`: `list(eventId)` → `GET /events/:id/members`.
-  - `RsvpsRepository`: `list(eventId)` → `GET /events/:id/rsvps`.
-  - `RegistryRepository`: `list(eventId)` → `GET /events/:id/registry-items`.
-  - `ContributionsRepository`: `list(eventId)` → `GET /events/:id/contributions`; `verify(eventId, contributionId)` / `reject(...)` → `PATCH /events/:id/contributions/:cid/verify|reject` → the Contribution (`verify` from `PAID` or `REJECTED`, `reject` from `PAID` or `VERIFIED`, events-api ADR-0004's refinement; the status it already has is idempotent; `PENDING`/`ABANDONED` → `409 CONTRIBUTION_NOT_PAID`; Viewer → `403 FORBIDDEN`, role before state; an archived Event's Manager → `409 EVENT_ARCHIVED`). The mock keeps results in memory (reset on reload), and Helena Costa's #303 always fails with `INTERNAL_ERROR`, so Demo mode shows the rollback; `getReceiptUrl(eventId, contributionId)` → `GET /events/:id/contributions/:cid/receipt` → `{ url }`, a short-lived signed URL (events-api ADR-0005), never cached: each tap asks again (no Receipt, or a Contribution not in the list → `404 NOT_FOUND`; Guest data, so archived-Event rules apply). The mock answers a placeholder image URL.
-- Archived Events (events-api ADR-0011): only Owners and the Super admin see Guest data; for a Manager or Viewer, `GET /events/:id/rsvps` (and, from PROJ-90, `/contributions`) answers `FORBIDDEN`. The app decides with `canSeeGuests(event)` (its `status` and the viewer's `membership`) and doesn't even call those endpoints when it says no; numbers that would come from them show "—" until the backend has an Event summary. Registry items aren't Guest data and stay visible.
-- Types follow the backend issues over the README where they differ: `Event { id, name, slug, type: 'WEDDING'|'BIRTHDAY'|'CORPORATE'|'BABY_SHOWER'|'PARTY'|'OTHER', status: 'ACTIVE'|'ARCHIVED', startsAt, endsAt?, timezone, locale, currency, venueName?, venueAddress?, city?, mapsUrl?, siteUrl, membership: { role: 'OWNER'|'MANAGER'|'VIEWER', isPrimaryOwner } | null, paidContributionCount, summary: { rsvpCount, verifiedAmount, registryItemCount } }` (`summary` is the events-api's Event summary, ADR-0003: aggregates with no Guest data, so it comes for every Event the requester sees, archived included); `EventMember { userId, name, role: 'OWNER'|'MANAGER'|'VIEWER', isPrimaryOwner }`; `Rsvp { name, email, createdAt }` (only confirmations, events-api ADR-0015; the mock drops the prototype's "não vai" answers); `RegistryItem { id, name, price, imageUrl: string | null, contributionCount }` (image optional per events-api #13; `contributionCount` counts `PAID` + `VERIFIED`; the mock counts them from its Contributions' `registryItemId` since PROJ-90, and uses `picsum.photos/seed/…/96` images plus one `null` and one 404 to exercise the fallback); `Contribution { id, guestName, registryItemId, amount, status: 'PENDING'|'ABANDONED'|'PAID'|'VERIFIED'|'REJECTED', paidAt, hasReceipt }` (the app lists `PAID`, `VERIFIED`, `REJECTED`; `GET /events/:id/contributions` returns only those). Members, RSVPs and Contributions follow `get(id)`'s visibility: `FORBIDDEN` for a non-member (missing Event included), `NOT_FOUND` only for the Super admin. Field names get reconciled when each backend module lands.
-- A shared HTTP client (`src/shared/lib/http.ts`): base URL from `EXPO_PUBLIC_API_URL` (default `http://localhost:3000/api/v1` in development builds only; a release build without it fails loudly at startup), Bearer token, unwraps `{ data }`, maps `{ error: { code, message, details? } }` to a typed `ApiError`, maps fetch failures and a 15 s timeout (`AbortController`) to code `NETWORK` with the message "Não foi possível conectar. Verifique sua internet e tente de novo." (never the host), emits the session-expired signal on `UNAUTHENTICATED`. `ApiError.code` keeps the known codes as a union but accepts any string, so backend codes the app doesn't list (e.g. `403 USER_PENDING` for a Pending user) pass through with the API's message; a body that isn't the envelope becomes `INTERNAL_ERROR` with the HTTP status in `details`.
-- Perfil doesn't show which backend it talks to. The Session doesn't store which API it was opened against; a token from another backend gets a 401 on the background `/me` and returns to Login.
-- `.env.example` (committed; `.env` is ignored) documents `EXPO_PUBLIC_API_URL` for the iOS simulator (`localhost`), the Android emulator (`10.0.2.2`) and a device on the LAN (the Mac's IP).
-- Mock implementation: a shared in-memory mock backend (`src/shared/mock-backend/`, ADR-0002) built from the prototype's `EVENTS` constant (Ana & Rafael, Chá da Júlia, Marcos 40, Festa de fim de ano Vera Cruz, Offsite Kora 2026 archived) plus Aniversário da Cláudia (happening now, Cláudia its Primary owner; PROJ-101) with memberships keyed by user id, and each feature's `mock.ts` a thin adapter over it, calling it with the Session's User (a Live session's token means nothing to the mock, and a User unknown to the sample data is a member of no Event); enforces the same visibility and permission rules and returns the same error codes as the real API; ~300 ms latency in dev; Verification results live in memory only (reset on reload).
-- Implementation selection, inside each feature's `api.ts`: Demo mode → always mock; Live session → HTTP for modules listed in `LIVE_MODULES` (`src/shared/lib/live-modules.ts`; `auth` since PROJ-212), mock for the rest. The mock is only ever selected in development builds.
-- TanStack Query for fetching and caching; verify/reject use optimistic updates driven by the domain reducer, with rollback on error. The reducer also moves the Event's `paidContributionCount` and `summary.verifiedAmount` in the cached list and detail, so Início, the chip and the dot update at once.
-- Freshness (every query): `staleTime` 30 s, and TanStack's `focusManager` wired to `AppState` in `shared/lib`, so data refetches when the app returns to the foreground (e.g. back from the bank app). Lists get pull-to-refresh (`RefreshControl`, lime spinner); glass skeletons only on the first load, never on a refetch.
-- Retry policy on the `QueryClient` (`shouldRetry` in `shared/lib`): queries retry once, only on `NETWORK` or `INTERNAL_ERROR`; every other `ApiError` fails at once, then "Tentar de novo". Mutations (login, verify/reject) never retry automatically.
+- `auth`: Clerk, `me`, editar perfil, deep link do convite.
+- `groups`: listar Groups, membros (nome, e-mail, telefone, papel, pendente), adicionar Viewer, novo Activation link, remover Viewer, Teams (CRUD e membros).
+- `events`: listar Events do Group, criar, editar, publicar, cancelar e descancelar; Participants (nascer de Group members ou Teams, ajustar).
+- `schedule`: `GET /events/:id/schedule` (General info, Timeline por dia, marcas de mudança, `seenUpTo`) e `POST /events/:id/last-seen` (PROJ-187, PROJ-196, PROJ-202, PROJ-207, PROJ-209).
+- `items`: criar, editar, apagar, publicar, cancelar e descancelar Event items; Fields de texto e de pessoas (Users e nomes soltos, Personal note, visibilidade, Highlight, ordem), vincular nome solto, Audience, ordem manual.
+- `admin`: Groups da plataforma, criar Group, definir e rebaixar Owner.
+- `profile`: tela sobre a Session.
+- Contratos: período do Event como `{ startDate, endDate, timezone }`; hora de item como `{ date, time, timezone }`, sem conversão; instantes técnicos em ISO 8601 UTC (PROJ-182, PROJ-187). Os nomes exatos dos campos de cada rota se fecham com o PRD #57 e as tarefas da events-api; o app segue o OpenAPI do Scalar quando cada módulo entrar em `LIVE_MODULES`.
 
-**Início (ADR-0003)**
-- No `DashboardRepository` and no `GET /dashboard`: Início is a screen of `features/events` over the same `list()` query (`eventsKey`) as Eventos, through a pure `homeSummary(events, now)` (`features/events/home-summary.ts`) returning the active and archived counts, the RSVP / `VERIFIED` / Registry item totals of active Events, the happening Events and the upcoming ones (nearest first; the 30-day list). `now` is the render time, so "acontecendo" and "em N dias" are never older than the screen. Beside it, `pendingTotal(events)` (the `PAID` count over the Events with `canVerify`; null, and the hero hidden, when there is none) and `pendingByEvent(events)` (Events with `canVerify` and `paidContributionCount > 0`, in the list's `sortEvents` order).
-- Amounts are summed as BRL (`formatMoney(amount, 'BRL')`); Events in other currencies are out of scope.
-- Freshness comes for free: Verification already patches and invalidates the Events list. The optimistic reducer also moves the `VERIFIED` amount into or out of `summary.verifiedAmount`.
-- The greeting reads the Session's User (refreshed by the background `GET /me`); the first name is the name up to the first space.
-- The expanded "Próximos eventos" list is local state on Início: a full-screen overlay (blur + dim, over the tab bar) laid out from the card's measured position, Reanimated spring; it closes on tapping outside, on tapping an Event (before navigating) and when the screen loses focus.
+**Módulos puros (profundos, sem React, testáveis isolados)**
 
-**Domain module (second seam)**
-- Pure functions used by the screens; rules needed by more than one feature (e.g. `canVerify`) live in `src/shared/domain/`, one file per concept (`roles.ts`, `contributions.ts`, `events.ts`), no React. A rule used by one feature only stays in that feature, as a pure module at its root (e.g. `features/profile/account-rows.ts`), and moves to `shared/domain/` when a second feature needs it. The planned rules: `canVerify(event)` (its `status` and the viewer's `membership`, like `canSeeGuests`: Super admin and Owner always, Manager only on an active Event, Viewer never; the Viewer notices key on the role, not on `!canVerify`), viewer role label (`roleLabel(membership)`: the membership role, with "· principal" for the Primary owner; "Super admin" when there is no Membership, which the API sends only to the Super admin), Contribution ordering (`sortContributions`: `PAID` by `paidAt` ascending, then `VERIFIED`/`REJECTED` by `paidAt` descending), counters (per-Event pending count for the chip/dot; `VERIFIED` sum; Início's `pendingTotal` / `pendingByEvent`, over the Events with `canVerify`, stay in `features/events/home-summary.ts` since only Início uses them), the Events list order (`sortEvents`: active by `startsAt` ascending, then archived by `startsAt` descending; the app sorts, not the API), the `VERIFIED` sum (`verifiedAmount`), the member label (`memberRoleLabel`), `formatMoney`, archived handling (`canSeeGuests(event)` (its `status` and the viewer's `membership`): an archived Event's Guest data only for Owners and the Super admin), the RSVP/Contribution day (`formatEventDay(iso, timezone)`: `dd/mm` in the Event's timezone) and the sheet's "Marcada paga" (`formatEventDayTime`: `dd/mm HH:MM` in the Event's timezone), the outcomes offered per status (`verificationOutcomes`), and the optimistic Verification reducer (`applyStatusChange` over the cached Events list, Event and Contributions; its rollback is `undoStatusChange`, applied only while the Contribution is still as the change left it, so concurrent Verifications don't undo each other). Single-feature rules from PROJ-88: the members' order (`sortMembers`, `features/members/member-order.ts`); from PROJ-89: the RSVPs' order (`sortRsvps`, `createdAt` descending, `features/rsvps/rsvp-order.ts`) and the Registry item's count label (`contributionCountLabel`, `features/registry/contribution-count-label.ts`).
+- **Montagem da programação**: recebe o payload da `schedule` e quem está vendo, e devolve as linhas da tela: General info; dias com itens (sem hora primeiro, depois por hora, respeitando a ordem manual); por item, o estado visual (padrão, sem hora, mudou, novo, cancelado, fantasma, rascunho), os valores antigos riscados, os Fields filtrados para a pessoa ("Seu carro"), as Personal notes visíveis e o rótulo de fuso quando difere do Event. Usada pelo Resumo e pela Timeline.
+- **Rascunho do item**: o estado do editor (nome, data, hora, lugar, Fields, Audience) com ações puras (adicionar Field, mover, trocar visibilidade, copiar Team para o Audience) e a geração do payload de escrita. Copiar um Team expande as pessoas naquele momento (o Team não fica vinculado). Também diz quantas pessoas o Audience alcança.
+- **Permissões**: a partir da Membership e do estado do Event, diz o que a pessoa pode fazer (editar Event, editar itens, gerenciar pessoas e Teams, ver Drafts, ver a programação, ser Super admin). Esconde ações; a API continua sendo quem decide.
+- **Cores automáticas**: tom categórico de um Event ou Team pelo id (coral, verde, roxo, rosa, turquesa, ouro; nunca o azul da marca), sem campo na API.
+- **Datas locais**: formatação de data, dia da semana, hora e rótulo de fuso a partir de `{ date, time, timezone }`, sem conversão; "fora do período"; Finished event pela data final no fuso do Event.
+
+**Visual (design D)**
+
+- Tokens por papel (`bg`, `surface`, `surface-brand`, `text`, `text-muted`, `action`, `link`, `badge-bg`, `badge-text`, `team-chip`, `cover`, `timeline-dot`), com valores claro e escuro. Paleta em 5 passos (50, 100, 500, 700, 900): azul da identidade, 6 categóricas, vermelho para cancelado e cinza.
+- Estados em selos pequenos e sempre com texto: coral = mudou/novo, verde = agora/você vai, ouro = rascunho, vermelho = cancelado, cinza = removido. Event items ficam neutros. Ações sempre azuis, mesmo dentro de um Event colorido.
+- Tipografia: Outfit, com IBM Plex Mono só para links e códigos; o "·" colorido nos títulos.
+- Navegação: barra flutuante azul do Group (Início, Hoje, Pessoas, Perfil); dentro do Event, a barra troca para Resumo, Timeline e Pessoas. Cabeçalho azul no Group e na cor do Event dentro dele, com cartão flutuante sobre a capa. Folhas baixas e altas e ações fixas no rodapé como no Media kit.
+- O glass da V1 (`expo-glass-effect`, `expo-blur`, fundo com orbs) sai.
+- Ícone do app: W2 (cartão branco com a linha do tempo azul, o ponto coral e os itens nas cores da paleta) e a versão escura dele. Splash: fundo azul 900 → 500 com o ícone ao centro. O nome "Events" é provisório.
+
+**Dados e sincronização**
+
+- Ao abrir um Event, o app lê a `schedule` e então chama `last-seen` com o `seenUpTo` recebido, para que as marcas apareçam nesta visita e sumam na próxima.
+- As escritas da produção invalidam a `schedule`, a lista de Events e os Participants do Event. Sem atualização otimista nesta fatia, exceto a ordem manual.
+- A última leitura de cada Event fica em cache persistido no aparelho, para a consulta sem conexão.
+- Os módulos entram em `LIVE_MODULES` um a um, conforme as tarefas da events-api ficam prontas; até lá, o mock V2 responde com o cenário de Manaus.
 
 ## Testing Decisions
 
-- Good tests exercise external behavior through the two agreed seams and the hooks/Session store; they don't assert on internals, component trees, or styles. A test should survive swapping the mock for HTTP and refactoring the screens.
-- **Seam 1 — repository contract suites** (`jest-expo`): one suite per interface, run today against the mock and, as each module joins `LIVE_MODULES`, against the HTTP implementation with `fetch` stubbed. Covers login and `/me`, error envelope → typed error, network failure → `NETWORK`, `UNAUTHENTICATED` → session-expired signal, Event visibility by role, an archived Event's Guest data only for Owners and the Super admin, verify/reject from `PAID` and as a revision (`VERIFIED ↔ REJECTED`), idempotent on the status it already has, `CONTRIBUTION_NOT_PAID` otherwise, Viewer → `FORBIDDEN`, an archived Event's Manager → `EVENT_ARCHIVED`, Receipt missing → `NOT_FOUND`.
-- **Seam 2 — domain module**: role label, `canVerify`, `PAID`-first ordering, counters, archived handling, and the optimistic reducer's before → after state (Início's numbers, badge, "Verificado").
-  - Since PROJ-90, `canVerify` is tested across role × Event status (Owner, Manager, Viewer, Super admin; active and archived).
-- **Hooks and Session store** (React Native Testing Library `renderHook`): login, Session restore on reopen, "Sair" clears the Session but keeps the saved email, Demo mode never touches the saved email. Since PROJ-91, the Verification mutation: optimistic Início/badge/"Verificado", rollback and the reported failure, the next Verification clearing it, the refetch once the last one settles, and a failure's rollback leaving another in-flight Verification's change alone.
-- Since the Início slices: `homeSummary` table-driven over role × Event status × dates (happening with and without `endsAt`, today / tomorrow / N days across a timezone's midnight, the 30-day edge, nothing upcoming), with a fixed `now`. The mock's dates are relative to load time, so tests that print them fix the clock.
-- Not tested automatically yet: `Glass`, navigation, animations. Screen tests come when a screen carries a rule: since PROJ-91, the Contribution sheet's Verification (who gets the buttons, the revision buttons, the confirmation before each Verification), rendered with RNTL over Reanimated's and Worklets' mocks (`jest.setup.ts`) and the sheet's `useCloseSheet` mocked. Validated manually on an iPhone (Expo Go) day to day, and in the iOS 26 simulator before a story closes.
-- Prior art: this repo has none yet. The backend (`events-api`) uses Vitest with pure unit tests for policy modules (e.g. AccessPolicy/MembershipRules matrices); follow the same style of table-driven role matrices.
+- Um bom teste exercita comportamento externo pelos seams combinados (repositórios, módulos puros, hooks, telas com regra) e sobrevive à troca do mock pelo HTTP e à refatoração das telas. Não testa estilos nem a árvore de componentes.
+- **Contrato dos repositórios**: uma suíte por repositório, rodando contra o mock V2 e contra o HTTP com o `fetch` falso (`*-repository.contract.test.ts`). Cobre envelope de erro, `NETWORK`, `UNAUTHENTICATED`, `USER_NOT_INVITED`, `ALREADY_A_GROUP_MEMBER`, `403` de Viewer nas escritas, Event em Draft sem itens para Viewer, Viewer não Participant sem itens, regra do último Owner.
+- **Módulos puros**: tabelas de casos com o cenário de Manaus. Montagem da programação: translado de domingo 00:40 no domingo, item na véspera do período, sem hora antes de com hora, riscado só pela diferença líquida, novo, fantasma, Draft só como novo, Personal notes privadas e para todos, rótulo de fuso. Rascunho do item: Teams expandidos, contagem do Audience, ordem dos Fields, payload. Permissões: Owner, Viewer Participant, Viewer não Participant e Super admin × Draft, publicado, Cancelled e Finished. Cores e datas locais com relógio fixo. Prior art: os testes de domínio em `shared/domain` e a matriz de papéis da events-api (AccessPolicy em Vitest).
+- **Sessão e hooks** (`renderHook`): login pelo Clerk com um Clerk falso, restauração da Session, `UNAUTHENTICATED` limpando a Session uma vez, `USER_NOT_INVITED`, troca de Group, marcar o Last seen ao abrir o Event, invalidação após escritas da produção. Prior art: os testes de `auth-hooks` e `session-store`.
+- **Telas com regra** (RNTL, com os mocks de Reanimated e Worklets do `jest.setup`): editor de item (Fields, Highlight, Draft e Publicar), Quem vê (Todos vs escolhido, Teams copiados, contagem) e Field de pessoas (nota, visibilidade, nome solto).
+- Fora dos testes automáticos: animações e navegação; validação manual no iPhone e no simulador iOS 26.
 
 ## Out of Scope
 
-- Validating on an Android emulator (no Android SDK installed yet): Android must compile and keep its fallback isolated in `Glass`, but "done" is the iOS simulator (iOS 26+ runtime, native glass).
-- Dev builds / EAS / store publishing.
-- Snapshot and E2E tests; component tests until a screen carries a rule.
-- Any write besides Verification: creating/editing Events, members, Registry items, RSVPs; archiving; password change / user activation (events-api #4).
-- Sign-up (only the Super admin creates Users).
-- Demo mode in release builds.
-- Persisting mock Verification results; offline support beyond the demo.
-- Summing amounts across currencies on Início (everything is BRL today).
-- The Resumo reading the Event summary (see Further Notes).
-- Who verified a Contribution and when (`verifiedAt`, `verifiedBy`) in the sheet: events-api #17 stores them, but the list doesn't return them yet.
-- Light mode, landscape, tablets, haptics, push notifications, i18n beyond pt-BR.
-- Pagination (events-api #29, V2) and automatic Pix verification via PSP (events-api #27).
-- Any change to the events-api backend.
+- As fatias seguintes da events-api: Event manager e Item lead (PROJ-114, PROJ-119, PROJ-125), Event guest e Guest access link (PROJ-110, PROJ-118), Request (PROJ-123, PROJ-125), despublicar e Archived event (PROJ-112), Field de fotos, paletas e Saved fields (PROJ-113, PROJ-114), Item templates (PROJ-114), tela do Change log (PROJ-115), Notifications, push e preferência de canal (PROJ-75, PROJ-116, PROJ-117).
+- Saved place (lugar salvo) como atalho do Group.
+- Copiar um Event; mover os itens quando o período muda.
+- Web e tablet; landscape; idiomas além de pt-BR. O dashboard web da produção é um esforço à parte: o mapa "Events-Web: dashboard web da produção" (PROJ-241).
+- EAS Build, App Store e políticas de loja (ficam para um ticket de release).
+- Qualquer mudança na events-api.
 
 ## Further Notes
 
-- Design source of truth: `docs/design/` (README with tokens, screens, states; `Events App Glass.dc.html` prototype, open in Chromium; its `EVENTS`, `view()` and `lensMap()` document mock data, role rules and refraction). The HTML is a reference, not code to copy. The handoff's original `PROMPT.md` is superseded by this spec.
-- Domain: glossary and ADRs live in `penteado40/events-api` (`CONTEXT.md`, ADR-0003 roles/Primary owner, ADR-0004 Contributions — "paid" is a Guest declaration, not proof; ADR-0008 API contract).
-- Backend dependencies that unblock switching modules to HTTP: events-api #5 (Events + AccessPolicy, with `membership` on each Event; Jira PROJ-55), #17's `paidContributionCount` on `GET /events` (Jira PROJ-67), #6 (members), #10 (RSVP), #13 (Registry items), #17 (Verification + Receipt).
-- Início's visual reference is `docs/design/inicio.png` (the HTML prototype has no Início): card materials, type, the date block, section titles in mono outside the cards, the pending chips and the 3-tab bar. Where it differs from this spec, the spec wins: the order is greeting → Acontecendo agora → grid → Próximos eventos → Para conferir → Conferir por evento; "PRÓXIMOS EVENTOS" (plural, with the stack); "nos eventos ativos" under CONFIRMADOS (not `RSVPs "vai"`); money always with centavos ("R$ 1.610,00"); "1 pendente" in the singular.
-- Início needs the Event summary (`summary: { rsvpCount, verifiedAmount, registryItemCount }`) on every `GET /events` item before `events` joins `LIVE_MODULES` (requested on events-api PROJ-100, which builds the Event summary, like `paidContributionCount` on PROJ-67). Once it lands, the Resumo can read "Confirmados" and "Verificado" from it too, and show Managers and Viewers of an archived Event the real number instead of "—" (events-api ADR-0011).
-- The mock's sample dates are relative to when it loads (Ana & Rafael +44 days, Chá da Júlia +10, Marcos 40 +23, Vera Cruz +72, Offsite Kora −19, plus an Event that started 2 h earlier), so Demo mode always has something happening and upcoming. Every date of a sample Event (its start, `createdAt`/`updatedAt`, RSVPs, Contributions' `paidAt`) moves by the same whole number of days, counted on São Paulo's calendar from `SAMPLE_DATE` (01/10/2026, the day the literals in `data.ts` were written for), so each keeps its local time; Users' `createdAt` stays fixed. Aniversário da Cláudia starts 2 h before the mock loads, but never before that day's midnight, so it's still on. `createMockBackend({ now })` takes the clock; under Jest it defaults to `SAMPLE_DATE`, so tests pass on any day.
-- CORS in the backend is localhost-only outside production; irrelevant for native, matters only for `expo start --web`.
-- Local setup needed before PROJ-85 closes: install Xcode, an iOS 26+ simulator runtime, and `sudo xcode-select -s /Applications/Xcode.app`. Real login test: backend `npm run dev` with `admin@local.test / admin123`.
-- Slices (Jira, epic PROJ-84): PROJ-85 walking skeleton · PROJ-86 real login · PROJ-87 events list · PROJ-88 event detail · PROJ-89 RSVPs and Presentes · PROJ-90 Conferir and read-only sheet · PROJ-91 Verification · PROJ-92 fidelity review. Início: PROJ-101 relative mock dates · PROJ-102 Início with the numbers (tabs, Event summary, grid, states) · PROJ-103 Para conferir · PROJ-104 happening and upcoming · PROJ-105 expanded upcoming list.
-
+- Fontes: mapa PROJ-51 e tickets resolvidos (PROJ-107 a 125, 159), tarefas da primeira fatia (PROJ-161 a 209) e glossário da events-api (branch `docs/pivo-groups`). Os contratos finais vêm do PRD da events-api (#57) e do OpenAPI.
+- Cenário de exemplo do mock e dos testes: Group Vocal Livre; Event "Saída Manaus" (20 a 22 de novembro, Manaus, AM) com voo VIX → MAO, Hotel Taj Mahal, passagem de som 15h → 16h, show no Teatro Amazonas, translado de 00:40 no domingo, Carro 1 - EC (Matias, Jacque saindo, Lu entrando), Seu Raimundo como nome solto; Teams Cantores, Banda, Técnica e Produção.
+- Pontos em aberto na events-api que afetam o app: o Owner ver a programação "como" um Participant; mudança de Audience ser Change só da produção (PROJ-160).
+- Histórias da V2 no Jira: épico PROJ-84, rótulos `events-expo` e `v2` (PROJ-211 em diante).
