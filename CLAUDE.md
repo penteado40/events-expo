@@ -6,7 +6,7 @@ Issues live in Jira (site `flpenteado.atlassian.net`, project `PROJ`, epic `PROJ
 
 ### Spec and design
 
-`docs/spec.md` is the canonical spec; copies in Jira PROJ-84 and GitHub #1 are snapshots. Design source of truth: `docs/design/` (README with tokens and screens, plus the HTML prototype).
+`docs/spec.md` is the canonical spec: the V2 PRD (design D); the Jira PROJ-210 description is a snapshot. Design source of truth: the canvas [events-expo · Design D](https://claude.ai/artifact/XBggR1iFpMS3Ht8x7Hw8k6) (pages App and Media kit), read with the Artifact tool. The V1 spec and `docs/design/` (liquid glass) are gone; don't revive them as references.
 
 ### Domain docs
 
