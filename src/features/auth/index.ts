@@ -1,3 +1,5 @@
+export { readActivationLink } from './activation-link'
+export { ActivationScreen } from './components/activation-screen'
 export { ForgotPasswordScreen } from './components/forgot-password-screen'
 export { LoginScreen } from './components/login-screen'
 export { useSessionCheck } from './hooks/use-session-check'
