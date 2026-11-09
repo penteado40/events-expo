@@ -41,4 +41,73 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
 
     await expect(repo.list()).rejects.toMatchObject({ code: 'UNAUTHENTICATED' })
   })
+
+  describe('members', () => {
+    it("lists the Group's members with role, phone, Teams and pending invitation", async () => {
+      const repo = createRepository('lu.andrade@example.com')
+
+      const members = await repo.listMembers(1)
+
+      expect(members).toContainEqual({
+        userId: 3,
+        name: 'Matias Costa',
+        email: 'matias.costa@example.com',
+        phone: '+5527999990003',
+        role: 'VIEWER',
+        isPending: false,
+        teams: [
+          { id: 5, name: 'Banda' },
+          { id: 6, name: 'Técnica' },
+        ],
+      })
+      expect(members).toContainEqual(
+        expect.objectContaining({ name: 'Bruno Reis', role: 'OWNER', isPending: false }),
+      )
+      expect(members).toContainEqual(
+        expect.objectContaining({
+          name: 'Tiago Souza',
+          role: 'VIEWER',
+          isPending: true,
+          teams: [],
+        }),
+      )
+    })
+
+    it('shows any Group to the Super admin', async () => {
+      const repo = createRepository('admin@local.test')
+
+      await expect(repo.listMembers(2)).resolves.toHaveLength(2)
+    })
+
+    it('answers NOT_FOUND to someone outside the Group', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.listMembers(2)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it('refuses with UNAUTHENTICATED when signed out', async () => {
+      const repo = createRepository(null)
+
+      await expect(repo.listMembers(1)).rejects.toMatchObject({ code: 'UNAUTHENTICATED' })
+    })
+  })
+
+  describe('Teams', () => {
+    it("lists the Group's Teams by name, with how many people each has", async () => {
+      const repo = createRepository('lu.andrade@example.com')
+
+      await expect(repo.listTeams(1)).resolves.toEqual([
+        { id: 5, name: 'Banda', memberCount: 1 },
+        { id: 4, name: 'Cantores', memberCount: 2 },
+        { id: 2, name: 'Produção', memberCount: 1 },
+        { id: 6, name: 'Técnica', memberCount: 1 },
+      ])
+    })
+
+    it('answers NOT_FOUND to someone outside the Group', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.listTeams(2)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+  })
 })

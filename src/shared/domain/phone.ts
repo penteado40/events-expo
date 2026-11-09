@@ -42,3 +42,9 @@ export function formatPhone(e164: string): string {
   const [, area, first, last] = brazil
   return `+55 ${area} ${first}-${last}`
 }
+
+/** The WhatsApp conversation with a stored phone; null when the person has none. */
+export function whatsappUrl(e164: string): string | null {
+  const digits = e164.replace(/\D/g, '')
+  return digits ? `https://wa.me/${digits}` : null
+}

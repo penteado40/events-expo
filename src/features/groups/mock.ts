@@ -9,7 +9,7 @@ import {
 } from '@/shared/mock-backend'
 
 import type { GroupsRepository } from './repository'
-import { groupSchema } from './schemas'
+import { groupMemberSchema, groupSchema, teamSchema } from './schemas'
 
 type Options = { getEmail?: GetEmail; backend?: MockBackend }
 
@@ -20,5 +20,11 @@ export function createMockGroupsRepository({
 }: Options = {}): GroupsRepository {
   return {
     list: async () => z.array(groupSchema).parse(await backend.groups(await identityOf(getEmail))),
+    listMembers: async (groupId) =>
+      z
+        .array(groupMemberSchema)
+        .parse(await backend.groupMembers(await identityOf(getEmail), groupId)),
+    listTeams: async (groupId) =>
+      z.array(teamSchema).parse(await backend.groupTeams(await identityOf(getEmail), groupId)),
   }
 }

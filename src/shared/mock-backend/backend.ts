@@ -37,7 +37,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
   const delay = () => new Promise((resolve) => setTimeout(resolve, latencyMs))
 
   /** `GET /me`: the User, its Membership, and whether it is the Super admin (PROJ-178). */
-  function userJson({ deactivatedAt: _deactivatedAt, ...user }: UserRow) {
+  function userJson({ deactivatedAt: _deactivatedAt, isPending: _isPending, ...user }: UserRow) {
     const memberships = data.groupMembers
       .filter((m) => m.userId === user.id)
       .map(({ groupId, role }) => ({
@@ -69,12 +69,31 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     const found = data.users.find((u) => u.email === email)
     if (found?.deactivatedAt) throw userDeactivated()
     return (
-      found ?? { id: 0, name: email, email, phone: '', isSuperAdmin: false, deactivatedAt: null }
+      found ?? {
+        id: 0,
+        name: email,
+        email,
+        phone: '',
+        isSuperAdmin: false,
+        deactivatedAt: null,
+        isPending: false,
+      }
     )
   }
 
   const isMember = (userId: number, groupId: number) =>
     data.groupMembers.some((m) => m.userId === userId && m.groupId === groupId)
+
+  /** Anyone outside the Group gets `NOT_FOUND`, so it does not leak. */
+  function assertSeesGroup(asker: UserRow, groupId: number) {
+    const group = data.groups.find((g) => g.id === groupId)
+    if (!group || !(asker.isSuperAdmin || isMember(asker.id, groupId))) throw notFound()
+  }
+
+  const teamsOf = (groupId: number) =>
+    data.teams
+      .filter((t) => t.groupId === groupId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 
   /** An Event as `GET /groups/:id/events` lists it, for the requester. */
   function eventJson(row: EventRow, requester: UserRow) {
@@ -135,12 +154,40 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     async groupEvents(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
       const asker = requester(identity)
-      const group = data.groups.find((g) => g.id === groupId)
-      if (!group || !(asker.isSuperAdmin || isMember(asker.id, groupId))) throw notFound()
+      assertSeesGroup(asker, groupId)
       return data.events
         .filter((e) => e.groupId === groupId)
         .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
         .map((e) => eventJson(e, asker))
+    },
+
+    /**
+     * `GET /groups/:id/members` (events-api PROJ-178): who is in the Group, in the order they
+     * joined. `teams` is not in the API yet: the shape the app expects once Teams exist.
+     */
+    async groupMembers(identity: VerifiedIdentity | null, groupId: number) {
+      await delay()
+      assertSeesGroup(requester(identity), groupId)
+      return data.groupMembers
+        .filter((m) => m.groupId === groupId)
+        .map(({ userId, role }) => {
+          const { name, email, phone, isPending } = data.users.find((u) => u.id === userId)!
+          const teams = teamsOf(groupId)
+            .filter((t) => t.memberIds.includes(userId))
+            .map(({ id, name: team }) => ({ id, name: team }))
+          return { userId, name, email, phone, role, isPending, teams }
+        })
+    },
+
+    /** The Group's Teams by name, with how many people each has. Not in the API yet. */
+    async groupTeams(identity: VerifiedIdentity | null, groupId: number) {
+      await delay()
+      assertSeesGroup(requester(identity), groupId)
+      return teamsOf(groupId).map(({ id, name, memberIds }) => ({
+        id,
+        name,
+        memberCount: memberIds.length,
+      }))
     },
 
     /** A sample User as `GET /me` would return it, for Demo mode. */

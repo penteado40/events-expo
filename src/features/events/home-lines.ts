@@ -1,5 +1,6 @@
 import { autoTone, type AutoTone } from '@/shared/domain/auto-tone'
 import { isGroupMember, seesDrafts, type GroupRole } from '@/shared/domain/group-role'
+import { foldText } from '@/shared/domain/fold-text'
 import { dayAndMonth, isFinished, periodDays, weekday } from '@/shared/domain/local-dates'
 
 import type { Event } from './schemas'
@@ -39,13 +40,6 @@ export type HomeLine = {
   subtitle: string
 }
 
-/** Lowercase and without accents, so "saida" finds "Saída". */
-const fold = (text: string) =>
-  text
-    .normalize('NFD')
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-
 const byStart = (a: Event, b: Event) =>
   a.period.startDate.localeCompare(b.period.startDate) || a.id - b.id
 
@@ -55,11 +49,11 @@ const byStart = (a: Event, b: Event) =>
  * moves to Passados once its last day is over in its own timezone (Finished event).
  */
 export function homeLines(events: Event[], { tab, query, now, role }: HomeOptions): HomeLine[] {
-  const search = fold(query.trim())
+  const search = foldText(query.trim())
   const chosen = events
     .filter((e) => (tab === 'past' ? isFinished(e.period, now) : !isFinished(e.period, now)))
     .filter((e) => tab !== 'going' || e.isParticipant)
-    .filter((e) => !search || fold(`${e.name} ${e.place}`).includes(search))
+    .filter((e) => !search || foldText(`${e.name} ${e.place}`).includes(search))
     .sort((a, b) => (tab === 'past' ? byStart(b, a) : byStart(a, b)))
 
   const featuredId =

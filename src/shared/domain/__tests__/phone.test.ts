@@ -1,4 +1,4 @@
-import { formatPhone, normalizePhone, phoneProblem } from '../phone'
+import { formatPhone, normalizePhone, phoneProblem, whatsappUrl } from '../phone'
 
 describe('normalizePhone', () => {
   it.each([
@@ -51,5 +51,15 @@ describe('formatPhone', () => {
     ['nothing', '', ''],
   ])('shows %s', (_, e164, shown) => {
     expect(formatPhone(e164)).toBe(shown)
+  })
+})
+
+describe('whatsappUrl', () => {
+  it('opens the conversation with a stored phone, by its digits', () => {
+    expect(whatsappUrl('+5527999990005')).toBe('https://wa.me/5527999990005')
+  })
+
+  it('has no conversation to open without a phone', () => {
+    expect(whatsappUrl('')).toBeNull()
   })
 })

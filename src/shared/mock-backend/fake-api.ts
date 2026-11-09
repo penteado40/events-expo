@@ -60,6 +60,14 @@ export function createFakeApi({
       if (groupEvents) {
         return json(200, { data: await backend.groupEvents(identity, Number(groupEvents[1])) })
       }
+      const groupMembers = route.match(/^GET \/groups\/(\d+)\/members$/)
+      if (groupMembers) {
+        return json(200, { data: await backend.groupMembers(identity, Number(groupMembers[1])) })
+      }
+      const groupTeams = route.match(/^GET \/groups\/(\d+)\/teams$/)
+      if (groupTeams) {
+        return json(200, { data: await backend.groupTeams(identity, Number(groupTeams[1])) })
+      }
       throw notFound()
     } catch (error) {
       if (!(error instanceof ApiError)) throw error
