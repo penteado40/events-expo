@@ -17,6 +17,7 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { CurrentGroup } from '../current-group'
 import { useGroupMembers, useGroupTeams } from '../hooks/use-group-people'
+import { joinPeopleAndTeams } from '../people-and-teams'
 import { peopleSections } from '../people-sections'
 import { MemberRow } from './member-row'
 import { TeamsList } from './teams-list'
@@ -71,7 +72,9 @@ export function GroupPeople({ group, onRefresh }: Props) {
   const shownQuery = tab === 'people' ? members : teams
   const countLabel = shownQuery.data && shown.count(shownQuery.data.length)
   const canAdd = permissions[shown.permission]
-  const sections = members.data ? peopleSections(members.data, query) : []
+  // The Pessoas tab does not wait for the Teams: people show first, their Teams once they come.
+  const joined = joinPeopleAndTeams(members.data ?? [], teams.data ?? [])
+  const sections = peopleSections(joined.people, query)
 
   const refresh = async () => {
     setPulling(true)
@@ -152,7 +155,7 @@ export function GroupPeople({ group, onRefresh }: Props) {
         ) : shownQuery.error && !shownQuery.data ? (
           <ErrorState message={shownQuery.error.message} onRetry={() => shownQuery.refetch()} />
         ) : tab === 'teams' ? (
-          <TeamsList teams={teams.data ?? []} />
+          <TeamsList teams={joined.teams} />
         ) : sections.length === 0 ? (
           <Text style={[textStyles.body, styles.empty, { color: colors.textMuted }]}>
             {query.trim()

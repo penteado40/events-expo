@@ -5,10 +5,10 @@ import { autoTone } from '@/shared/domain/auto-tone'
 import { plural } from '@/shared/domain/plural'
 import { fonts, textStyles, useTheme } from '@/shared/theme'
 
-import type { Team } from '../schemas'
+import type { TeamSummary } from '../people-and-teams'
 
 /** The Teams tab (D-Teams), read only: a card per Team and what choosing one means. */
-export function TeamsList({ teams }: { teams: Team[] }) {
+export function TeamsList({ teams }: { teams: TeamSummary[] }) {
   const { colors, cover } = useTheme()
 
   return (

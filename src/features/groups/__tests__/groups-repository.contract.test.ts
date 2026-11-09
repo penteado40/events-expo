@@ -43,7 +43,7 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
   })
 
   describe('members', () => {
-    it("lists the Group's members with role, phone, Teams and pending invitation", async () => {
+    it("lists the Group's members with role, phone and pending invitation", async () => {
       const repo = createRepository('lu.andrade@example.com')
 
       const members = await repo.listMembers(1)
@@ -55,21 +55,12 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
         phone: '+5527999990003',
         role: 'VIEWER',
         isPending: false,
-        teams: [
-          { id: 5, name: 'Banda' },
-          { id: 6, name: 'Técnica' },
-        ],
       })
       expect(members).toContainEqual(
         expect.objectContaining({ name: 'Bruno Reis', role: 'OWNER', isPending: false }),
       )
       expect(members).toContainEqual(
-        expect.objectContaining({
-          name: 'Tiago Souza',
-          role: 'VIEWER',
-          isPending: true,
-          teams: [],
-        }),
+        expect.objectContaining({ name: 'Tiago Souza', role: 'VIEWER', isPending: true }),
       )
     })
 
@@ -93,14 +84,14 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
   })
 
   describe('Teams', () => {
-    it("lists the Group's Teams by name, with how many people each has", async () => {
+    it("lists the Group's Teams by name, with who is in each", async () => {
       const repo = createRepository('lu.andrade@example.com')
 
       await expect(repo.listTeams(1)).resolves.toEqual([
-        { id: 5, name: 'Banda', memberCount: 1 },
-        { id: 4, name: 'Cantores', memberCount: 2 },
-        { id: 2, name: 'Produção', memberCount: 1 },
-        { id: 6, name: 'Técnica', memberCount: 1 },
+        { id: 5, name: 'Banda', memberIds: [3] },
+        { id: 4, name: 'Cantores', memberIds: [4, 5] },
+        { id: 2, name: 'Produção', memberIds: [2] },
+        { id: 6, name: 'Técnica', memberIds: [3] },
       ])
     })
 

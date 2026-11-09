@@ -15,7 +15,13 @@ export type GroupRow = { id: number; name: string }
 
 export type GroupMemberRow = { groupId: number; userId: number; role: 'OWNER' | 'VIEWER' }
 
-export type TeamRow = { id: number; groupId: number; name: string; memberIds: number[] }
+export type TeamRow = {
+  id: number
+  groupId: number
+  name: string
+  createdAt: string
+  memberIds: number[]
+}
 
 /** An Event as the mock stores it: where, when (local dates, ADR-0016), state and Participants. */
 export type EventRow = {
@@ -77,10 +83,10 @@ export function createDataset() {
   ]
   // Ids pick the automatic tone: Produção green, Cantores pink, Banda turquoise, Técnica gold.
   const teams: TeamRow[] = [
-    { id: 2, groupId: VOCAL_LIVRE, name: 'Produção', memberIds: [DEMO_OWNER_ID] },
-    { id: 4, groupId: VOCAL_LIVRE, name: 'Cantores', memberIds: [4, DEMO_VIEWER_ID] },
-    { id: 5, groupId: VOCAL_LIVRE, name: 'Banda', memberIds: [3] },
-    { id: 6, groupId: VOCAL_LIVRE, name: 'Técnica', memberIds: [3] },
+    team(2, 'Produção', [DEMO_OWNER_ID]),
+    team(4, 'Cantores', [4, DEMO_VIEWER_ID]),
+    team(5, 'Banda', [3]),
+    team(6, 'Técnica', [3]),
   ]
   const everyone = [DEMO_OWNER_ID, 3, 4, DEMO_VIEWER_ID]
   const saoPaulo = 'America/Sao_Paulo'
@@ -111,6 +117,10 @@ export function createDataset() {
     }),
   ]
   return { users, groups, groupMembers, teams, events }
+
+  function team(id: number, name: string, memberIds: number[]): TeamRow {
+    return { id, groupId: VOCAL_LIVRE, name, createdAt: '2026-09-01T12:00:00.000Z', memberIds }
+  }
 
   function event(
     id: number,

@@ -1,16 +1,16 @@
 import { foldText } from '@/shared/domain/fold-text'
 
-import type { GroupMember } from './schemas'
+import type { Person } from './people-and-teams'
 
-export type PeopleSection = { title: string; members: GroupMember[] }
+export type PeopleSection = { title: string; members: Person[] }
 
-const SECTIONS: { title: string; role: GroupMember['role'] }[] = [
+const SECTIONS: { title: string; role: Person['role'] }[] = [
   { title: 'OWNERS · A PRODUÇÃO', role: 'OWNER' },
   { title: 'VIEWERS', role: 'VIEWER' },
 ]
 
 /** The Pessoas tab: Owners, then Viewers, each by name, filtered by the search on the name. */
-export function peopleSections(members: GroupMember[], query: string): PeopleSection[] {
+export function peopleSections(members: Person[], query: string): PeopleSection[] {
   const search = foldText(query.trim())
   const found = members
     .filter((m) => foldText(m.name).includes(search))

@@ -1,7 +1,7 @@
 import { peopleSections } from '../people-sections'
-import type { GroupMember } from '../schemas'
+import type { Person } from '../people-and-teams'
 
-const member = (name: string, role: GroupMember['role']): GroupMember => ({
+const member = (name: string, role: Person['role']): Person => ({
   userId: name.length,
   name,
   email: 'x@example.com',

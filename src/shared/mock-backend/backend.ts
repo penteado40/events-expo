@@ -163,31 +163,32 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
     /**
      * `GET /groups/:id/members` (events-api PROJ-178): who is in the Group, in the order they
-     * joined. `teams` is not in the API yet: the shape the app expects once Teams exist.
+     * joined.
      */
     async groupMembers(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
       assertSeesGroup(requester(identity), groupId)
-      const groupTeams = teamsOf(groupId)
       return data.groupMembers
         .filter((m) => m.groupId === groupId)
         .map(({ userId, role }) => {
           const { name, email, phone, isPending } = data.users.find((u) => u.id === userId)!
-          const teams = groupTeams
-            .filter((t) => t.memberIds.includes(userId))
-            .map(({ id, name: team }) => ({ id, name: team }))
-          return { userId, name, email, phone, role, isPending, teams }
+          return { userId, name, email, phone, role, isPending }
         })
     },
 
-    /** The Group's Teams by name, with how many people each has. Not in the API yet. */
+    /**
+     * `GET /groups/:id/teams` (events-api PROJ-181): the Group's Teams by name. `members` comes
+     * with PROJ-183, whose shape is assumed (`[{ userId }]`, see the groups feature's schemas).
+     */
     async groupTeams(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
       assertSeesGroup(requester(identity), groupId)
-      return teamsOf(groupId).map(({ id, name, memberIds }) => ({
+      return teamsOf(groupId).map(({ id, groupId: group, name, createdAt, memberIds }) => ({
         id,
+        groupId: group,
         name,
-        memberCount: memberIds.length,
+        createdAt,
+        members: memberIds.map((userId) => ({ userId })),
       }))
     },
 

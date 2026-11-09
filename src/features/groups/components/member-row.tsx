@@ -6,9 +6,9 @@ import { initials } from '@/shared/domain/initials'
 import { whatsappUrl } from '@/shared/domain/phone'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
-import type { GroupMember } from '../schemas'
+import type { Person } from '../people-and-teams'
 
-type Props = { member: GroupMember; isMe: boolean }
+type Props = { member: Person; isMe: boolean }
 
 /**
  * A person on the Pessoas tab (D-Pessoas): the avatar ringed in their first Team's color (dashed
