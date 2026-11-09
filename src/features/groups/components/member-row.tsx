@@ -17,7 +17,7 @@ type Props = { member: GroupMember; isMe: boolean }
 export function MemberRow({ member, isMe }: Props) {
   const { colors, badge } = useTheme()
   const { name, teams, isPending, role, phone } = member
-  const firstTeam = teams[0] ? autoTone(teams[0].id) : null
+  const firstTeamTone = teams[0] ? autoTone(teams[0].id) : null
   const url = isMe || isPending ? null : whatsappUrl(phone)
   const subtitle = isPending ? 'ainda não entrou' : teams.map((t) => t.name).join(', ')
   const whatsapp = badge('green')
@@ -27,8 +27,12 @@ export function MemberRow({ member, isMe }: Props) {
       <View
         style={[
           styles.avatar,
-          { backgroundColor: isMe && firstTeam ? palette[firstTeam][100] : palette.gray[100] },
-          firstTeam && !isPending && { boxShadow: `0 0 0 2.5px ${palette[firstTeam][500]}` },
+          {
+            backgroundColor:
+              isMe && firstTeamTone ? palette[firstTeamTone][100] : palette.gray[100],
+          },
+          firstTeamTone &&
+            !isPending && { boxShadow: `0 0 0 2.5px ${palette[firstTeamTone][500]}` },
           isPending && [styles.pendingAvatar, { borderColor: colors.border }],
         ]}
       >
@@ -38,8 +42,8 @@ export function MemberRow({ member, isMe }: Props) {
             {
               color: isPending
                 ? palette.gray[700]
-                : isMe && firstTeam
-                  ? palette[firstTeam][700]
+                : isMe && firstTeamTone
+                  ? palette[firstTeamTone][700]
                   : palette.gray[900],
             },
           ]}

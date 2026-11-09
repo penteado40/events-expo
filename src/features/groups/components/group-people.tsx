@@ -10,7 +10,8 @@ import {
 } from 'react-native'
 
 import { ErrorState, GroupHeader, Icon, ListSkeleton } from '@/shared/components/ui'
-import { groupPermissions } from '@/shared/domain/permissions'
+import { groupPermissions, type GroupPermissions } from '@/shared/domain/permissions'
+import { plural } from '@/shared/domain/plural'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
@@ -22,9 +23,28 @@ import { TeamsList } from './teams-list'
 
 type Tab = 'people' | 'teams'
 
-const TABS: { tab: Tab; label: string }[] = [
-  { tab: 'people', label: 'Pessoas' },
-  { tab: 'teams', label: 'Teams' },
+const TABS: {
+  tab: Tab
+  label: string
+  /** The header's count: "5 pessoas", "4 Teams". */
+  count: (n: number) => string
+  add: string
+  permission: keyof GroupPermissions
+}[] = [
+  {
+    tab: 'people',
+    label: 'Pessoas',
+    count: (n) => plural(n, 'pessoa', 'pessoas'),
+    add: '+ Pessoa',
+    permission: 'managesPeople',
+  },
+  {
+    tab: 'teams',
+    label: 'Teams',
+    count: (n) => plural(n, 'Team', 'Teams'),
+    add: '+ Team',
+    permission: 'managesTeams',
+  },
 ]
 
 type Props = {
@@ -47,12 +67,10 @@ export function GroupPeople({ group, onRefresh }: Props) {
   const teams = useGroupTeams(group.id)
   const permissions = groupPermissions(group.role)
 
-  const current = tab === 'people' ? members : teams
-  const count =
-    tab === 'people'
-      ? members.data && plural(members.data.length, 'pessoa', 'pessoas')
-      : teams.data && plural(teams.data.length, 'Team', 'Teams')
-  const canAdd = tab === 'people' ? permissions.managesPeople : permissions.managesTeams
+  const shown = TABS.find((t) => t.tab === tab)!
+  const shownQuery = tab === 'people' ? members : teams
+  const countLabel = shownQuery.data && shown.count(shownQuery.data.length)
+  const canAdd = permissions[shown.permission]
   const sections = members.data ? peopleSections(members.data, query) : []
 
   const refresh = async () => {
@@ -68,16 +86,18 @@ export function GroupPeople({ group, onRefresh }: Props) {
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
       <GroupHeader>
         <View style={styles.topRow}>
-          <Text style={styles.count}>{count ? `${group.name} · ${count}` : group.name}</Text>
+          <Text style={styles.groupLine}>
+            {countLabel ? `${group.name} · ${countLabel}` : group.name}
+          </Text>
           {canAdd && (
             <Pressable
               disabled
               accessibilityRole="button"
-              accessibilityLabel={tab === 'people' ? '+ Pessoa' : '+ Team'}
+              accessibilityLabel={shown.add}
               accessibilityState={{ disabled: true }}
               style={styles.add}
             >
-              <Text style={styles.addLabel}>{tab === 'people' ? '+ Pessoa' : '+ Team'}</Text>
+              <Text style={styles.addLabel}>{shown.add}</Text>
             </Pressable>
           )}
         </View>
@@ -127,15 +147,17 @@ export function GroupPeople({ group, onRefresh }: Props) {
           <RefreshControl refreshing={pulling} onRefresh={refresh} tintColor={colors.action} />
         }
       >
-        {current.isPending ? (
+        {shownQuery.isPending ? (
           <ListSkeleton />
-        ) : current.error && !current.data ? (
-          <ErrorState message={current.error.message} onRetry={() => current.refetch()} />
+        ) : shownQuery.error && !shownQuery.data ? (
+          <ErrorState message={shownQuery.error.message} onRetry={() => shownQuery.refetch()} />
         ) : tab === 'teams' ? (
           <TeamsList teams={teams.data ?? []} />
         ) : sections.length === 0 ? (
           <Text style={[textStyles.body, styles.empty, { color: colors.textMuted }]}>
-            {`Ninguém encontrado para “${query.trim()}”.`}
+            {query.trim()
+              ? `Ninguém encontrado para “${query.trim()}”.`
+              : 'Ninguém neste Group ainda.'}
           </Text>
         ) : (
           sections.map((section) => (
@@ -154,8 +176,6 @@ export function GroupPeople({ group, onRefresh }: Props) {
   )
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topRow: {
@@ -165,7 +185,7 @@ const styles = StyleSheet.create({
     gap: 12,
     minHeight: 40,
   },
-  count: { flexShrink: 1, fontFamily: fonts.sans400, fontSize: 14, color: palette.blue[100] },
+  groupLine: { flexShrink: 1, fontFamily: fonts.sans400, fontSize: 14, color: palette.blue[100] },
   add: {
     height: 40,
     paddingHorizontal: 14,

@@ -168,11 +168,12 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     async groupMembers(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
       assertSeesGroup(requester(identity), groupId)
+      const groupTeams = teamsOf(groupId)
       return data.groupMembers
         .filter((m) => m.groupId === groupId)
         .map(({ userId, role }) => {
           const { name, email, phone, isPending } = data.users.find((u) => u.id === userId)!
-          const teams = teamsOf(groupId)
+          const teams = groupTeams
             .filter((t) => t.memberIds.includes(userId))
             .map(({ id, name: team }) => ({ id, name: team }))
           return { userId, name, email, phone, role, isPending, teams }

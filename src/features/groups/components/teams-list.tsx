@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import { Icon } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
+import { plural } from '@/shared/domain/plural'
 import { fonts, textStyles, useTheme } from '@/shared/theme'
 
 import type { Team } from '../schemas'
@@ -31,7 +32,7 @@ export function TeamsList({ teams }: { teams: Team[] }) {
                 <View style={styles.body}>
                   <Text style={[styles.name, { color: colors.text }]}>{team.name}</Text>
                   <Text style={[textStyles.caption, { color: colors.textMuted }]}>
-                    {team.memberCount === 1 ? '1 pessoa' : `${team.memberCount} pessoas`}
+                    {plural(team.memberCount, 'pessoa', 'pessoas')}
                   </Text>
                 </View>
               </View>
