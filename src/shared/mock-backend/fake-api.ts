@@ -3,6 +3,7 @@ import { ApiError } from '@/shared/lib/api-error'
 import {
   createMockBackend,
   notFound,
+  type EventBody,
   type MeChanges,
   type MockBackend,
   type VerifiedIdentity,
@@ -56,9 +57,21 @@ export function createFakeApi({
         return json(200, { data: await backend.updateMe(identity, body) })
       }
       if (route === 'GET /groups') return json(200, { data: await backend.groups(identity) })
-      const groupEvents = route.match(/^GET \/groups\/(\d+)\/events$/)
-      if (groupEvents) {
-        return json(200, { data: await backend.groupEvents(identity, Number(groupEvents[1])) })
+      const body = () => JSON.parse(String(init?.body ?? '{}')) as EventBody
+      const groupEvents = route.match(/^(GET|POST) \/groups\/(\d+)\/events$/)
+      if (groupEvents?.[1] === 'GET') {
+        return json(200, { data: await backend.groupEvents(identity, Number(groupEvents[2])) })
+      }
+      if (groupEvents?.[1] === 'POST') {
+        const created = await backend.createEvent(identity, Number(groupEvents[2]), body())
+        return json(201, { data: created })
+      }
+      const event = route.match(/^(GET|PATCH) \/events\/(\d+)$/)
+      if (event?.[1] === 'GET') {
+        return json(200, { data: await backend.event(identity, Number(event[2])) })
+      }
+      if (event?.[1] === 'PATCH') {
+        return json(200, { data: await backend.updateEvent(identity, Number(event[2]), body()) })
       }
       throw notFound()
     } catch (error) {

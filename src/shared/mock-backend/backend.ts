@@ -1,3 +1,4 @@
+import { isLocalDate, isTimezone } from '@/shared/domain/local-dates'
 import { normalizePhone } from '@/shared/domain/phone'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
@@ -16,9 +17,68 @@ const userNotInvited = () =>
 const userDeactivated = () =>
   new ApiError('USER_DEACTIVATED', 'Seu acesso à plataforma foi retirado.')
 export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
+const forbidden = () => new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.')
 
 /** The body of `PATCH /me`: what is left out stays. The email is Clerk's and never edited here. */
 export type MeChanges = { name?: string; phone?: string }
+
+/** The body of `POST /groups/:id/events`, and of `PATCH /events/:id` with every field optional. */
+export type EventBody = {
+  name?: string
+  place?: string
+  period?: { startDate: string; endDate: string; timezone: string }
+}
+
+type Detail = { path: string; message: string }
+
+const EVENT_NAME_MAX = 100
+const EVENT_PLACE_MAX = 200
+
+/**
+ * Checks an Event's body as the API's DTO would (PROJ-182): name and place trimmed and required,
+ * the period's real dates, a known IANA timezone and an end not before the start. Answers the
+ * trimmed values, or throws `VALIDATION_ERROR` with a detail per field.
+ */
+function checkEventBody(body: EventBody, { partial }: { partial: boolean }) {
+  const { name, place, period, ...rest } = body
+  const details: Detail[] = Object.keys(rest).map((key) => ({
+    path: key,
+    message: 'Campo desconhecido.',
+  }))
+  const text = (value: string | undefined, path: string, max: number) => {
+    if (value === undefined) {
+      if (!partial) details.push({ path, message: 'Obrigatório.' })
+      return undefined
+    }
+    const trimmed = value.trim()
+    if (trimmed.length < 1 || trimmed.length > max) {
+      details.push({ path, message: `Use de 1 a ${max} caracteres.` })
+    }
+    return trimmed
+  }
+  const checked = {
+    name: text(name, 'name', EVENT_NAME_MAX),
+    place: text(place, 'place', EVENT_PLACE_MAX),
+    period,
+  }
+  if (period === undefined) {
+    if (!partial) details.push({ path: 'period', message: 'Obrigatório.' })
+  } else {
+    const { startDate, endDate, timezone } = period
+    if (!isLocalDate(startDate))
+      details.push({ path: 'period.startDate', message: 'Data inválida.' })
+    if (!isLocalDate(endDate)) details.push({ path: 'period.endDate', message: 'Data inválida.' })
+    else if (isLocalDate(startDate) && endDate < startDate) {
+      details.push({ path: 'period.endDate', message: 'A data final vem antes da inicial.' })
+    }
+    if (!isTimezone(timezone)) details.push({ path: 'period.timezone', message: 'Fuso inválido.' })
+  }
+  if (partial && name === undefined && place === undefined && period === undefined) {
+    details.push({ path: '', message: 'Nada para alterar.' })
+  }
+  if (details.length > 0) throw validationError(details)
+  return checked
+}
 
 type Options = { latencyMs?: number }
 
@@ -75,6 +135,27 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
   const isMember = (userId: number, groupId: number) =>
     data.groupMembers.some((m) => m.userId === userId && m.groupId === groupId)
+
+  /**
+   * The Group as the asker reaches it: `NOT_FOUND` when it does not exist or they are not in it,
+   * `FORBIDDEN` when they are but only a Viewer and `write` is asked.
+   */
+  function reachGroup(asker: UserRow, groupId: number, { write }: { write: boolean }) {
+    const group = data.groups.find((g) => g.id === groupId)
+    if (!group || !(asker.isSuperAdmin || isMember(asker.id, groupId))) throw notFound()
+    const isOwner = data.groupMembers.some(
+      (m) => m.userId === asker.id && m.groupId === groupId && m.role === 'OWNER',
+    )
+    if (write && !asker.isSuperAdmin && !isOwner) throw forbidden()
+    return group
+  }
+
+  function reachEvent(asker: UserRow, eventId: number, options: { write: boolean }) {
+    const row = data.events.find((e) => e.id === eventId)
+    if (!row) throw notFound()
+    reachGroup(asker, row.groupId, options)
+    return row
+  }
 
   /** An Event as `GET /groups/:id/events` lists it, for the requester. */
   function eventJson(row: EventRow, requester: UserRow) {
@@ -135,12 +216,56 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     async groupEvents(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
       const asker = requester(identity)
-      const group = data.groups.find((g) => g.id === groupId)
-      if (!group || !(asker.isSuperAdmin || isMember(asker.id, groupId))) throw notFound()
+      reachGroup(asker, groupId, { write: false })
       return data.events
         .filter((e) => e.groupId === groupId)
         .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
         .map((e) => eventJson(e, asker))
+    },
+
+    /**
+     * `POST /groups/:id/events` (events-api PROJ-182): an Owner or the Super admin creates the
+     * Event, born in Draft and with no Participants yet.
+     */
+    async createEvent(identity: VerifiedIdentity | null, groupId: number, body: EventBody) {
+      await delay()
+      const asker = requester(identity)
+      reachGroup(asker, groupId, { write: true })
+      const { name, place, period } = checkEventBody(body, { partial: false })
+      const row: EventRow = {
+        id: Math.max(0, ...data.events.map((e) => e.id)) + 1,
+        groupId,
+        name: name!,
+        place: place!,
+        ...period!,
+        status: 'DRAFT',
+        cancelled: false,
+        participantIds: [],
+      }
+      data.events.push(row)
+      return eventJson(row, asker)
+    },
+
+    /** `GET /events/:id` (PROJ-182): any Group member, and the Super admin. */
+    async event(identity: VerifiedIdentity | null, eventId: number) {
+      await delay()
+      const asker = requester(identity)
+      return eventJson(reachEvent(asker, eventId, { write: false }), asker)
+    },
+
+    /**
+     * `PATCH /events/:id` (PROJ-182): an Owner or the Super admin edits name, place and period, a
+     * Finished event too; what is left out stays.
+     */
+    async updateEvent(identity: VerifiedIdentity | null, eventId: number, body: EventBody) {
+      await delay()
+      const asker = requester(identity)
+      const row = reachEvent(asker, eventId, { write: true })
+      const { name, place, period } = checkEventBody(body, { partial: true })
+      if (name !== undefined) row.name = name
+      if (place !== undefined) row.place = place
+      if (period !== undefined) Object.assign(row, period)
+      return eventJson(row, asker)
     },
 
     /** A sample User as `GET /me` would return it, for Demo mode. */

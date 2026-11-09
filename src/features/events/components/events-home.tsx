@@ -14,7 +14,7 @@ import Animated, {
 import { ErrorState, GroupGreeting, GroupHeader, Icon, ListSkeleton } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
 import { initials } from '@/shared/domain/initials'
-import type { GroupRole } from '@/shared/domain/group-role'
+import { canCreateEvent, type GroupRole } from '@/shared/domain/group-role'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
@@ -110,16 +110,33 @@ export function EventsHome({ groupId, role, groupSwitcher, onRefresh }: Props) {
       <GroupHeader>
         <View style={styles.topRow}>
           {groupSwitcher}
-          {user && (
-            <Pressable
-              onPress={() => router.navigate('/profile')}
-              accessibilityRole="button"
-              accessibilityLabel="Perfil"
-              style={[styles.avatar, { boxShadow: `0 0 0 3px ${palette[autoTone(user.id)][100]}` }]}
-            >
-              <Text style={styles.avatarLabel}>{initials(user.name)}</Text>
-            </Pressable>
-          )}
+          <View style={styles.topActions}>
+            {canCreateEvent(role) && (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/events/new', params: { groupId: String(groupId) } })
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Novo Event"
+                style={({ pressed }) => [styles.newEvent, pressed && { opacity: 0.75 }]}
+              >
+                <Icon name="plus" color="#FFFFFF" size={22} strokeWidth={2.2} />
+              </Pressable>
+            )}
+            {user && (
+              <Pressable
+                onPress={() => router.navigate('/profile')}
+                accessibilityRole="button"
+                accessibilityLabel="Perfil"
+                style={[
+                  styles.avatar,
+                  { boxShadow: `0 0 0 3px ${palette[autoTone(user.id)][100]}` },
+                ]}
+              >
+                <Text style={styles.avatarLabel}>{initials(user.name)}</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
         <Animated.View style={[styles.fold, greetingFold]}>
           <View
@@ -201,7 +218,13 @@ export function EventsHome({ groupId, role, groupSwitcher, onRefresh }: Props) {
         ) : lines.length === 0 ? (
           <Text style={[textStyles.body, styles.empty, { color: colors.textMuted }]}>{empty}</Text>
         ) : (
-          lines.map((line) => <EventLine key={line.event.id} line={line} />)
+          lines.map((line) => (
+            <EventLine
+              key={line.event.id}
+              line={line}
+              onPress={() => router.push(`/events/${line.event.id}`)}
+            />
+          ))
         )}
       </Animated.ScrollView>
     </View>
@@ -213,6 +236,17 @@ const styles = StyleSheet.create({
   fold: { overflow: 'hidden' },
   greeting: { flexShrink: 0 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  newEvent: {
+    width: spacing.touchTarget,
+    height: spacing.touchTarget,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatar: {
     width: spacing.touchTarget,
     height: spacing.touchTarget,

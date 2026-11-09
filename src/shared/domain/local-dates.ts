@@ -47,6 +47,25 @@ export function todayIn(timezone: string, now: Date): LocalDate {
   }).format(now)
 }
 
+/** A real calendar date written `YYYY-MM-DD` (no 30 Feb). */
+export function isLocalDate(text: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const { year, month, day } = parts(text)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+
+/** An IANA timezone this device's Intl knows, like `America/Manaus`. */
+export function isTimezone(name: string): boolean {
+  if (!name) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: name })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Today's date where the device is. */
 export function deviceToday(now: Date): LocalDate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
@@ -87,4 +106,100 @@ export function periodLabel({ startDate, endDate }: Period): string {
   if (startDate === endDate) return dayOf(start)
   const sameMonth = start.year === end.year && start.month === end.month
   return sameMonth ? `${start.day} a ${dayOf(end)}` : `${dayOf(start)} a ${dayOf(end)}`
+}
+
+/** A date as people type it, `DD/MM/AAAA`, read as a calendar date; null if it is not one. */
+export function dateFromTyping(typed: string): LocalDate | null {
+  const match = typed.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!match) return null
+  const [, day, month, year] = match
+  const date = `${year}-${pad(Number(month))}-${pad(Number(day))}`
+  return isLocalDate(date) ? date : null
+}
+
+/** A date the way it is typed: "20/11/2026". */
+export function typedDate(date: LocalDate): string {
+  const { year, month, day } = parts(date)
+  return `${pad(day)}/${pad(month)}/${year}`
+}
+
+/**
+ * Puts the slashes into a date being typed on a number pad: "2011" shows "20/11". Text that
+ * already has slashes is kept as typed, so "20/1" can still become "20/1/2027".
+ */
+export function typingDate(text: string): string {
+  if (text.includes('/')) return text.replace(/[^\d/]/g, '').slice(0, 10)
+  const digits = text.replace(/\D/g, '').slice(0, 8)
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/')
+}
+
+/**
+ * The timezones offered for an Event: Brazil's first (from the East), then a few abroad. Any other
+ * IANA timezone an Event already has is still shown by its city.
+ */
+export const TIMEZONE_CHOICES = [
+  'America/Sao_Paulo',
+  'America/Bahia',
+  'America/Fortaleza',
+  'America/Recife',
+  'America/Belem',
+  'America/Noronha',
+  'America/Campo_Grande',
+  'America/Cuiaba',
+  'America/Manaus',
+  'America/Porto_Velho',
+  'America/Boa_Vista',
+  'America/Rio_Branco',
+  'America/Argentina/Buenos_Aires',
+  'America/Santiago',
+  'America/New_York',
+  'Europe/Lisbon',
+] as const
+
+const CITY_NAMES: Record<string, string> = {
+  'America/Sao_Paulo': 'São Paulo',
+  'America/Bahia': 'Salvador',
+  'America/Belem': 'Belém',
+  'America/Noronha': 'Fernando de Noronha',
+  'America/Cuiaba': 'Cuiabá',
+  'America/New_York': 'Nova York',
+  'Europe/Lisbon': 'Lisboa',
+}
+
+/** The city a timezone is named after, in pt-BR: "Manaus", "São Paulo". */
+export function timezoneCity(timezone: string): string {
+  return CITY_NAMES[timezone] ?? timezone.split('/').pop()!.replace(/_/g, ' ')
+}
+
+/**
+ * A timezone's offset from UTC on a date, as the design writes it: "GMT−4", "GMT+5:30", "GMT".
+ * Computed from the wall clock at noon UTC of that date, so daylight saving time follows it.
+ */
+export function gmtOffset(timezone: string, date: LocalDate): string {
+  const { year, month, day } = parts(date)
+  const instant = Date.UTC(year, month - 1, day, 12)
+  // en-CA writes "2026-11-20, 08:00".
+  const wall = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .format(instant)
+    .match(/(\d+)-(\d+)-(\d+),? (\d+):(\d+)/)!
+  const [, y, m, d, h, min] = wall.map(Number)
+  const minutes = Math.round((Date.UTC(y, m - 1, d, h, min) - instant) / 60_000)
+  if (minutes === 0) return 'GMT'
+  const sign = minutes < 0 ? '−' : '+'
+  const hours = Math.floor(Math.abs(minutes) / 60)
+  const rest = Math.abs(minutes) % 60
+  return `GMT${sign}${hours}${rest ? `:${pad(rest)}` : ''}`
+}
+
+/** A timezone as a choice: "Manaus (GMT−4)". */
+export function timezoneLabel(timezone: string, date: LocalDate): string {
+  return `${timezoneCity(timezone)} (${gmtOffset(timezone, date)})`
 }
