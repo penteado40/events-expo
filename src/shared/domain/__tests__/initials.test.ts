@@ -1,4 +1,4 @@
-import { initials } from '../initials'
+import { firstName, initials } from '../initials'
 
 describe('initials', () => {
   it.each([
@@ -10,5 +10,15 @@ describe('initials', () => {
     ['', ''],
   ])('%p → %p', (name, expected) => {
     expect(initials(name)).toBe(expected)
+  })
+})
+
+describe('firstName', () => {
+  it.each([
+    ['Paula Lima', 'Paula'],
+    ['  Tiago  Souza ', 'Tiago'],
+    ['Lu', 'Lu'],
+  ])('of "%s" is "%s"', (name, first) => {
+    expect(firstName(name)).toBe(first)
   })
 })

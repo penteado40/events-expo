@@ -1,3 +1,4 @@
+import { isEmail } from '@/shared/domain/email'
 import { normalizePhone } from '@/shared/domain/phone'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
@@ -25,7 +26,6 @@ const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuár
 
 /** How long an Activation link lasts (the Clerk invitation the events-api creates). */
 const LINK_DAYS = 7
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** The body of `POST /groups/:id/viewers`: name and phone are used only for a new email. */
 export type NewViewerBody = { name: string; email: string; phone: string }
@@ -236,7 +236,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const name = body.name?.trim() ?? ''
       const phone = body.phone?.trim() ?? ''
       const invalid = [
-        !EMAIL.test(email) && 'email',
+        !isEmail(email) && 'email',
         (name.length < 1 || name.length > 100) && 'name',
         (phone.length < 1 || phone.length > 30) && 'phone',
       ].filter((path): path is string => path !== false)
@@ -247,6 +247,9 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
       let user = data.users.find((u) => u.email === email)
       let activationLink: ReturnType<typeof newActivationLink> | null = null
+      if (user?.isSuperAdmin) throw superAdminNotAGroupMember()
+      if (user && isMember(user.id, groupId)) throw alreadyAGroupMember()
+      // A Pending user who already had a link gets none: only the Group access email.
       if (!user) {
         const e164 = normalizePhone(phone)
         if (e164 === null) throw validationError()
@@ -262,8 +265,6 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         data.users.push(user)
         activationLink = newActivationLink()
       }
-      if (user.isSuperAdmin) throw superAdminNotAGroupMember()
-      if (isMember(user.id, groupId)) throw alreadyAGroupMember()
       data.groupMembers.push({ groupId, userId: user.id, role: 'VIEWER' })
       return {
         member: {

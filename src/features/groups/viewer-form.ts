@@ -1,10 +1,11 @@
+import { isEmail } from '@/shared/domain/email'
 import { PHONE_INVALID, phoneProblem } from '@/shared/domain/phone'
 import { ApiError } from '@/shared/lib/api-error'
 
 import type { NewViewer } from './repository'
 
-/** "Adicionar pessoa"'s fields, as typed. */
-export type ViewerForm = { name: string; email: string; phone: string }
+/** "Adicionar pessoa"'s fields, as typed: the person to add, before checking. */
+export type ViewerForm = NewViewer
 
 /** What is wrong with each field, or with the adding as a whole (`form`). */
 export type ViewerErrors = { name?: string; email?: string; phone?: string; form?: string }
@@ -14,7 +15,6 @@ const NAME_MISSING = 'Informe o nome.'
 const NAME_TOO_LONG = `Use um nome de até ${NAME_MAX} caracteres.`
 const EMAIL_MISSING = 'Informe o e-mail.'
 const EMAIL_INVALID = 'E-mail inválido.'
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Codes about who the email is: shown on the email field, with the API's message. */
 const EMAIL_CODES = ['ALREADY_A_GROUP_MEMBER', 'SUPER_ADMIN_NOT_A_GROUP_MEMBER']
@@ -34,7 +34,7 @@ export function checkViewerForm(form: ViewerForm): {
   if (name === '') errors.name = NAME_MISSING
   else if (name.length > NAME_MAX) errors.name = NAME_TOO_LONG
   if (email === '') errors.email = EMAIL_MISSING
-  else if (!EMAIL.test(email)) errors.email = EMAIL_INVALID
+  else if (!isEmail(email)) errors.email = EMAIL_INVALID
   const problem = phoneProblem(phone)
   if (problem) errors.phone = problem
 

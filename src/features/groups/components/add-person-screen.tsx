@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Button, Icon, Notice, TextField } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
+import { firstName as firstNameOf } from '@/shared/domain/initials'
 import { groupPermissions } from '@/shared/domain/permissions'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
@@ -209,7 +210,7 @@ function Added({
   const { colors } = useTheme()
   const insets = useSafeAreaInsets()
   const router = useRouter()
-  const firstName = result.name.trim().split(/\s+/)[0]
+  const firstName = firstNameOf(result.name)
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
@@ -230,9 +231,7 @@ function Added({
             {firstName} está no Group
           </Text>
           <Text style={[styles.heroLine, { color: palette.green[100] }]}>
-            {result.activationLink
-              ? `O convite foi para ${result.email}`
-              : `${result.email} já tem conta: o aviso de que entrou vai por e-mail.`}
+            {addedLine(result, firstName)}
           </Text>
         </View>
         <View style={styles.afterHero}>
@@ -254,6 +253,18 @@ function Added({
       </View>
     </View>
   )
+}
+
+/**
+ * Who was told what: a new email got the invitation (and the link is below); a Pending user who
+ * already had a link got only the Group access email; an active User, only the notice.
+ */
+function addedLine({ activationLink, isPending, email }: AddViewerResult, firstName: string) {
+  if (activationLink) return `O convite foi para ${email}`
+  if (isPending) {
+    return `${firstName} ainda não ativou a conta: o aviso foi por e-mail. Se não chegar, gere um novo link na página da pessoa.`
+  }
+  return `${email} já tem conta: o aviso de que entrou vai por e-mail.`
 }
 
 const styles = StyleSheet.create({

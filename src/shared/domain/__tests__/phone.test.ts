@@ -1,4 +1,10 @@
-import { formatPhone, normalizePhone, phoneProblem, whatsappUrl } from '../phone'
+import {
+  formatPhone,
+  normalizePhone,
+  phoneProblem,
+  whatsappMessageUrl,
+  whatsappUrl,
+} from '../phone'
 
 describe('normalizePhone', () => {
   it.each([
@@ -61,5 +67,17 @@ describe('whatsappUrl', () => {
 
   it('has no conversation to open without a phone', () => {
     expect(whatsappUrl('')).toBeNull()
+  })
+})
+
+describe('whatsappMessageUrl', () => {
+  it('opens the message to a typed phone, by its digits', () => {
+    expect(whatsappMessageUrl('+55 27 98888-1234', 'Oi, Paula! https://x.test/a?b=1')).toBe(
+      'https://wa.me/5527988881234?text=Oi%2C%20Paula!%20https%3A%2F%2Fx.test%2Fa%3Fb%3D1',
+    )
+  })
+
+  it('lets the sender pick the contact when there is no phone', () => {
+    expect(whatsappMessageUrl('', 'Oi')).toBe('https://wa.me/?text=Oi')
   })
 })

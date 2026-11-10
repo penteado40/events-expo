@@ -86,7 +86,7 @@ describe('AddPersonScreen', () => {
 
     expect(await screen.findByText('Paula está no Group')).toBeOnTheScreen()
     expect(screen.getByText('O convite foi para paula.lima@example.com')).toBeOnTheScreen()
-    const url = screen.getByLabelText('Activation link').props.children as string
+    const url = screen.getByLabelText('Link de ativação').props.children as string
     expect(url).toMatch(/^https:\/\//)
 
     await fireEvent.press(screen.getByRole('button', { name: 'Copiar link' }))
@@ -119,6 +119,22 @@ describe('AddPersonScreen', () => {
 
     expect(await screen.findByText('Ana está no Group')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Copiar link' })).toBeNull()
+  })
+
+  it('says a Pending user added here has not activated yet, pointing to a new link', async () => {
+    signInDemo(8) // Ana Prado, Owner of Coral Jovem Vitória
+    await renderWithQuery(<AddPersonScreen groupId={2} />)
+
+    await fill('Tiago', 'tiago.souza@example.com')
+    await submit()
+
+    expect(await screen.findByText('Tiago está no Group')).toBeOnTheScreen()
+    expect(
+      screen.getByText(
+        'Tiago ainda não ativou a conta: o aviso foi por e-mail. Se não chegar, gere um novo link na página da pessoa.',
+      ),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText(/já tem conta/)).toBeNull()
   })
 
   it('shows ALREADY_A_GROUP_MEMBER on the form', async () => {
@@ -166,7 +182,7 @@ describe('PersonScreen', () => {
     expect(await screen.findByText('Tiago Souza')).toBeOnTheScreen()
     await fireEvent.press(screen.getByRole('button', { name: 'Gerar novo link' }))
 
-    expect(await screen.findByLabelText('Activation link')).toBeOnTheScreen()
+    expect(await screen.findByLabelText('Link de ativação')).toBeOnTheScreen()
     expect(screen.getByText(/o anterior não vale mais/)).toBeOnTheScreen()
   })
 

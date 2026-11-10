@@ -13,7 +13,7 @@ import {
   Sheet,
 } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { initials } from '@/shared/domain/initials'
+import { firstName as firstNameOf, initials } from '@/shared/domain/initials'
 import { groupPermissions } from '@/shared/domain/permissions'
 import { formatPhone } from '@/shared/domain/phone'
 import { ApiError } from '@/shared/lib/api-error'
@@ -103,7 +103,7 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
   // The API takes out only Viewers here; an Owner leaves by the Super admin's Owner routes.
   const removable = managesPeople && role === 'VIEWER' && userId !== myId
   const gold = badge('gold')
-  const firstName = name.trim().split(/\s+/)[0]
+  const firstName = firstNameOf(name)
 
   const generate = () => reissue.mutate(userId, { onSuccess: setLink })
 
@@ -148,6 +148,7 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
             {[email, phone && formatPhone(phone)].filter(Boolean).join(' · ')}
           </Text>
         </View>
+        {removeError && <Notice message={removeError} />}
 
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Teams</Text>
@@ -192,7 +193,6 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
             {reissue.error ? <Notice message={messageOf(reissue.error)} /> : null}
           </>
         )}
-        {removeError && <Notice message={removeError} />}
       </ScrollView>
 
       {removable && (

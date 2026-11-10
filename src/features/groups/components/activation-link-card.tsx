@@ -3,11 +3,12 @@ import { useState } from 'react'
 import { Linking, StyleSheet, Text, View } from 'react-native'
 
 import { Button, Icon } from '@/shared/components/ui'
-import { deviceToday, periodLabel } from '@/shared/domain/local-dates'
-import { normalizePhone } from '@/shared/domain/phone'
+import { firstName } from '@/shared/domain/initials'
+import { dayLabel, deviceToday } from '@/shared/domain/local-dates'
+import { whatsappMessageUrl } from '@/shared/domain/phone'
 import { fonts, textStyles, useTheme } from '@/shared/theme'
 
-import type { ActivationLink } from '../schemas'
+import type { ActivationLink } from '../api'
 
 type Props = {
   link: ActivationLink
@@ -20,27 +21,15 @@ type Props = {
   note?: string
 }
 
-/** The WhatsApp message with the link, for the person's own conversation when there is a phone. */
-export function whatsappShareUrl({ link, name, phone, groupName }: Props): string {
-  const firstName = name.trim().split(/\s+/)[0]
-  const text = `Oi, ${firstName}! Este é o seu link para entrar no ${groupName}: ${link.url}`
-  const digits = normalizePhone(phone)?.slice(1) ?? ''
-  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`
-}
-
 /**
  * "Repasse o link por outro meio" (D-Convite): the Activation link in mono, "Enviar no WhatsApp"
  * and "Copiar link", for when the email does not arrive. Until when it lasts, from the API.
  */
-export function ActivationLinkCard(props: Props) {
-  const { link, note } = props
+export function ActivationLinkCard({ link, name, phone, groupName, note }: Props) {
   const { colors } = useTheme()
   const [copied, setCopied] = useState(false)
-  const until = periodLabel({
-    startDate: deviceToday(new Date(link.expiresAt)),
-    endDate: deviceToday(new Date(link.expiresAt)),
-    timezone: 'UTC',
-  })
+  const until = dayLabel(deviceToday(new Date(link.expiresAt)))
+  const message = `Oi, ${firstName(name)}! Este é o seu link para entrar no ${groupName}: ${link.url}`
 
   const copy = async () => {
     await Clipboard.setStringAsync(link.url)
@@ -56,7 +45,7 @@ export function ActivationLinkCard(props: Props) {
       </Text>
       <Text
         selectable
-        accessibilityLabel="Activation link"
+        accessibilityLabel="Link de ativação"
         style={[textStyles.mono, styles.url, { backgroundColor: colors.bg, color: colors.text }]}
       >
         {link.url}
@@ -64,7 +53,7 @@ export function ActivationLinkCard(props: Props) {
       <Button
         label="Enviar no WhatsApp"
         icon={<Icon name="phone" color={colors.onAction} size={18} />}
-        onPress={() => Linking.openURL(whatsappShareUrl(props))}
+        onPress={() => Linking.openURL(whatsappMessageUrl(phone, message))}
       />
       <Button
         label={copied ? 'Link copiado' : 'Copiar link'}
