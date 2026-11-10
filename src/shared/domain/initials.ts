@@ -4,3 +4,8 @@ export function initials(name: string): string {
   const letters = words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? '').slice(0, 2)
   return letters.toLocaleUpperCase('pt-BR')
 }
+
+/** The first word of a name, for a friendly line: "Paula" of "Paula Lima". */
+export function firstName(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? ''
+}

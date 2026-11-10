@@ -1,3 +1,4 @@
+import { useRouter, type Href } from 'expo-router'
 import { useState } from 'react'
 import {
   Pressable,
@@ -31,6 +32,8 @@ const TABS: {
   count: (n: number) => string
   add: string
   permission: keyof GroupPermissions
+  /** Where "+" goes; none yet for Teams (PROJ-219). */
+  addRoute?: (groupId: number) => Href
 }[] = [
   {
     tab: 'people',
@@ -38,6 +41,7 @@ const TABS: {
     count: (n) => plural(n, 'pessoa', 'pessoas'),
     add: '+ Pessoa',
     permission: 'managesPeople',
+    addRoute: (groupId) => `/groups/${groupId}/people/add`,
   },
   {
     tab: 'teams',
@@ -55,11 +59,13 @@ type Props = {
 }
 
 /**
- * The Group's people and Teams (D-Pessoas, D-Teams, PROJ-216), to read. "+ Pessoa" and "+ Team"
- * show only to who manages them; what they open comes with PROJ-218 and PROJ-219.
+ * The Group's people and Teams (D-Pessoas, D-Teams, PROJ-216). "+ Pessoa" and "+ Team" show only
+ * to who manages them: "+ Pessoa" adds a Viewer (PROJ-218); "+ Team" comes with PROJ-219. A person
+ * opens their page.
  */
 export function GroupPeople({ group, onRefresh }: Props) {
   const { colors } = useTheme()
+  const router = useRouter()
   const myId = useSession((state) => state.session?.user.id)
   const [tab, setTab] = useState<Tab>('people')
   const [query, setQuery] = useState('')
@@ -72,6 +78,7 @@ export function GroupPeople({ group, onRefresh }: Props) {
   const shownQuery = tab === 'people' ? members : teams
   const countLabel = shownQuery.data && shown.count(shownQuery.data.length)
   const canAdd = permissions[shown.permission]
+  const addRoute = shown.addRoute?.(group.id)
   // The Pessoas tab does not wait for the Teams: people show first, their Teams once they come.
   const joined = joinPeopleAndTeams(members.data ?? [], teams.data ?? [])
   const sections = peopleSections(joined.people, query)
@@ -94,11 +101,12 @@ export function GroupPeople({ group, onRefresh }: Props) {
           </Text>
           {canAdd && (
             <Pressable
-              disabled
+              disabled={!addRoute}
+              onPress={() => addRoute && router.push(addRoute)}
               accessibilityRole="button"
               accessibilityLabel={shown.add}
-              accessibilityState={{ disabled: true }}
-              style={styles.add}
+              accessibilityState={{ disabled: !addRoute }}
+              style={[styles.add, !addRoute && styles.addOff]}
             >
               <Text style={styles.addLabel}>{shown.add}</Text>
             </Pressable>
@@ -169,7 +177,12 @@ export function GroupPeople({ group, onRefresh }: Props) {
                 {section.title}
               </Text>
               {section.members.map((member) => (
-                <MemberRow key={member.userId} member={member} isMe={member.userId === myId} />
+                <MemberRow
+                  key={member.userId}
+                  member={member}
+                  isMe={member.userId === myId}
+                  onPress={() => router.push(`/groups/${group.id}/people/${member.userId}`)}
+                />
               ))}
             </View>
           ))
@@ -195,8 +208,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
-    opacity: 0.6,
   },
+  addOff: { opacity: 0.6 },
   addLabel: { fontFamily: fonts.sans700, fontSize: 14, color: palette.blue[700] },
   tabs: { flexDirection: 'row', alignItems: 'baseline', gap: 18 },
   tab: { fontFamily: fonts.sans500, fontSize: 22, color: palette.blue[100] },

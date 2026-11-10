@@ -8,13 +8,18 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Person } from '../people-and-teams'
 
-type Props = { member: Person; isMe: boolean }
+type Props = {
+  member: Person
+  isMe: boolean
+  /** Opens the person (D-Pessoa). */
+  onPress?: () => void
+}
 
 /**
  * A person on the Pessoas tab (D-Pessoas): the avatar ringed in their first Team's color (dashed
  * while the invitation is pending), name, Teams and, for someone else who has joined, WhatsApp.
  */
-export function MemberRow({ member, isMe }: Props) {
+export function MemberRow({ member, isMe, onPress }: Props) {
   const { colors, badge } = useTheme()
   const { name, teams, isPending, role, phone } = member
   const firstTeamTone = teams[0] ? autoTone(teams[0].id) : null
@@ -24,44 +29,52 @@ export function MemberRow({ member, isMe }: Props) {
 
   return (
     <View style={[styles.row, { backgroundColor: colors.surface }]}>
-      <View
-        style={[
-          styles.avatar,
-          {
-            backgroundColor:
-              isMe && firstTeamTone ? palette[firstTeamTone][100] : palette.gray[100],
-          },
-          firstTeamTone &&
-            !isPending && { boxShadow: `0 0 0 2.5px ${palette[firstTeamTone][500]}` },
-          isPending && [styles.pendingAvatar, { borderColor: colors.border }],
-        ]}
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        accessibilityRole="button"
+        accessibilityLabel={isPending ? `${name}, convite pendente` : name}
+        style={styles.open}
       >
-        <Text
+        <View
           style={[
-            styles.initials,
+            styles.avatar,
             {
-              color: isPending
-                ? palette.gray[700]
-                : isMe && firstTeamTone
-                  ? palette[firstTeamTone][700]
-                  : palette.gray[900],
+              backgroundColor:
+                isMe && firstTeamTone ? palette[firstTeamTone][100] : palette.gray[100],
             },
+            firstTeamTone &&
+              !isPending && { boxShadow: `0 0 0 2.5px ${palette[firstTeamTone][500]}` },
+            isPending && [styles.pendingAvatar, { borderColor: colors.border }],
           ]}
         >
-          {initials(name)}
-        </Text>
-      </View>
-      <View style={styles.names}>
-        <Text style={[styles.name, { color: colors.text }]}>
-          {name}
-          {isMe && ' · você'}
-        </Text>
-        {subtitle !== '' && (
-          <Text style={[textStyles.caption, { color: colors.textMuted }]}>{subtitle}</Text>
-        )}
-      </View>
-      {role === 'OWNER' && <Badge label="Owner" tone="blue" />}
-      {isPending && <Badge label="Convite pendente" tone="gold" />}
+          <Text
+            style={[
+              styles.initials,
+              {
+                color: isPending
+                  ? palette.gray[700]
+                  : isMe && firstTeamTone
+                    ? palette[firstTeamTone][700]
+                    : palette.gray[900],
+              },
+            ]}
+          >
+            {initials(name)}
+          </Text>
+        </View>
+        <View style={styles.names}>
+          <Text style={[styles.name, { color: colors.text }]}>
+            {name}
+            {isMe && ' · você'}
+          </Text>
+          {subtitle !== '' && (
+            <Text style={[textStyles.caption, { color: colors.textMuted }]}>{subtitle}</Text>
+          )}
+        </View>
+        {role === 'OWNER' && <Badge label="Owner" tone="blue" />}
+        {isPending && <Badge label="Convite pendente" tone="gold" />}
+      </Pressable>
       {url && (
         <Pressable
           onPress={() => Linking.openURL(url)}
@@ -77,6 +90,7 @@ export function MemberRow({ member, isMe }: Props) {
 }
 
 const styles = StyleSheet.create({
+  open: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   row: {
     borderRadius: 18,
     paddingVertical: 10,
