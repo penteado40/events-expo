@@ -1,4 +1,4 @@
-import type { GroupRole } from '@/shared/domain/group-role'
+import { roleIn, type GroupRole } from '@/shared/domain/group-role'
 import type { User } from '@/shared/session'
 
 import type { Group } from './schemas'
@@ -18,8 +18,5 @@ export function resolveCurrentGroup(
 ): CurrentGroup | null {
   const group = groups.find((g) => g.id === chosenId) ?? groups[0]
   if (!group) return null
-  const role: GroupRole = user.isSuperAdmin
-    ? 'SUPER_ADMIN'
-    : (user.memberships.find((m) => m.groupId === group.id)?.role ?? 'VIEWER')
-  return { ...group, role }
+  return { ...group, role: roleIn(user, group.id) }
 }

@@ -47,6 +47,14 @@ export function todayIn(timezone: string, now: Date): LocalDate {
   }).format(now)
 }
 
+/** A real calendar date written `YYYY-MM-DD` (no 30 Feb). */
+export function isLocalDate(text: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false
+  const { year, month, day } = parts(text)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+
 /** Today's date where the device is. */
 export function deviceToday(now: Date): LocalDate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
@@ -87,4 +95,29 @@ export function periodLabel({ startDate, endDate }: Period): string {
   if (startDate === endDate) return dayOf(start)
   const sameMonth = start.year === end.year && start.month === end.month
   return sameMonth ? `${start.day} a ${dayOf(end)}` : `${dayOf(start)} a ${dayOf(end)}`
+}
+
+/** A date as people type it, `DD/MM/AAAA`, read as a calendar date; null if it is not one. */
+export function dateFromTyping(typed: string): LocalDate | null {
+  const match = typed.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!match) return null
+  const [, day, month, year] = match
+  const date = `${year}-${pad(Number(month))}-${pad(Number(day))}`
+  return isLocalDate(date) ? date : null
+}
+
+/** A date the way it is typed: "20/11/2026". */
+export function typedDate(date: LocalDate): string {
+  const { year, month, day } = parts(date)
+  return `${pad(day)}/${pad(month)}/${year}`
+}
+
+/**
+ * Puts the slashes into a date being typed on a number pad: "2011" shows "20/11". Text that
+ * already has slashes is kept as typed, so "20/1" can still become "20/1/2027".
+ */
+export function typingDate(text: string): string {
+  if (text.includes('/')) return text.replace(/[^\d/]/g, '').slice(0, 10)
+  const digits = text.replace(/\D/g, '').slice(0, 8)
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/')
 }

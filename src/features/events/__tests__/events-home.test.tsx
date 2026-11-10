@@ -7,6 +7,9 @@ import { useSession, userSchema } from '@/shared/session'
 import { EventsHome } from '../components/events-home'
 import type { GroupRole } from '@/shared/domain/group-role'
 
+const mockRouter = { push: jest.fn(), navigate: jest.fn() }
+jest.mock('expo-router', () => ({ useRouter: () => mockRouter }))
+
 const VIEWER: GroupRole = 'VIEWER'
 const OWNER: GroupRole = 'OWNER'
 
@@ -25,6 +28,7 @@ async function renderHome(role: GroupRole, userId = 5, onRefresh?: () => Promise
 const row = (name: string) => screen.getByLabelText(new RegExp(`^${name},`))
 
 beforeEach(() => {
+  mockRouter.push.mockClear()
   // Saturday, 31 Oct 2026, morning in Vitória.
   jest.useFakeTimers({ now: new Date('2026-10-31T09:00:00-03:00'), advanceTimers: true })
 })
@@ -103,5 +107,30 @@ describe('EventsHome', () => {
 
     expect(listEvents).toHaveBeenCalledTimes(1)
     expect(onRefresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens an Event from its line', async () => {
+    await renderHome(VIEWER)
+
+    await fireEvent.press(row('Ensaio da Banda'))
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/events/4')
+  })
+
+  it('lets an Owner create an Event in the Group', async () => {
+    await renderHome(OWNER, 2)
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Novo Event' }))
+
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/events/new',
+      params: { groupId: '1' },
+    })
+  })
+
+  it('shows a Viewer no way to create an Event', async () => {
+    await renderHome(VIEWER)
+
+    expect(screen.queryByRole('button', { name: 'Novo Event' })).toBeNull()
   })
 })

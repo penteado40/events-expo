@@ -1,11 +1,15 @@
 import {
   dayAndMonth,
   deviceToday,
+  dateFromTyping,
   isFinished,
+  isLocalDate,
   longDate,
   periodLabel,
   periodDays,
   todayIn,
+  typedDate,
+  typingDate,
   weekday,
   type Period,
 } from '../local-dates'
@@ -99,5 +103,48 @@ describe('periodLabel', () => {
     [{ startDate: '2026-10-31', endDate: '2026-11-01' }, '31 de out. a 1 de nov.'],
   ])('writes %p as %p', (dates, label) => {
     expect(periodLabel({ ...dates, timezone: 'America/Sao_Paulo' })).toBe(label)
+  })
+})
+
+describe('isLocalDate', () => {
+  it.each([
+    ['2026-11-20', true],
+    ['2028-02-29', true],
+    ['2026-02-29', false],
+    ['2026-02-30', false],
+    ['2026-13-01', false],
+    ['20/11/2026', false],
+    ['', false],
+  ])('%p is a real calendar date: %p', (text, real) => {
+    expect(isLocalDate(text)).toBe(real)
+  })
+})
+
+describe('typed dates (DD/MM/AAAA)', () => {
+  it.each([
+    ['20/11/2026', '2026-11-20'],
+    [' 5/1/2027 ', '2027-01-05'],
+    ['29/02/2026', null],
+    ['20/11/26', null],
+    ['amanhã', null],
+    ['', null],
+  ])('reads %p as %p', (typed, date) => {
+    expect(dateFromTyping(typed)).toBe(date)
+  })
+
+  it('writes a date the way it is typed', () => {
+    expect(typedDate('2026-11-20')).toBe('20/11/2026')
+  })
+
+  it.each([
+    ['2', '2'],
+    ['201', '20/1'],
+    ['2011', '20/11'],
+    ['20112026', '20/11/2026'],
+    ['20/11/2026', '20/11/2026'],
+    ['2011202699', '20/11/2026'],
+    ['20/1', '20/1'],
+  ])('puts the slashes in while typing %p: %p', (text, shown) => {
+    expect(typingDate(text)).toBe(shown)
   })
 })

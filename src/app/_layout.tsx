@@ -69,6 +69,9 @@ export default function RootLayout() {
             <Stack.Protected guard={signedIn}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="profile/edit" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="events/new" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="events/[id]/index" />
+              <Stack.Screen name="events/[id]/edit" options={{ presentation: 'fullScreenModal' }} />
             </Stack.Protected>
           </Stack>
         </ThemeProvider>
