@@ -41,9 +41,10 @@ describe('NewEventScreen', () => {
     await fireEvent.changeText(field('Termina'), '06122026')
   }
 
-  it('warns that the Event is born in Draft', async () => {
+  it('warns that the Event is born in Draft, in the Group', async () => {
     await renderAs(OWNER, <NewEventScreen groupId={1} />)
 
+    expect(screen.getByText('Novo Event · Vocal Livre')).toBeOnTheScreen()
     expect(
       screen.getByText(/O Event nasce em rascunho: o Group já vê onde e quando/),
     ).toBeOnTheScreen()
@@ -143,6 +144,21 @@ describe('EditEventScreen', () => {
       name: 'Gravação do clipe',
       place: 'Serra, ES',
     })
+  })
+})
+
+describe('EditEventScreen, without the right to edit', () => {
+  it('tells a Viewer who opens it that they cannot edit, with no form', async () => {
+    await renderAs(VIEWER, <EditEventScreen eventId={3} />)
+
+    expect(await screen.findByText('Você não pode editar este Event.')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+  })
+
+  it('keeps a Cancelled Event frozen', async () => {
+    await renderAs(OWNER, <EditEventScreen eventId={5} />)
+
+    expect(await screen.findByText('Você não pode editar este Event.')).toBeOnTheScreen()
   })
 })
 

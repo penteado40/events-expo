@@ -27,6 +27,7 @@ const MESSAGES = {
   placeMissing: 'Informe a cidade ou o local.',
   placeLong: `Use até ${PLACE_MAX} caracteres.`,
   startMissing: 'Informe a data de início.',
+  endMissing: 'Informe a data final.',
   notADate: 'Use uma data como 20/11/2026.',
   endBeforeStart: 'A data final não pode ser antes da inicial.',
   saveFailed: 'Não foi possível salvar. Tente de novo.',
@@ -50,7 +51,7 @@ export function initialEventForm(event?: Event): EventForm {
 /**
  * Checks the fields before sending (the API checks them again, PROJ-182). Creating, answers the
  * whole Event; editing (`event` given), only what changed, the period whole if any part did, or
- * `null` when nothing did. An empty end is the start: an Event of one day.
+ * `null` when nothing did.
  */
 export function eventFormInput(form: EventForm): {
   errors: EventFormErrors
@@ -75,19 +76,20 @@ export function eventFormInput(
   const startDate = dateFromTyping(form.startDate)
   if (!form.startDate.trim()) errors.startDate = MESSAGES.startMissing
   else if (!startDate) errors.startDate = MESSAGES.notADate
-  const endDate = form.endDate.trim() ? dateFromTyping(form.endDate) : startDate
-  if (form.endDate.trim() && !endDate) errors.endDate = MESSAGES.notADate
+  const endDate = dateFromTyping(form.endDate)
+  if (!form.endDate.trim()) errors.endDate = MESSAGES.endMissing
+  else if (!endDate) errors.endDate = MESSAGES.notADate
   else if (startDate && endDate && endDate < startDate) errors.endDate = MESSAGES.endBeforeStart
 
   if (Object.keys(errors).length > 0) return { errors, input: null }
   const period = { startDate: startDate!, endDate: endDate!, timezone: form.timezone }
   if (!event) return { errors, input: { name, place, period } }
 
-  const was = event.period
+  const before = event.period
   const periodChanged =
-    period.startDate !== was.startDate ||
-    period.endDate !== was.endDate ||
-    period.timezone !== was.timezone
+    period.startDate !== before.startDate ||
+    period.endDate !== before.endDate ||
+    period.timezone !== before.timezone
   const changes: EventChanges = {
     ...(name !== event.name && { name }),
     ...(place !== event.place && { place }),
@@ -99,8 +101,9 @@ export function eventFormInput(
 const FIELD_BY_PATH: Record<string, [keyof EventForm, string]> = {
   name: ['name', 'Confira o nome do Event.'],
   place: ['place', 'Confira a cidade ou o local.'],
-  'period.startDate': ['startDate', MESSAGES.notADate],
-  'period.endDate': ['endDate', MESSAGES.endBeforeStart],
+  'period.startDate': ['startDate', 'Confira a data de início.'],
+  // The form already refuses what is not a date: what the API still refuses is the order.
+  'period.endDate': ['endDate', 'Confira a data final: ela não pode vir antes da inicial.'],
   'period.timezone': ['timezone', 'Escolha o fuso de novo.'],
 }
 
@@ -110,6 +113,7 @@ const FIELD_BY_PATH: Record<string, [keyof EventForm, string]> = {
  */
 export function errorsFromApi(error: unknown): EventFormErrors {
   if (!(error instanceof ApiError)) return { form: MESSAGES.saveFailed }
+  if (error.code !== 'VALIDATION_ERROR') return { form: error.message }
   const details = Array.isArray(error.details) ? (error.details as { path?: unknown }[]) : []
   const errors: EventFormErrors = {}
   for (const { path } of details) {

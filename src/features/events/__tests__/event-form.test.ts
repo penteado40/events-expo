@@ -56,17 +56,12 @@ describe('eventFormInput, creating', () => {
     })
   })
 
-  it('takes an empty end as the start: an Event of one day', () => {
-    expect(eventFormInput({ ...filled, endDate: '' }).input).toMatchObject({
-      period: { startDate: '2026-12-04', endDate: '2026-12-04' },
-    })
-  })
-
   it.each<[string, Partial<EventForm>, Record<string, string>]>([
     ['no name', { name: ' ' }, { name: 'Informe o nome do Event.' }],
     ['a long name', { name: 'x'.repeat(101) }, { name: 'Use um nome de até 100 caracteres.' }],
     ['no place', { place: '' }, { place: 'Informe a cidade ou o local.' }],
     ['no start', { startDate: '' }, { startDate: 'Informe a data de início.' }],
+    ['no end', { endDate: '' }, { endDate: 'Informe a data final.' }],
     [
       'a start that is no date',
       { startDate: '31/11/2026' },
@@ -114,7 +109,7 @@ describe('errorsFromApi', () => {
     ])
 
     expect(errorsFromApi(error)).toEqual({
-      endDate: 'A data final não pode ser antes da inicial.',
+      endDate: 'Confira a data final: ela não pode vir antes da inicial.',
       name: 'Confira o nome do Event.',
     })
   })

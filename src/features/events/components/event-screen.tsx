@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Badge, ErrorState, Icon, ListSkeleton } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
 import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
-import { gmtOffset, periodLabel } from '@/shared/domain/local-dates'
+import { periodLabel } from '@/shared/domain/local-dates'
+import { gmtOffset } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, useTheme } from '@/shared/theme'
 
@@ -18,13 +19,14 @@ import { useEvent } from '../hooks/use-event'
  * where and when. The schedule, Participants and Publicar come with their own tickets.
  */
 export function EventScreen({ eventId }: { eventId: number }) {
-  const { colors } = useTheme()
+  const theme = useTheme()
+  const { colors } = theme
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const user = useSession((state) => state.session?.user)
   const event = useEvent(eventId)
   const tone = autoTone(eventId)
-  const [from, to] = useTheme().cover(tone)
+  const [from, to] = theme.cover(tone)
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>

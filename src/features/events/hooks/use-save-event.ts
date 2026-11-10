@@ -5,7 +5,7 @@ import { eventQueryKey } from './use-event'
 import { groupEventsQueryKey } from './use-group-events'
 
 /** After a write: the Event as the API answered it, and the Group's list read again. */
-function useSaved() {
+function useOnEventSaved() {
   const client = useQueryClient()
   return (event: Event) => {
     client.setQueryData(eventQueryKey(event.id), event)
@@ -15,7 +15,7 @@ function useSaved() {
 
 /** "Criar Event": the Owner creates it in the Group, born in Draft. */
 export function useCreateEvent(groupId: number) {
-  const saved = useSaved()
+  const saved = useOnEventSaved()
   return useMutation<Event, unknown, EventInput>({
     mutationFn: (input) => eventsRepository.create(groupId, input),
     onSuccess: saved,
@@ -24,7 +24,7 @@ export function useCreateEvent(groupId: number) {
 
 /** "Salvar" on the editing: sends what changed. */
 export function useUpdateEvent(eventId: number) {
-  const saved = useSaved()
+  const saved = useOnEventSaved()
   return useMutation<Event, unknown, EventChanges>({
     mutationFn: (changes) => eventsRepository.update(eventId, changes),
     onSuccess: saved,

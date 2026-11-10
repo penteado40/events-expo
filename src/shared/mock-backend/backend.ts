@@ -1,4 +1,5 @@
-import { isLocalDate, isTimezone } from '@/shared/domain/local-dates'
+import { isLocalDate, type Period } from '@/shared/domain/local-dates'
+import { isTimezone } from '@/shared/domain/timezones'
 import { normalizePhone } from '@/shared/domain/phone'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
@@ -26,7 +27,7 @@ export type MeChanges = { name?: string; phone?: string }
 export type EventBody = {
   name?: string
   place?: string
-  period?: { startDate: string; endDate: string; timezone: string }
+  period?: Period
 }
 
 type Detail = { path: string; message: string }
