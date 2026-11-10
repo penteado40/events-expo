@@ -40,6 +40,8 @@ export function AddPersonScreen({ groupId }: Props) {
   const group = useGroupById(groupId)
   const groupName = group?.name ?? ''
   if (added) return <Added groupName={groupName} {...added} />
+  // Opened by a deep link, a Viewer meets the refusal, not a form the API would refuse.
+  if (group && !groupPermissions(group.role).managesPeople) return <NotAllowed />
   return <AddForm groupId={groupId} onAdded={setAdded} />
 }
 
@@ -250,6 +252,24 @@ function Added({
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
         <Button label="Concluir" variant="link" onPress={() => router.back()} />
+      </View>
+    </View>
+  )
+}
+
+/** A Viewer here (only by a deep link, "+ Pessoa" is hidden): the refusal and the way back. */
+function NotAllowed() {
+  const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
+  const router = useRouter()
+
+  return (
+    <View style={[styles.screen, { backgroundColor: colors.bg, paddingTop: insets.top + 24 }]}>
+      <View style={styles.body}>
+        <Notice message="Você não pode adicionar pessoas neste Group." />
+      </View>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
+        <Button label="Voltar" variant="link" onPress={() => router.back()} />
       </View>
     </View>
   )

@@ -162,12 +162,26 @@ describe('AddPersonScreen', () => {
     expect(addViewer).not.toHaveBeenCalled()
   })
 
-  it("turns a Viewer's 403 into a message, with no Teams to pick", async () => {
+  it('shows a Viewer who opens it the refusal, not the form', async () => {
     signInDemo(DEMO_VIEWER_ID)
     await renderWithQuery(<AddPersonScreen groupId={VOCAL_LIVRE} />)
 
+    expect(
+      await screen.findByText('Você não pode adicionar pessoas neste Group.'),
+    ).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Nome')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar' }))
+    expect(mockRouter.back).toHaveBeenCalled()
+  })
+
+  it("turns the API's 403 into a message on the form", async () => {
+    signInDemo(DEMO_OWNER_ID)
+    jest
+      .spyOn(mockBackend, 'addViewer')
+      .mockRejectedValue(new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.'))
+    await renderWithQuery(<AddPersonScreen groupId={VOCAL_LIVRE} />)
+
     await fill('Paula Lima', 'paula.viewer@example.com')
-    expect(screen.queryByRole('checkbox', { name: 'Banda' })).toBeNull()
     await submit()
 
     expect(await screen.findByText('Você não tem permissão para esta ação.')).toBeOnTheScreen()

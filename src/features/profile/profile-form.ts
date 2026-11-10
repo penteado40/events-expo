@@ -1,3 +1,4 @@
+import { NAME_TOO_LONG, nameProblem } from '@/shared/domain/person-name'
 import { formatPhone, PHONE_INVALID, phoneProblem } from '@/shared/domain/phone'
 import { ApiError } from '@/shared/lib/api-error'
 import type { User } from '@/shared/session'
@@ -10,8 +11,6 @@ export type ProfileForm = { name: string; phone: string }
 /** What is wrong with each field, or with the save as a whole (`form`). */
 export type ProfileErrors = { name?: string; phone?: string; form?: string }
 
-const NAME_MAX = 100
-const NAME_TOO_LONG = `Use um nome de até ${NAME_MAX} caracteres.`
 const NAME_MISSING = 'Informe seu nome.'
 
 /** The fields as they open: the User's name and phone, the phone as people read it. */
@@ -30,8 +29,8 @@ export function profileChanges(
 ): { errors: ProfileErrors; changes: ProfileChanges | null } {
   const name = form.name.trim()
   const errors: ProfileErrors = {}
-  if (name === '') errors.name = NAME_MISSING
-  else if (name.length > NAME_MAX) errors.name = NAME_TOO_LONG
+  const nameError = nameProblem(name, NAME_MISSING)
+  if (nameError) errors.name = nameError
 
   const phoneChanged = form.phone.trim() !== initialProfileForm(user).phone
   const problem = phoneChanged ? phoneProblem(form.phone) : null

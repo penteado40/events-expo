@@ -1,4 +1,5 @@
 import { isEmail } from '@/shared/domain/email'
+import { nameProblem } from '@/shared/domain/person-name'
 import { PHONE_INVALID, phoneProblem } from '@/shared/domain/phone'
 import { ApiError } from '@/shared/lib/api-error'
 
@@ -10,9 +11,7 @@ export type ViewerForm = NewViewer
 /** What is wrong with each field, or with the adding as a whole (`form`). */
 export type ViewerErrors = { name?: string; email?: string; phone?: string; form?: string }
 
-const NAME_MAX = 100
 const NAME_MISSING = 'Informe o nome.'
-const NAME_TOO_LONG = `Use um nome de até ${NAME_MAX} caracteres.`
 const EMAIL_MISSING = 'Informe o e-mail.'
 const EMAIL_INVALID = 'E-mail inválido.'
 
@@ -31,8 +30,8 @@ export function checkViewerForm(form: ViewerForm): {
   const email = form.email.trim()
   const phone = form.phone.trim()
   const errors: ViewerErrors = {}
-  if (name === '') errors.name = NAME_MISSING
-  else if (name.length > NAME_MAX) errors.name = NAME_TOO_LONG
+  const nameError = nameProblem(name, NAME_MISSING)
+  if (nameError) errors.name = nameError
   if (email === '') errors.email = EMAIL_MISSING
   else if (!isEmail(email)) errors.email = EMAIL_INVALID
   const problem = phoneProblem(phone)
