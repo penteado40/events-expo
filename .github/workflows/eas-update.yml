@@ -1,6 +1,7 @@
 # Native preview in Expo Go (docs/previews.md). A PR publishes an EAS Update on branch `pr-<n>` and
 # comments its QR; a push to main publishes branch `main`. Separate from the web preview (Vercel),
-# so a failure in one never blocks the other. Both are Demo builds: mock backend, no Clerk.
+# so a failure in one never blocks the other. Both run against the real events-api and Clerk (a
+# pk_test_ key), from the repository variables API_URL and CLERK_PUBLISHABLE_KEY.
 name: EAS Update
 
 on:
@@ -23,12 +24,17 @@ jobs:
       contents: read
       pull-requests: write
     env:
-      EXPO_PUBLIC_DEMO_BUILD: 'true'
+      # Repository variables (not secrets: a URL and a publishable key), checked by the setup step.
+      # `eas update` inlines the EXPO_PUBLIC_* ones into the bundle.
+      API_URL: ${{ vars.API_URL }}
+      CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_API_URL: ${{ vars.API_URL }}
+      EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v7
 
-      # Until the one-time setup is done (EXPO_TOKEN secret, `eas init`), and on PRs from forks
-      # (no secrets), the job skips with a notice instead of failing.
+      # Until the setup is done (EXPO_TOKEN secret, `eas init`, the two variables), and on PRs from
+      # forks (no secrets), the job skips with a notice instead of failing. A pk_live_ key fails it.
       - name: Setup do EAS feito?
         id: setup
         env:
@@ -40,7 +46,11 @@ jobs:
           elif [ -z "$(jq -r '.expo.extra.eas.projectId // empty' app.json)" ]; then
             echo "::notice title=EAS Update pulado::app.json sem expo.extra.eas.projectId (rode eas init). Veja docs/previews.md."
             echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$API_URL" ] || [ -z "$CLERK_PUBLISHABLE_KEY" ]; then
+            echo "::notice title=EAS Update pulado::Sem as variables API_URL e CLERK_PUBLISHABLE_KEY do repositório. Veja docs/previews.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
           else
+            node scripts/build-web.js --check
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
