@@ -35,6 +35,9 @@ export function useAddViewer(groupId: number) {
   })
 }
 
+/** Whether adding a person can put them in Teams: not over the events-api yet (PROJ-183). */
+export const canAddTeamMembers = () => groupsRepository.addsTeamMembers()
+
 /** A new Activation link for a pending Group member (PROJ-180); the previous one stops working. */
 export function useReissueActivationLink(groupId: number) {
   return useMutation<ActivationLink, unknown, number>({
