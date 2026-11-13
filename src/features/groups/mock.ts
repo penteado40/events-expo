@@ -40,6 +40,7 @@ export function createMockGroupsRepository({
       ),
     removeViewer: async (groupId, userId) =>
       backend.removeViewer(await identityOf(getEmail), groupId, userId),
+    addsTeamMembers: () => true,
     addTeamMember: async (groupId, teamId, userId) =>
       backend.addTeamMember(await identityOf(getEmail), groupId, teamId, userId),
   }

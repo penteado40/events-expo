@@ -21,13 +21,18 @@ type Props = {
   note?: string
 }
 
+/** Lines of the link shown folded: enough to recognize it, little enough to keep the buttons in sight. */
+const FOLDED_LINES = 2
+
 /**
- * "Repasse o link por outro meio" (D-Convite): the Activation link in mono, "Enviar no WhatsApp"
- * and "Copiar link", for when the email does not arrive. Until when it lasts, from the API.
+ * "Repasse o link por outro meio" (D-Convite): the Activation link in mono, folded to its start
+ * until "Mostrar link inteiro", then "Enviar no WhatsApp" and "Copiar link", for when the email
+ * does not arrive. Until when it lasts, from the API.
  */
 export function ActivationLinkCard({ link, name, phone, groupName, note }: Props) {
   const { colors } = useTheme()
   const [copied, setCopied] = useState(false)
+  const [unfolded, setUnfolded] = useState(false)
   const until = dayLabel(deviceToday(new Date(link.expiresAt)))
   const message = `Oi, ${firstName(name)}! Este é o seu link para entrar no ${groupName}: ${link.url}`
 
@@ -46,10 +51,18 @@ export function ActivationLinkCard({ link, name, phone, groupName, note }: Props
       <Text
         selectable
         accessibilityLabel="Link de ativação"
+        numberOfLines={unfolded ? undefined : FOLDED_LINES}
+        ellipsizeMode="tail"
         style={[textStyles.mono, styles.url, { backgroundColor: colors.bg, color: colors.text }]}
       >
         {link.url}
       </Text>
+      <Button
+        label={unfolded ? 'Mostrar menos' : 'Mostrar link inteiro'}
+        variant="link"
+        style={styles.unfold}
+        onPress={() => setUnfolded((current) => !current)}
+      />
       <Button
         label="Enviar no WhatsApp"
         icon={<Icon name="phone" color={colors.onAction} size={18} />}
@@ -70,4 +83,5 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.sans700, fontSize: 17 },
   hint: { fontFamily: fonts.sans400, fontSize: 14, lineHeight: 20, marginTop: -6 },
   url: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 },
+  unfold: { marginVertical: -8 },
 })

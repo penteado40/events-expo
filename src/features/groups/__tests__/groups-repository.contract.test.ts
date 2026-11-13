@@ -282,3 +282,10 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
     })
   })
 })
+
+describe('Team members where the repository can add them (PROJ-183)', () => {
+  it('only the mock adds them: the events-api has no Team members yet', () => {
+    expect(createMockGroupsRepository().addsTeamMembers()).toBe(true)
+    expect(createHttpGroupsRepository({} as never).addsTeamMembers()).toBe(false)
+  })
+})

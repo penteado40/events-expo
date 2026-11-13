@@ -25,6 +25,11 @@ export interface GroupsRepository {
   /** Takes a Viewer out of the Group (PROJ-179). `NOT_FOUND` for an Owner; `FORBIDDEN` for a Viewer. */
   removeViewer(groupId: number, userId: number): Promise<void>
   /**
+   * Whether `addTeamMember` works here. False over HTTP until the events-api has Team members
+   * (PROJ-183): screens then offer no Teams to pick.
+   */
+  addsTeamMembers(): boolean
+  /**
    * Puts a Group member in a Team. PROJ-183 is not built in the events-api yet: this follows its
    * planned route, `PUT /groups/:id/teams/:teamId/members/:userId`, with no body either way.
    */

@@ -29,6 +29,12 @@ import { ActivationLinkCard } from './activation-link-card'
 
 type Props = { groupId: number; userId: number }
 
+/** The blue header's height, and how much of it the person's card covers. */
+const HEADER_HEIGHT = 200
+const CARD_OVERLAP = 90
+/** Gap between the safe area's top and the back button. */
+const BACK_TOP = 8
+
 /** A refused write, as the screen says it: the API's message (a Viewer's 403 too). */
 const messageOf = (error: unknown) =>
   error instanceof ApiError ? error.message : 'Não foi possível concluir. Tente de novo.'
@@ -50,24 +56,16 @@ export function PersonScreen({ groupId, userId }: Props) {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
+      {/* Behind the content, so the person's card can scroll over it (a ScrollView clips what a
+          negative margin would push above it). */}
       <View
         style={[
           styles.header,
           {
-            paddingTop: insets.top + 8,
             backgroundImage: `linear-gradient(160deg, ${palette.blue[900]}, ${palette.blue[500]})`,
           },
         ]}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-          style={styles.back}
-        >
-          <Icon name="back" color="#FFFFFF" size={20} />
-        </Pressable>
-      </View>
+      />
       {members.isPending ? (
         <View style={styles.padded}>
           <ListSkeleton />
@@ -83,6 +81,14 @@ export function PersonScreen({ groupId, userId }: Props) {
           Esta pessoa não está mais no Group.
         </Text>
       )}
+      <Pressable
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Voltar"
+        style={[styles.back, { top: insets.top + BACK_TOP }]}
+      >
+        <Icon name="back" color="#FFFFFF" size={20} />
+      </Pressable>
     </View>
   )
 }
@@ -122,7 +128,17 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
   return (
     <>
       <ScrollView
-        contentContainerStyle={[styles.body, { paddingBottom: Math.max(insets.bottom, 16) + 96 }]}
+        contentContainerStyle={[
+          styles.body,
+          {
+            // Over the header, yet below the back button on a tall notch.
+            paddingTop: Math.max(
+              HEADER_HEIGHT - CARD_OVERLAP,
+              insets.top + BACK_TOP + spacing.touchTarget + 12,
+            ),
+            paddingBottom: Math.max(insets.bottom, 16) + 96,
+          },
+        ]}
       >
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <View
@@ -225,12 +241,17 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: {
-    height: 200,
-    paddingHorizontal: 16,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: HEADER_HEIGHT,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
   back: {
+    position: 'absolute',
+    left: 16,
     width: spacing.touchTarget,
     height: spacing.touchTarget,
     borderRadius: spacing.touchTarget / 2,
@@ -238,9 +259,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  padded: { paddingTop: 18, paddingHorizontal: 20 },
-  gone: { paddingVertical: 24, textAlign: 'center' },
-  body: { marginTop: -90, paddingHorizontal: 16, gap: 12 },
+  padded: { paddingTop: HEADER_HEIGHT + 18, paddingHorizontal: 20 },
+  gone: { paddingTop: HEADER_HEIGHT + 24, paddingBottom: 24, textAlign: 'center' },
+  body: { paddingHorizontal: 16, gap: 12 },
   card: {
     borderRadius: 24,
     padding: 18,

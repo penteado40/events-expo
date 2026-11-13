@@ -7,6 +7,7 @@ import { ApiError } from '@/shared/lib/api-error'
 import { DEMO_OWNER_ID, DEMO_VIEWER_ID, mockBackend } from '@/shared/mock-backend'
 import { useSession, userSchema } from '@/shared/session'
 
+import { groupsRepository } from '../api'
 import { AddPersonScreen } from '../components/add-person-screen'
 import { GroupPeople } from '../components/group-people'
 import { PersonScreen } from '../components/person-screen'
@@ -108,6 +109,40 @@ describe('AddPersonScreen', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Concluir' }))
     expect(mockRouter.back).toHaveBeenCalled()
+  })
+
+  it('shows the link folded, with a way to unfold it, so the buttons stay in sight', async () => {
+    signInDemo(DEMO_OWNER_ID)
+    await renderWithQuery(<AddPersonScreen groupId={VOCAL_LIVRE} />)
+
+    // A new email: the mock backend keeps the people added by the tests above.
+    await fill('Rita Gomes', 'rita.gomes@example.com')
+    await submit()
+
+    const link = await screen.findByLabelText('Link de ativação')
+    expect(link.props.numberOfLines).toBe(2)
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar link inteiro' }))
+    expect(screen.getByLabelText('Link de ativação').props.numberOfLines).toBeUndefined()
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Mostrar menos' }))
+    expect(screen.getByLabelText('Link de ativação').props.numberOfLines).toBe(2)
+  })
+
+  it('offers no Teams where the repository cannot put someone in one (the events-api)', async () => {
+    signInDemo(DEMO_OWNER_ID)
+    jest.spyOn(groupsRepository, 'addsTeamMembers').mockReturnValue(false)
+    const listTeams = jest.spyOn(groupsRepository, 'listTeams')
+    await renderWithQuery(<AddPersonScreen groupId={VOCAL_LIVRE} />)
+
+    // The Teams are loaded (Vocal Livre has "Banda"), and still none is offered.
+    await waitFor(() => expect(listTeams).toHaveBeenCalled())
+    await expect(listTeams.mock.results[0].value).resolves.toContainEqual(
+      expect.objectContaining({ name: 'Banda' }),
+    )
+    expect(await screen.findByLabelText('Nome')).toBeOnTheScreen()
+    expect(screen.queryByRole('checkbox', { name: 'Banda' })).toBeNull()
+    expect(screen.queryByText(/opcional/)).toBeNull()
   })
 
   it('only confirms when the email already has an account: no link to pass on', async () => {
