@@ -4,7 +4,7 @@ type Options = {
   /** Development build (`__DEV__`). */
   isDev: boolean
   /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`): a preview, Demo mode only. */
-  demoBuild?: boolean
+  demoBuild: boolean
 }
 
 /**
@@ -15,7 +15,7 @@ type Options = {
  */
 export function resolveClerkKey(
   fromEnv: string | undefined,
-  { isDev, demoBuild = false }: Options,
+  { isDev, demoBuild }: Options,
 ): string | null {
   if (demoBuild) {
     if (fromEnv?.startsWith('pk_live_')) {

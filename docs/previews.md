@@ -43,6 +43,10 @@ Faça commit do `app.json`, do `package.json` e do `package-lock.json` e abra o 
 
 O token fica só no secret: nunca no repositório, no `.env` nem na Vercel.
 
+### Variáveis de ambiente do EAS
+
+O workflow publica com `eas update --environment preview`, e as variáveis desse environment no expo.dev (Project → Environment variables) entram no build e valem mais que as do workflow. Deixe o environment `preview` sem variáveis `EXPO_PUBLIC_*`: nada de chave do Clerk (uma `pk_live_` faz o preview falhar ao abrir) e nada de `EXPO_PUBLIC_DEMO_BUILD`, que o workflow já define.
+
 ## Onde achar cada preview
 
 ### Num PR

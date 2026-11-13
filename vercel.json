@@ -4,6 +4,5 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build:preview:web",
   "outputDirectory": "dist",
-  "cleanUrls": true,
   "rewrites": [{ "source": "/:path*", "destination": "/" }]
 }
