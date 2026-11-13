@@ -147,6 +147,34 @@ describe('NewItemScreen', () => {
     expect(mockRouter.back).not.toHaveBeenCalled()
   })
 
+  it('refuses a name of 247 characters (the limit is 200), sending nothing', async () => {
+    const createItem = jest.spyOn(mockBackend, 'createItem')
+    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'x'.repeat(247))
+    await fireEvent.changeText(field('Dia'), '21112026')
+    await press('Criar item')
+
+    expect(await screen.findByText('Use um nome de até 200 caracteres.')).toBeOnTheScreen()
+    expect(createItem).not.toHaveBeenCalled()
+    expect(mockRouter.back).not.toHaveBeenCalled()
+    createItem.mockRestore()
+  })
+
+  it('refuses a place name over 200 characters and an address over 500, sending nothing', async () => {
+    const createItem = jest.spyOn(mockBackend, 'createItem')
+    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio')
+    await fireEvent.changeText(field('Nome do lugar'), 'x'.repeat(201))
+    await fireEvent.changeText(field('Endereço'), 'x'.repeat(501))
+    await press('Criar item')
+
+    expect(await screen.findAllByText(/^Use até (200|500) caracteres\.$/)).toHaveLength(2)
+    expect(createItem).not.toHaveBeenCalled()
+    createItem.mockRestore()
+  })
+
   it('creates the item with day, local time and a place in its own timezone', async () => {
     await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
 

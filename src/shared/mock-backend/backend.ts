@@ -133,10 +133,10 @@ function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
   if (time != null && !isLocalTime(time)) details.push({ path: 'time', message: 'Hora inválida.' })
   let checkedPlace: ItemPlaceRow | null | undefined = place === undefined ? undefined : null
   if (place != null) {
+    // Like the API's DTO, a part is measured as sent, before it is trimmed.
     const text = (value: string | null | undefined, path: string, max: number) => {
-      const trimmed = value?.trim() ?? ''
-      if (trimmed.length > max) details.push({ path, message: `Use até ${max} caracteres.` })
-      return trimmed || null
+      if ((value?.length ?? 0) > max) details.push({ path, message: `Use até ${max} caracteres.` })
+      return value?.trim() || null
     }
     const placeTimezone = place.timezone ?? null
     if (placeTimezone !== null && !isTimezone(placeTimezone)) {

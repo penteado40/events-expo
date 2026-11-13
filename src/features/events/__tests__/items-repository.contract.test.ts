@@ -155,6 +155,23 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
 
   it.each([
     ['a blank name', { name: '  ' }, 'name'],
+    ['a name of 247 characters', { name: 'x'.repeat(247), date: '2026-11-21' }, 'name'],
+    [
+      'a place name over 200 characters',
+      { name: 'Ensaio', place: { name: 'x'.repeat(201) } },
+      'place.name',
+    ],
+    [
+      // The API's DTO measures a place's parts as sent, before trimming them.
+      'a place name of 200 characters and a space',
+      { name: 'Ensaio', place: { name: `${'x'.repeat(200)} ` } },
+      'place.name',
+    ],
+    [
+      'an address over 500 characters',
+      { name: 'Ensaio', place: { address: 'x'.repeat(501) } },
+      'place.address',
+    ],
     ['a time that does not exist', { name: 'Ensaio', date: '2026-11-21', time: '24:00' }, 'time'],
     [
       'an unknown timezone',
@@ -168,6 +185,17 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       code: 'VALIDATION_ERROR',
       details: [expect.objectContaining({ path })],
     })
+  })
+
+  it('refuses an edit to a name of 247 characters, leaving the item as it was', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+
+    await expect(items.update(MANAUS, 6, { name: 'x'.repeat(247) })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: [expect.objectContaining({ path: 'name' })],
+    })
+    const { timeline } = await schedule.get(MANAUS)
+    expect(timeline.flatMap((d) => d.items).find((i) => i.id === 6)?.name).toBe('Passagem de som')
   })
 
   it('refuses an empty place with VALIDATION_ERROR, after who may write', async () => {
