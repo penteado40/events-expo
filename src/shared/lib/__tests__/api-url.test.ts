@@ -21,4 +21,8 @@ describe('resolveApiUrl', () => {
   it('fails loudly in a release build without it', () => {
     expect(() => resolveApiUrl(undefined, { isDev: false })).toThrow(/EXPO_PUBLIC_API_URL/)
   })
+
+  it('needs no events-api in a Demo build, which runs only over the mock', () => {
+    expect(() => resolveApiUrl(undefined, { isDev: false, demoBuild: true })).not.toThrow()
+  })
 })

@@ -15,4 +15,15 @@ describe('resolveClerkKey', () => {
       /EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY/,
     )
   })
+
+  it('is absent in a Demo build, with or without a test key', () => {
+    expect(resolveClerkKey(undefined, { isDev: false, demoBuild: true })).toBeNull()
+    expect(resolveClerkKey('pk_test_abc', { isDev: false, demoBuild: true })).toBeNull()
+  })
+
+  it('refuses a live key in a Demo build, so a preview never carries production config', () => {
+    expect(() => resolveClerkKey('pk_live_abc', { isDev: false, demoBuild: true })).toThrow(
+      /pk_live_/,
+    )
+  })
 })

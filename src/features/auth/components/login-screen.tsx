@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native'
 
 import { Button, Notice, TextField } from '@/shared/components/ui'
 import { CLERK_PUBLISHABLE_KEY } from '@/shared/lib/clerk-key'
+import { DEMO_BUILD } from '@/shared/lib/demo-build'
 import { useSession } from '@/shared/session'
 import { fonts, useTheme } from '@/shared/theme'
 
@@ -25,10 +26,15 @@ const DEMO_ACCOUNTS: { account: DemoAccount; label: string }[] = [
 type Props = {
   /** False in a development build without Clerk's key: only Demo mode, and how to get the rest. */
   withClerk?: boolean
+  /** A Demo build (a preview): Demo mode is all there is, and the card says so. */
+  demoBuild?: boolean
 }
 
 /** D-Login: email and password, Google or Apple, all through Clerk; no open sign-up. */
-export function LoginScreen({ withClerk = CLERK_PUBLISHABLE_KEY !== null }: Props) {
+export function LoginScreen({
+  withClerk = CLERK_PUBLISHABLE_KEY !== null,
+  demoBuild = DEMO_BUILD,
+}: Props) {
   const { colors } = useTheme()
   const enterDemo = useEnterDemo()
 
@@ -41,7 +47,7 @@ export function LoginScreen({ withClerk = CLERK_PUBLISHABLE_KEY !== null }: Prop
           <Text style={[styles.footer, { color: colors.textMuted }]}>
             Não tem conta? Quem convida é a produção do seu Group. Use sempre o e-mail do convite.
           </Text>
-          {__DEV__ ? (
+          {__DEV__ || demoBuild ? (
             <View style={styles.demo}>
               <Text style={[styles.demoTitle, { color: colors.textMuted }]}>Modo demo</Text>
               <View style={styles.demoRow}>
@@ -60,7 +66,12 @@ export function LoginScreen({ withClerk = CLERK_PUBLISHABLE_KEY !== null }: Prop
         </>
       }
     >
-      {withClerk ? (
+      {demoBuild ? (
+        <Notice
+          alert={false}
+          message="Este é um preview do app, sem backend: entre pelo modo demo, logo abaixo."
+        />
+      ) : withClerk ? (
         <ClerkSignIn />
       ) : (
         <Notice message="Para entrar pelo Clerk, ponha EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY no .env e reinicie o Expo. Enquanto isso, use o modo demo." />

@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { Badge, Button, Notice, TextField } from '@/shared/components/ui'
 import { initials } from '@/shared/domain/initials'
 import { CLERK_PUBLISHABLE_KEY } from '@/shared/lib/clerk-key'
+import { DEMO_BUILD } from '@/shared/lib/demo-build'
 import { fonts, useTheme } from '@/shared/theme'
 
 import { activationTitle, type ActivationLink } from '../activation-link'
@@ -19,6 +20,8 @@ type Props = {
   link: ActivationLink
   /** False in a development build without Clerk's key: an invitation can't be accepted. */
   withClerk?: boolean
+  /** A Demo build (a preview): no Clerk, so no invitation can be accepted there. */
+  demoBuild?: boolean
 }
 
 /**
@@ -26,7 +29,11 @@ type Props = {
  * the invitation's email locked, then a new password or Google or Apple of that email. Once
  * active, the Live session opens and the Session guard takes the person to the Início.
  */
-export function ActivationScreen({ link, withClerk = CLERK_PUBLISHABLE_KEY !== null }: Props) {
+export function ActivationScreen({
+  link,
+  withClerk = CLERK_PUBLISHABLE_KEY !== null,
+  demoBuild = DEMO_BUILD,
+}: Props) {
   return (
     <AuthLayout
       eyebrow={<Badge label="CONVITE" tone="green" />}
@@ -41,7 +48,9 @@ export function ActivationScreen({ link, withClerk = CLERK_PUBLISHABLE_KEY !== n
         </View>
       }
     >
-      {withClerk ? (
+      {demoBuild ? (
+        <Notice message="Este é um preview do app, sem backend: aqui não dá para aceitar um convite. Use o modo demo no login." />
+      ) : withClerk ? (
         <ClerkActivation link={link} />
       ) : (
         <Notice message="Para aceitar um convite, ponha EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY no .env e reinicie o Expo." />
