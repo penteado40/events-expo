@@ -161,13 +161,23 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       { name: 'Ensaio', place: { name: null, address: null, timezone: 'Mars/Olympus' } },
       'place.timezone',
     ],
-    ['an empty place', { name: 'Ensaio', place: { name: ' ', address: null } }, 'place'],
   ])('refuses %s with VALIDATION_ERROR naming the field', async (_, input, path) => {
     const { items } = createRepository(BRUNO)
 
     await expect(items.create(MANAUS, input)).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
       details: [expect.objectContaining({ path })],
+    })
+  })
+
+  it('refuses an empty place with VALIDATION_ERROR, after who may write', async () => {
+    const empty = { name: 'Ensaio', place: { name: ' ', address: null } }
+
+    await expect(createRepository(BRUNO).items.create(MANAUS, empty)).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    })
+    await expect(createRepository(LU).items.create(MANAUS, empty)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
     })
   })
 

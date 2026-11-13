@@ -32,6 +32,7 @@ import {
   type ItemDraft,
   type ItemDraftErrors,
 } from '../item-draft'
+import { scheduleItems } from '../schedule-lines'
 import { DateField } from './date-field'
 import { TimezoneSheet } from './timezone-sheet'
 
@@ -43,11 +44,7 @@ export function NewItemScreen({ eventId }: { eventId: number }) {
 /** Editing an Event item's name, date, time and place, found in the schedule already read. */
 export function EditItemScreen({ eventId, itemId }: { eventId: number; itemId: number }) {
   const schedule = useSchedule(eventId)
-  const item = schedule.data
-    ? [...schedule.data.generalInfo, ...schedule.data.timeline.flatMap((day) => day.items)].find(
-        (i) => i.id === itemId,
-      )
-    : undefined
+  const item = schedule.data && scheduleItems(schedule.data).find((i) => i.id === itemId)
   return (
     <EditableEvent eventId={eventId}>
       {(event) =>

@@ -116,8 +116,8 @@ const PLACE_ADDRESS_MAX = 500
 
 /**
  * Checks an Event item's body as the API's DTO and domain would (PROJ-187): the shape first
- * (`VALIDATION_ERROR` with a detail per field), then a blank name or an empty place. The time only
- * with a date is checked on what the item ends up with, by the caller.
+ * (`VALIDATION_ERROR` with a detail per field) and a blank name. An empty place and the time only
+ * with a date are the domain's, checked by the caller after who may write.
  */
 function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
   const { name, date, time, place, ...rest } = body
@@ -147,15 +147,17 @@ function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
       address: text(place.address, 'place.address', PLACE_ADDRESS_MAX),
       timezone: placeTimezone,
     }
-    if (!checkedPlace.name && !checkedPlace.address && !checkedPlace.timezone) {
-      details.push({ path: 'place', message: 'Informe o nome, o endereço ou o fuso.' })
-    }
   }
   if (partial && Object.keys(body).length === 0) {
     details.push({ path: '', message: 'Envie ao menos um campo.' })
   }
   if (details.length > 0) throw validationError(details)
   return { name: name?.trim(), date, time, place: checkedPlace }
+}
+
+/** A place with no part is the domain's refusal (after who may write), with no details. */
+function assertPlaceNotEmpty(place: ItemPlaceRow | null | undefined) {
+  if (place && !place.name && !place.address && !place.timezone) throw validationError()
 }
 
 /** The days of the Timeline: only those with items, in date order; untimed first, then by time. */
@@ -555,6 +557,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const asker = requester(identity)
       const checked = checkItemBody(body, { partial: false })
       const event = reachEvent(asker, eventId, { write: true })
+      assertPlaceNotEmpty(checked.place)
       const date = checked.date ?? null
       const time = checked.time ?? null
       if (time !== null && date === null) throw eventItemTimeWithoutDate()
@@ -588,6 +591,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const asker = requester(identity)
       const checked = checkItemBody(body, { partial: true })
       const { event, row } = reachItem(asker, eventId, itemId)
+      assertPlaceNotEmpty(checked.place)
       const date = checked.date === undefined ? row.date : checked.date
       const time = checked.time === undefined ? row.time : checked.time
       if (time !== null && date === null) throw eventItemTimeWithoutDate()

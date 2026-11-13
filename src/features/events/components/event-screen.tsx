@@ -28,6 +28,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
   const insets = useSafeAreaInsets()
   const user = useSession((state) => state.session?.user)
   const event = useEvent(eventId)
+  const role = event.data && user ? roleIn(user, event.data.groupId) : null
   const tone = autoTone(eventId)
   const [from, to] = theme.cover(tone)
 
@@ -52,7 +53,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
             >
               <Icon name="back" color="#FFFFFF" size={20} strokeWidth={2} />
             </Pressable>
-            {event.data && user && canEditEvent(roleIn(user, event.data.groupId), event.data) && (
+            {event.data && role && canEditEvent(role, event.data) && (
               <Pressable
                 onPress={() => router.push(`/events/${eventId}/edit`)}
                 accessibilityRole="button"
@@ -68,15 +69,9 @@ export function EventScreen({ eventId }: { eventId: number }) {
         <View style={styles.body}>
           {event.data ? (
             <>
-              <EventCard
-                event={event.data}
-                draftShown={!!user && seesDrafts(roleIn(user, event.data.groupId))}
-              />
-              {user && seesDrafts(roleIn(user, event.data.groupId)) && (
-                <ScheduleSummary
-                  event={event.data}
-                  editable={canEditEvent(roleIn(user, event.data.groupId), event.data)}
-                />
+              <EventCard event={event.data} draftShown={!!role && seesDrafts(role)} />
+              {role && seesDrafts(role) && (
+                <ScheduleSummary event={event.data} editable={canEditEvent(role, event.data)} />
               )}
             </>
           ) : event.error ? (

@@ -47,7 +47,7 @@ export type ScheduleLines = {
  */
 export function assembleSchedule(schedule: Schedule, period: Period): ScheduleLines {
   const byDate = new Map<LocalDate, EventItem[]>()
-  for (const item of schedule.timeline.flatMap((day) => day.items)) {
+  for (const item of scheduleItems(schedule)) {
     if (!item.when) continue
     byDate.set(item.when.date, [...(byDate.get(item.when.date) ?? []), item])
   }
@@ -63,6 +63,11 @@ export function assembleSchedule(schedule: Schedule, period: Period): ScheduleLi
   }))
   const generalInfo = schedule.generalInfo.map((item) => lineOf(item, period.timezone))
   return { generalInfo, days, isEmpty: generalInfo.length === 0 && days.length === 0 }
+}
+
+/** Every item of the schedule, the General info's first. */
+export function scheduleItems(schedule: Schedule): EventItem[] {
+  return [...schedule.generalInfo, ...schedule.timeline.flatMap((day) => day.items)]
 }
 
 function untimedFirstThenByTime(a: EventItem, b: EventItem): number {
