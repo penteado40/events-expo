@@ -55,7 +55,13 @@ export function isLocalDate(text: string): boolean {
   return date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
-/** Today's date where the device is. */
+/** A calendar date as a device clock time (noon, away from any DST jump), for a date picker. */
+export function deviceDateOf(date: LocalDate): Date {
+  const { year, month, day } = parts(date)
+  return new Date(year, month - 1, day, 12)
+}
+
+/** Today's date where the device is; also the date a date picker chose. */
 export function deviceToday(now: Date): LocalDate {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
@@ -119,11 +125,27 @@ export function typedDate(date: LocalDate): string {
 }
 
 /**
- * Puts the slashes into a date being typed on a number pad: "2011" shows "20/11". Text that
- * already has slashes is kept as typed, so "20/1" can still become "20/1/2027".
+ * Puts the slashes into a date being typed on a number pad, on every keystroke: "2011" shows
+ * "20/11" and one more digit "20/11/2". A slash typed by hand closes the day or the month early,
+ * so "20/1/2027" stays as typed.
  */
 export function typingDate(text: string): string {
-  if (text.includes('/')) return text.replace(/[^\d/]/g, '').slice(0, 10)
-  const digits = text.replace(/\D/g, '').slice(0, 8)
-  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/')
+  const fields = ['', '', '']
+  const widths = [2, 2, 4]
+  let at = 0
+  const segments = text.replace(/[^\d/]/g, '').split('/')
+  segments.forEach((segment, i) => {
+    for (const digit of segment) {
+      if (at > 2) break
+      fields[at] += digit
+      if (fields[at].length === widths[at]) at += 1
+    }
+    // A slash after a day or month still short of two digits closes it.
+    const slashFollows = i < segments.length - 1
+    if (slashFollows && at < 2 && fields[at]) at += 1
+  })
+  const shown = fields.filter(Boolean).join('/')
+  // Keep a slash just typed after a short field, so the next digit lands in the next one.
+  const openField = at < 3 && at > 0 && fields[at] === '' && fields[at - 1].length < widths[at - 1]
+  return openField && text.endsWith('/') ? `${shown}/` : shown
 }

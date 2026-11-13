@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native'
 
 import { fonts, palette, useTheme } from '@/shared/theme'
@@ -7,10 +7,12 @@ type Props = Omit<TextInputProps, 'style' | 'placeholderTextColor'> & {
   label: string
   /** What is wrong with the value: the box turns red and says it below. */
   error?: string | null
+  /** A control at the right of the box, like the calendar of a date. */
+  accessory?: ReactNode
 }
 
 /** Media kit, Campos: the label inside the box, both blue while focused, red with an error. */
-export function TextField({ label, error, onFocus, onBlur, ...input }: Props) {
+export function TextField({ label, error, accessory, onFocus, onBlur, ...input }: Props) {
   const { colors, badge } = useTheme()
   const [focused, setFocused] = useState(false)
   const danger = badge('red').text
@@ -24,21 +26,24 @@ export function TextField({ label, error, onFocus, onBlur, ...input }: Props) {
           { borderColor: accent ?? colors.border, backgroundColor: colors.surface },
         ]}
       >
-        <Text style={[styles.label, { color: accent ?? colors.textMuted }]}>{label}</Text>
-        <TextInput
-          {...input}
-          accessibilityLabel={label}
-          onFocus={(event) => {
-            setFocused(true)
-            onFocus?.(event)
-          }}
-          onBlur={(event) => {
-            setFocused(false)
-            onBlur?.(event)
-          }}
-          placeholderTextColor={palette.gray[500]}
-          style={[styles.input, { color: colors.text }]}
-        />
+        <View style={styles.text}>
+          <Text style={[styles.label, { color: accent ?? colors.textMuted }]}>{label}</Text>
+          <TextInput
+            {...input}
+            accessibilityLabel={label}
+            onFocus={(event) => {
+              setFocused(true)
+              onFocus?.(event)
+            }}
+            onBlur={(event) => {
+              setFocused(false)
+              onBlur?.(event)
+            }}
+            placeholderTextColor={palette.gray[500]}
+            style={[styles.input, { color: colors.text }]}
+          />
+        </View>
+        {accessory}
       </View>
       {error ? (
         <Text accessibilityLiveRegion="polite" style={[styles.error, { color: danger }]}>
@@ -51,7 +56,16 @@ export function TextField({ label, error, onFocus, onBlur, ...input }: Props) {
 
 const styles = StyleSheet.create({
   field: { gap: 6 },
-  box: { borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8, gap: 2 },
+  box: {
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  text: { flex: 1, gap: 2 },
   label: { fontFamily: fonts.sans600, fontSize: 12 },
   input: { fontFamily: fonts.sans400, fontSize: 16, padding: 0, minHeight: 24 },
   error: { fontFamily: fonts.sans400, fontSize: 13, lineHeight: 18 },

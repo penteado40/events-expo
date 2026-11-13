@@ -24,7 +24,7 @@ import {
 } from '@/shared/components/ui'
 import { autoTone, type AutoTone } from '@/shared/domain/auto-tone'
 import { canEditEvent, roleIn } from '@/shared/domain/group-role'
-import { dateFromTyping, deviceToday, typingDate, weekday } from '@/shared/domain/local-dates'
+import { dateFromTyping, deviceToday, weekday } from '@/shared/domain/local-dates'
 import { TIMEZONE_CHOICES, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -39,6 +39,7 @@ import {
 } from '../event-form'
 import { useEvent } from '../hooks/use-event'
 import { useCreateEvent, useUpdateEvent } from '../hooks/use-save-event'
+import { DateField } from './date-field'
 
 /** A new Event has no id yet, so no tone: the header previews one, labelled "cor automática". */
 const NEW_EVENT_TONE: AutoTone = 'purple'
@@ -246,23 +247,20 @@ function EventFormView<Input>({
           <Text style={[styles.section, styles.when, { color: colors.text }]}>Quando</Text>
           <View style={styles.dates}>
             <View style={styles.date}>
-              <TextField
+              <DateField
                 label="Começa"
                 value={form.startDate}
-                onChangeText={(text) => edit('startDate')(typingDate(text))}
+                onChange={edit('startDate')}
                 error={errors.startDate}
-                placeholder="dd/mm/aaaa"
-                keyboardType="number-pad"
               />
             </View>
             <View style={styles.date}>
-              <TextField
+              <DateField
                 label="Termina"
                 value={form.endDate}
-                onChangeText={(text) => edit('endDate')(typingDate(text))}
+                onChange={edit('endDate')}
                 error={errors.endDate}
-                placeholder="dd/mm/aaaa"
-                keyboardType="number-pad"
+                opensOn={dateFromTyping(form.startDate)}
               />
             </View>
           </View>

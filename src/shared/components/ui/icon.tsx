@@ -20,6 +20,9 @@ const ICONS = {
   plus: <Path d="M12 5v14M5 12h14" />,
   chevronDown: <Path d="m6 9 6 6 6-6" />,
   check: <Path d="M5 12.5l4.5 4.5L19 7.5" />,
+  calendar: (
+    <Path d="M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1M4 10h16M8 3v4M16 3v4" />
+  ),
   search: (
     <>
       <Circle cx={11} cy={11} r={7} />

@@ -152,6 +152,19 @@ describe('typed dates (DD/MM/AAAA)', () => {
     ['20/11/2026', '20/11/2026'],
     ['2011202699', '20/11/2026'],
     ['20/1', '20/1'],
+    // The number pad has no slash: each digit arrives on the text already shown.
+    ['17/112', '17/11/2'],
+    ['17/11/2026', '17/11/2026'],
+    ['20/11/20269', '20/11/2026'],
+    // Deleting goes back over the slash.
+    ['17/11/', '17/11'],
+    ['17/1', '17/1'],
+    // A slash typed by hand closes a short day or month.
+    ['2/', '2/'],
+    ['2/3', '2/3'],
+    ['2/3/', '2/3/'],
+    ['2/3/2027', '2/3/2027'],
+    ['20/1/2027', '20/1/2027'],
   ])('puts the slashes in while typing %p: %p', (text, shown) => {
     expect(typingDate(text)).toBe(shown)
   })

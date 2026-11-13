@@ -9,6 +9,21 @@ import { EventScreen } from '../components/event-screen'
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() }
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }))
+// The system calendar, as a plain view whose `onChange` the test fires with the chosen date.
+jest.mock('@react-native-community/datetimepicker', () => {
+  const { View } = jest.requireActual('react-native')
+  return {
+    __esModule: true,
+    default: (props: { value: Date; onChange: unknown }) => (
+      <View
+        testID="calendar"
+        accessibilityValue={{ text: props.value.toDateString() }}
+        onChange={props.onChange}
+      />
+    ),
+    DateTimePickerAndroid: { open: jest.fn() },
+  }
+})
 
 const OWNER = 2
 const VIEWER = 5
@@ -48,6 +63,29 @@ describe('NewEventScreen', () => {
     expect(
       screen.getByText(/O Event nasce em rascunho: o Group já vê onde e quando/),
     ).toBeOnTheScreen()
+  })
+
+  it('puts both slashes in as the date is typed digit by digit on the number pad', async () => {
+    await renderAs(OWNER, <NewEventScreen groupId={1} />)
+
+    for (const digit of '17112026') {
+      await fireEvent.changeText(field('Começa'), `${field('Começa').props.value}${digit}`)
+    }
+
+    expect(field('Começa').props.value).toBe('17/11/2026')
+  })
+
+  it('chooses a date on the calendar, opening the end on the start', async () => {
+    await renderAs(OWNER, <NewEventScreen groupId={1} />)
+    await fireEvent.changeText(field('Começa'), '04122026')
+
+    await press('Escolher no calendário: Termina')
+    const calendar = screen.getByTestId('calendar')
+    expect(calendar.props.accessibilityValue.text).toBe(new Date(2026, 11, 4).toDateString())
+    await fireEvent(calendar, 'change', { type: 'set' }, new Date(2026, 11, 6, 12))
+    await press('Usar esta data')
+
+    expect(field('Termina').props.value).toBe('06/12/2026')
   })
 
   it('creates the Event in Draft and opens it', async () => {
