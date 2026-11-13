@@ -20,7 +20,7 @@ Quem faz é o dono das contas (Vercel, Expo, GitHub). Enquanto o passo 2 ou 3 n�
 1. Em [vercel.com/new](https://vercel.com/new), importe o repositório `penteado40/events-expo`.
 2. Em **Framework Preset**, deixe **Other**. O `vercel.json` já define a instalação (`npm ci`), o build (`npm run build:preview:web`), a pasta `dist` e o rewrite que faz uma rota funda (ex.: `/events/3/timeline`) abrir sem 404.
 3. **Node.js Version**: 22.x. A Vercel lê do `engines` do `package.json`; confira em Settings → Build and Deployment.
-4. **Environment Variables**: nenhuma é necessária. Não ponha a chave do Clerk. Se puser, só uma `pk_test_`, que o Demo build ignora. Uma `pk_live_` faz o preview falhar ao abrir, de propósito.
+4. **Environment Variables**: não cadastre nenhuma. A Vercel não aceita variáveis com `PUBLIC` no nome, e o Expo só embute no bundle as `EXPO_PUBLIC_*`, então não há como passar uma pelo painel. A única de que o preview precisa, `EXPO_PUBLIC_DEMO_BUILD=true`, já vem no próprio build command (`build:preview:web` no `package.json`). Se um dia o preview precisar de outra, ela entra nesse script, não no painel. A chave do Clerk nunca vai: o Demo build não usa Clerk, e uma `pk_live_` faria o preview falhar ao abrir, de propósito.
 5. **Production Branch**: `main` (Settings → Git).
 6. Para abrir o preview no celular sem login na Vercel, desligue a **Vercel Authentication** dos previews (Settings → Deployment Protection) ou entre na Vercel no navegador do celular.
 
