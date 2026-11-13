@@ -19,8 +19,10 @@ jest.mock('@react-native-community/datetimepicker', () => ({
 const OWNER = 2
 const VIEWER = 5
 const BRUNO = { email: 'bruno.reis@example.com' }
-/** Saída Manaus: 20 to 22 Nov 2026, in Manaus' timezone. */
+/** Saída Manaus: published, 20 to 22 Nov 2026, in Manaus' timezone. */
 const MANAUS = 3
+/** Turnê Minas: in Draft, 12 to 14 Mar 2027, in São Paulo's timezone. */
+const MINAS = 2
 
 /** A Demo mode Session of a sample User: everything answers from the shared mock backend. */
 async function renderAs(userId: number, ui: React.ReactElement) {
@@ -34,17 +36,44 @@ async function renderAs(userId: number, ui: React.ReactElement) {
 
 const field = (label: string) => screen.getByLabelText(label)
 const press = (name: string | RegExp) => fireEvent.press(screen.getByRole('button', { name }))
-const allItems = async () => {
-  const { generalInfo, timeline } = await mockBackend.schedule(BRUNO, MANAUS)
+const allItems = async (eventId: number) => {
+  const { generalInfo, timeline } = await mockBackend.schedule(BRUNO, eventId)
   return [...generalInfo, ...timeline.flatMap((d) => d.items)]
 }
+
+/** The items written in Turnê Minas (the Owner writes items only in an Event in Draft). */
+const minas = { passagem: 0, show: 0 }
+beforeAll(async () => {
+  const palacio = { name: 'Palácio das Artes', address: 'Av. Afonso Pena, 1537' }
+  minas.passagem = (
+    await mockBackend.createItem(BRUNO, MINAS, {
+      name: 'Passagem de som',
+      date: '2027-03-13',
+      time: '16:00',
+      place: palacio,
+    })
+  ).id
+  minas.show = (
+    await mockBackend.createItem(BRUNO, MINAS, {
+      name: 'Show',
+      date: '2027-03-13',
+      time: '20:00',
+      place: palacio,
+    })
+  ).id
+  await mockBackend.createItem(BRUNO, MINAS, {
+    name: 'Check-out',
+    date: '2027-03-14',
+    time: '11:00',
+  })
+})
 
 beforeEach(() => {
   mockRouter.push.mockClear()
   mockRouter.back.mockClear()
 })
 
-describe('EventScreen, the Draft schedule in short', () => {
+describe('EventScreen, the schedule in short', () => {
   it('shows the Owner the General info and a line per day, the eve outside the period', async () => {
     await renderAs(OWNER, <EventScreen eventId={MANAUS} />)
 
@@ -58,13 +87,21 @@ describe('EventScreen, the Draft schedule in short', () => {
     ).toBeOnTheScreen()
   })
 
-  it('opens the Timeline and the new item from it', async () => {
-    await renderAs(OWNER, <EventScreen eventId={MANAUS} />)
+  it('opens the Timeline and the new item from it, in an Event in Draft', async () => {
+    await renderAs(OWNER, <EventScreen eventId={MINAS} />)
 
     await press(await screen.findByText('Abrir a Timeline').then(() => 'Abrir a Timeline'))
-    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MANAUS}/timeline`)
+    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MINAS}/timeline`)
     await press('+ Item')
-    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MANAUS}/items/new`)
+    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MINAS}/items/new`)
+  })
+
+  it('has no "+ Item" in a published Event: its items are not written yet', async () => {
+    await renderAs(OWNER, <EventScreen eventId={MANAUS} />)
+
+    expect(await screen.findByText('O que levar · Contatos')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Abrir a Timeline' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: '+ Item' })).toBeNull()
   })
 
   it('shows a Viewer no schedule', async () => {
@@ -83,17 +120,17 @@ describe('TimelineScreen', () => {
     expect(headings.flat().filter((t: unknown) => typeof t === 'string')).toEqual(
       expect.arrayContaining(['Qui 19', 'Sex 20', 'Sáb 21', 'Dom 22']),
     )
-    expect(screen.getByRole('button', { name: '00:40, Translado de volta' })).toBeOnTheScreen()
+    expect(screen.getByLabelText('00:40, Translado de volta')).toBeOnTheScreen()
     expect(screen.getByText('FORA DO PERÍODO')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'a definir, Técnica viaja antes' })).toBeOnTheScreen()
+    expect(screen.getByLabelText('a definir, Técnica viaja antes')).toBeOnTheScreen()
   })
 
   it('shows the untimed ("a definir") before the timed in a day', async () => {
     await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
 
-    const rows = (
-      await screen.findAllByRole('button', { name: /Almoço|Passagem de som|Show/ })
-    ).map((row) => row.props.accessibilityLabel)
+    const rows = (await screen.findAllByLabelText(/Almoço|Passagem de som|Show/)).map(
+      (row) => row.props.accessibilityLabel,
+    )
     expect(rows).toEqual([
       'a definir, Almoço',
       '16:00, Passagem de som, Teatro Amazonas',
@@ -105,13 +142,22 @@ describe('TimelineScreen', () => {
     await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
 
     expect(await screen.findAllByText('Vitória · horário de São Paulo')).toHaveLength(2)
-    expect(
-      screen.getByRole('button', { name: /^14:30, Check-in/ }).props.accessibilityLabel,
-    ).not.toMatch(/horário/)
+    expect(screen.getByLabelText(/^14:30, Check-in/).props.accessibilityLabel).not.toMatch(
+      /horário/,
+    )
+  })
+
+  it('leaves the items of a published Event as they are: no "+ Item", no Editar or Apagar', async () => {
+    await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+
+    expect(await screen.findByLabelText('19:00, Show, Teatro Amazonas')).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: '+ Item' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '19:00, Show, Teatro Amazonas' })).toBeNull()
+    expect(screen.queryByText('Nenhum item ainda. Toque em + Item para começar.')).toBeNull()
   })
 
   it('deletes an item after the confirmation', async () => {
-    await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+    await renderAs(OWNER, <TimelineScreen eventId={MINAS} />)
 
     await press(await screen.findByText('Check-out').then(() => '11:00, Check-out'))
     await press('Apagar')
@@ -119,40 +165,41 @@ describe('TimelineScreen', () => {
     await press('Apagar')
 
     await waitFor(() => expect(screen.queryByText('Check-out')).toBeNull())
-    expect((await allItems()).map((i) => i.name)).not.toContain('Check-out')
+    expect((await allItems(MINAS)).map((i) => i.name)).not.toContain('Check-out')
   })
 
   it('opens the editor of an item from its actions', async () => {
-    await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+    await renderAs(OWNER, <TimelineScreen eventId={MINAS} />)
 
-    await press(await screen.findByText('Show').then(() => '19:00, Show, Teatro Amazonas'))
+    await press(await screen.findByText('Show').then(() => '20:00, Show, Palácio das Artes'))
     await press('Editar')
 
-    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MANAUS}/items/5`)
+    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MINAS}/items/${minas.show}`)
   })
 })
 
 describe('NewItemScreen', () => {
   it('refuses a time with no day, sending nothing', async () => {
-    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
-    const before = (await allItems()).length
+    const createItem = jest.spyOn(mockBackend, 'createItem')
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
 
     await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio no hotel')
-    await fireEvent.changeText(field('Hora · Manaus'), '1100')
-    expect(field('Hora · Manaus').props.value).toBe('11:00')
+    await fireEvent.changeText(field('Hora · São Paulo'), '1100')
+    expect(field('Hora · São Paulo').props.value).toBe('11:00')
     await press('Criar item')
 
     expect(screen.getByText('Para pôr a hora, informe o dia.')).toBeOnTheScreen()
-    expect(await allItems()).toHaveLength(before)
+    expect(createItem).not.toHaveBeenCalled()
     expect(mockRouter.back).not.toHaveBeenCalled()
+    createItem.mockRestore()
   })
 
   it('refuses a name of 247 characters (the limit is 200), sending nothing', async () => {
     const createItem = jest.spyOn(mockBackend, 'createItem')
-    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
 
     await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'x'.repeat(247))
-    await fireEvent.changeText(field('Dia'), '21112026')
+    await fireEvent.changeText(field('Dia'), '13032027')
     await press('Criar item')
 
     expect(await screen.findByText('Use um nome de até 200 caracteres.')).toBeOnTheScreen()
@@ -163,7 +210,7 @@ describe('NewItemScreen', () => {
 
   it('refuses a place name over 200 characters and an address over 500, sending nothing', async () => {
     const createItem = jest.spyOn(mockBackend, 'createItem')
-    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
 
     await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio')
     await fireEvent.changeText(field('Nome do lugar'), 'x'.repeat(201))
@@ -176,39 +223,57 @@ describe('NewItemScreen', () => {
   })
 
   it('creates the item with day, local time and a place in its own timezone', async () => {
-    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
 
-    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio em Vitória')
-    await fireEvent.changeText(field('Dia'), '19112026')
-    await fireEvent.changeText(field('Nome do lugar'), 'Vitória')
-    await press('Fuso do lugar: Fuso do Event · Manaus (GMT−4)')
-    await press('São Paulo (GMT−3)')
-    expect(field('Hora · São Paulo')).toBeOnTheScreen()
-    await fireEvent.changeText(field('Hora · São Paulo'), '0900')
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Voo para Manaus')
+    await fireEvent.changeText(field('Dia'), '11032027')
+    await fireEvent.changeText(field('Nome do lugar'), 'Manaus')
+    await press('Fuso do lugar: Fuso do Event · São Paulo (GMT−3)')
+    await press('Manaus (GMT−4)')
+    expect(field('Hora · Manaus')).toBeOnTheScreen()
+    await fireEvent.changeText(field('Hora · Manaus'), '0900')
     await press('Criar item')
 
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
-    expect((await allItems()).find((i) => i.name === 'Ensaio em Vitória')).toMatchObject({
-      when: { date: '2026-11-19', time: '09:00', timezone: 'America/Sao_Paulo' },
-      place: { name: 'Vitória', address: null, timezone: 'America/Sao_Paulo' },
+    expect((await allItems(MINAS)).find((i) => i.name === 'Voo para Manaus')).toMatchObject({
+      when: { date: '2027-03-11', time: '09:00', timezone: 'America/Manaus' },
+      place: { name: 'Manaus', address: null, timezone: 'America/Manaus' },
     })
+  })
+
+  it('is not open in a published Event', async () => {
+    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+
+    expect(
+      await screen.findByText('Os itens de um Event publicado ainda não podem ser editados.'),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Criar item' })).toBeNull()
   })
 })
 
 describe('EditItemScreen', () => {
   it('opens with the item and saves only what changed', async () => {
-    await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={6} />)
+    await renderAs(OWNER, <EditItemScreen eventId={MINAS} itemId={minas.passagem} />)
 
     expect(await screen.findByDisplayValue('Passagem de som')).toBeOnTheScreen()
-    expect(field('Dia').props.value).toBe('21/11/2026')
-    await fireEvent.changeText(field('Hora · Manaus'), '1700')
+    expect(field('Dia').props.value).toBe('13/03/2027')
+    await fireEvent.changeText(field('Hora · São Paulo'), '1700')
     await press('Salvar')
 
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
-    expect((await allItems()).find((i) => i.id === 6)).toMatchObject({
-      when: { date: '2026-11-21', time: '17:00', timezone: 'America/Manaus' },
-      place: { name: 'Teatro Amazonas' },
+    expect((await allItems(MINAS)).find((i) => i.id === minas.passagem)).toMatchObject({
+      when: { date: '2027-03-13', time: '17:00', timezone: 'America/Sao_Paulo' },
+      place: { name: 'Palácio das Artes' },
     })
+  })
+
+  it('is not open for an item of a published Event', async () => {
+    await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={6} />)
+
+    expect(
+      await screen.findByText('Os itens de um Event publicado ainda não podem ser editados.'),
+    ).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
   })
 
   it('tells a Viewer they cannot edit the items', async () => {

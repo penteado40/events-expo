@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canWriteItems, roleIn, seesDrafts } from '@/shared/domain/group-role'
 import { weekday } from '@/shared/domain/local-dates'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -31,7 +31,8 @@ import {
 /**
  * The Owner's Timeline (D-Timeline, PROJ-220): the General info, then day by day, each item at the
  * local time of its place, the untimed ("a definir") first; a day outside the Event's period is
- * marked. A day picker on the cover jumps to its day. An item opens its actions (editar, apagar).
+ * marked. A day picker on the cover jumps to its day. In an Event in Draft, an item opens its
+ * actions (editar, apagar); a published Event's schedule is only read for now.
  */
 export function TimelineScreen({ eventId }: { eventId: number }) {
   const { colors } = useTheme()
@@ -54,7 +55,7 @@ export function TimelineScreen({ eventId }: { eventId: number }) {
       <Timeline
         event={event.data}
         lines={assembleSchedule(schedule.data, event.data.period)}
-        editable={!!role && canEditEvent(role, event.data)}
+        editable={!!role && canWriteItems(role, event.data)}
       />
     )
   }

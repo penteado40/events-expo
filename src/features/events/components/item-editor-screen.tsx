@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Button, ErrorState, Icon, ListSkeleton, Notice, TextField } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn } from '@/shared/domain/group-role'
+import { canEditEvent, canWriteItems, roleIn } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
@@ -62,7 +62,10 @@ export function EditItemScreen({ eventId, itemId }: { eventId: number; itemId: n
   )
 }
 
-/** The editor only for someone who can edit the Event; anyone else is told so. */
+/**
+ * The editor only for someone who writes the Event's items, for now only in an Event in Draft;
+ * anyone else is told so, and so is the Owner of a published Event.
+ */
 function EditableEvent({
   eventId,
   children,
@@ -72,20 +75,25 @@ function EditableEvent({
 }) {
   const event = useEvent(eventId)
   const user = useSession((state) => state.session?.user)
-  if (event.data && user && canEditEvent(roleIn(user, event.data.groupId), event.data)) {
-    return children(event.data)
-  }
-  return <Waiting error={event.error} refused={!!event.data} onRetry={() => event.refetch()} />
+  const role = event.data && user ? roleIn(user, event.data.groupId) : null
+  if (event.data && role && canWriteItems(role, event.data)) return children(event.data)
+  const refused = !event.data
+    ? null
+    : role && canEditEvent(role, event.data)
+      ? 'Os itens de um Event publicado ainda não podem ser editados.'
+      : 'Você não pode editar os itens deste Event.'
+  return <Waiting error={event.error} refused={refused} onRetry={() => event.refetch()} />
 }
 
 function Waiting({
   error,
-  refused = false,
+  refused = null,
   gone = false,
   onRetry,
 }: {
   error: Error | null
-  refused?: boolean
+  /** Why the editor is not open, when it is not. */
+  refused?: string | null
   gone?: boolean
   onRetry: () => void
 }) {
@@ -93,7 +101,7 @@ function Waiting({
   return (
     <View style={[styles.screen, styles.padded, { backgroundColor: colors.bg }]}>
       {refused ? (
-        <Notice message="Você não pode editar os itens deste Event." alert={false} />
+        <Notice message={refused} alert={false} />
       ) : gone ? (
         <Notice message="Este item não existe mais." alert={false} />
       ) : error ? (

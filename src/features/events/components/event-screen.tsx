@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canEditEvent, canWriteItems, roleIn, seesDrafts } from '@/shared/domain/group-role'
 import { periodLabel } from '@/shared/domain/local-dates'
 import { gmtOffset } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
@@ -18,8 +18,9 @@ import { assembleSchedule } from '../schedule-lines'
 /**
  * An Event's screen (D-Rascunho, PROJ-217, PROJ-220): the cover in its automatic color, and the
  * card over it with the name, where and when in its timezone. Owners see the Draft, "Editar" and
- * the schedule in short (the General info and a line per day, with "+ Item"), which opens the
- * Timeline; a Viewer only where and when. Participants and Publicar come with their own tickets.
+ * the schedule in short (the General info and a line per day, with "+ Item" in an Event in Draft),
+ * which opens the Timeline; a Viewer only where and when. Participants and Publicar come with their
+ * own tickets.
  */
 export function EventScreen({ eventId }: { eventId: number }) {
   const theme = useTheme()
@@ -71,7 +72,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
             <>
               <EventCard event={event.data} draftShown={!!role && seesDrafts(role)} />
               {role && seesDrafts(role) && (
-                <ScheduleSummary event={event.data} editable={canEditEvent(role, event.data)} />
+                <ScheduleSummary event={event.data} editable={canWriteItems(role, event.data)} />
               )}
             </>
           ) : event.error ? (
