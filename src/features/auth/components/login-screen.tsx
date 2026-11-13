@@ -26,7 +26,7 @@ const DEMO_ACCOUNTS: { account: DemoAccount; label: string }[] = [
 type Props = {
   /** False in a development build without Clerk's key: only Demo mode, and how to get the rest. */
   withClerk?: boolean
-  /** A Demo build (a preview): Demo mode is all there is, and the card says so. */
+  /** A Demo build (ADR-0005): Demo mode is all there is, and the card says so. */
   demoBuild?: boolean
 }
 

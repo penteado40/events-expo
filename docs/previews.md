@@ -15,7 +15,7 @@ Os dois caminhos são independentes. A Vercel faz o próprio build (`npm run bui
 
 O setup de uma vez só (importar na Vercel, `eas init`, o secret `EXPO_TOKEN`) já está feito; ver [Setup inicial](#setup-inicial). Falta dar aos dois caminhos a URL da events-api e a chave do Clerk, e liberar a web no CORS da events-api.
 
-Os dois valores, iguais nos três lugares:
+Os dois valores, iguais na Vercel e no GitHub:
 
 - `API_URL`: a URL base da events-api com o prefixo, ex.: `https://<host>/api/v1`.
 - `CLERK_PUBLISHABLE_KEY`: a *Publishable key* (`pk_test_...`) do Clerk, em *API keys* da mesma instância cuja `CLERK_SECRET_KEY` essa events-api usa. Se as instâncias não baterem, todo login volta 401.
@@ -48,7 +48,7 @@ Na events-api, o CORS aceita só as origens exatas da variável `CORS_ORIGINS` (
 - **Produção da web**: cadastre o domínio de produção (Project → Domains na Vercel do events-expo) em `CORS_ORIGINS` no projeto `events-api` da Vercel, no ambiente da events-api para onde o `API_URL` aponta, e faça redeploy dela.
 - **Previews de PR na web**: a URL muda a cada deploy, então não dá para listar. Até a events-api aceitar um padrão (ex.: `https://events-expo-*-<conta>.vercel.app`), o que é uma mudança de código lá, a web de um PR abre e mostra o login, mas as chamadas à events-api são bloqueadas pelo navegador. Use o Expo Go para testar um PR de ponta a ponta.
 
-Se a events-api tiver `CLERK_AUTHORIZED_PARTIES` definida, o token da web leva no `azp` a origem da página, que também precisa estar nessa lista.
+Cuidado com a `CLERK_AUTHORIZED_PARTIES` da events-api: o token da web leva no `azp` a origem da página, que teria de estar nessa lista (com o mesmo problema da URL por preview), e, preenchida, ela recusa também o token **sem** `azp`, o que pode ser o caso do app nativo. Deixe-a sem definir, a não ser que confira antes o que o app manda nos dois casos.
 
 ## Onde achar cada preview
 

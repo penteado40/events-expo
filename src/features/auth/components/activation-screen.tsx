@@ -20,7 +20,7 @@ type Props = {
   link: ActivationLink
   /** False in a development build without Clerk's key: an invitation can't be accepted. */
   withClerk?: boolean
-  /** A Demo build (a preview): no Clerk, so no invitation can be accepted there. */
+  /** A Demo build (ADR-0005): no Clerk, so no invitation can be accepted there. */
   demoBuild?: boolean
 }
 

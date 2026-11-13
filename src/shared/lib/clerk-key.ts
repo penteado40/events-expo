@@ -3,7 +3,7 @@ import { DEMO_BUILD } from './demo-build'
 type Options = {
   /** Development build (`__DEV__`). */
   isDev: boolean
-  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`): a preview, Demo mode only. */
+  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`, ADR-0005): Demo mode only. */
   demoBuild: boolean
 }
 
@@ -11,7 +11,7 @@ type Options = {
  * Clerk's publishable key: `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` (see `.env.example`). A development
  * build without it runs with no Clerk, Demo mode only; a release build without it throws, so a
  * misconfigured build fails at startup. A Demo build never uses Clerk, and refuses a live key so a
- * preview can't be built with production config.
+ * Demo build can't carry production config.
  */
 export function resolveClerkKey(
   fromEnv: string | undefined,

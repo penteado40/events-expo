@@ -41,7 +41,7 @@ type SessionState = {
 type Options = {
   /** Development build (`__DEV__`); only there can a Session without an API behind it exist. */
   isDev?: boolean
-  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`): a preview, where Demo mode is the only one. */
+  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`, ADR-0005): Demo mode is the only one. */
   demoBuild?: boolean
 }
 

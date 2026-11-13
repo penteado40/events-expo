@@ -3,7 +3,7 @@ const DEV_DEFAULT = 'http://localhost:3000/api/v1'
 type Options = {
   /** Development build (`__DEV__`). */
   isDev: boolean
-  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`): a preview over the mock, never calling the API. */
+  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`): ADR-0005, over the mock, never calling the API. */
   demoBuild: boolean
 }
 

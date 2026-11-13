@@ -6,7 +6,7 @@ import { LIVE_MODULES, type DataModule } from './live-modules'
 type Options = {
   /** Development build (`__DEV__`). */
   isDev?: boolean
-  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`): a preview, Demo mode only. */
+  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`, ADR-0005): Demo mode only. */
   demoBuild?: boolean
   liveModules?: readonly DataModule[]
 }

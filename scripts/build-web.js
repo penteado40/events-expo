@@ -4,7 +4,7 @@
 // `--check` only validates (the EAS Update workflow uses it), without building.
 const { spawnSync } = require('node:child_process')
 
-const REQUIRED = ['API_URL', 'CLERK_PUBLISHABLE_KEY']
+const REQUIRED_VARS = ['API_URL', 'CLERK_PUBLISHABLE_KEY']
 
 /**
  * The env for `expo export`: `env` plus EXPO_PUBLIC_API_URL and EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.
@@ -12,7 +12,7 @@ const REQUIRED = ['API_URL', 'CLERK_PUBLISHABLE_KEY']
  * deploy uses Clerk's development instance.
  */
 function webBuildEnv(env) {
-  const missing = REQUIRED.filter((name) => !env[name]?.trim())
+  const missing = REQUIRED_VARS.filter((name) => !env[name]?.trim())
   if (missing.length > 0) {
     throw new Error(`${missing.join(', ')} not set: see docs/previews.md.`)
   }
@@ -49,6 +49,7 @@ function main() {
     stdio: 'inherit',
     env,
   })
+  if (result.error) console.error(`build-web: could not run expo export: ${result.error.message}`)
   return result.status ?? 1
 }
 
