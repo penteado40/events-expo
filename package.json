@@ -53,12 +53,16 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:preview:web": "EXPO_PUBLIC_DEMO_BUILD=true expo export --platform web",
     "lint": "expo lint && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "jest"
   },
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "jest": {
     "preset": "jest-expo",
     "setupFilesAfterEnv": [

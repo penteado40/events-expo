@@ -34,6 +34,8 @@ Run lint and typecheck before declaring any task done.
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+Every PR gets two previews, both a Demo build (`EXPO_PUBLIC_DEMO_BUILD=true`): the web on Vercel (`vercel.json`) and the app in Expo Go through EAS Update (`.github/workflows/eas-update.yml`). Setup and where to find them: `docs/previews.md`.
+
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.

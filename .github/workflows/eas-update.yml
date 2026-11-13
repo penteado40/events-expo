@@ -1,0 +1,74 @@
+# Native preview in Expo Go (docs/previews.md). A PR publishes an EAS Update on branch `pr-<n>` and
+# comments its QR; a push to main publishes branch `main`. Separate from the web preview (Vercel),
+# so a failure in one never blocks the other. Both are Demo builds: mock backend, no Clerk.
+name: EAS Update
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-update-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    name: Preview no Expo Go
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      EXPO_PUBLIC_DEMO_BUILD: 'true'
+    steps:
+      - uses: actions/checkout@v7
+
+      # Until the one-time setup is done (EXPO_TOKEN secret, `eas init`), and on PRs from forks
+      # (no secrets), the job skips with a notice instead of failing.
+      - name: Setup do EAS feito?
+        id: setup
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::notice title=EAS Update pulado::Sem o secret EXPO_TOKEN. Veja docs/previews.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$(jq -r '.expo.extra.eas.projectId // empty' app.json)" ]; then
+            echo "::notice title=EAS Update pulado::app.json sem expo.extra.eas.projectId (rode eas init). Veja docs/previews.md."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.setup.outputs.ready == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - if: steps.setup.outputs.ready == 'true'
+        uses: expo/expo-github-action@v9
+        with:
+          eas-version: 27.9.0
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - if: steps.setup.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Publicar o preview do PR e comentar o QR
+        if: steps.setup.outputs.ready == 'true' && github.event_name == 'pull_request'
+        uses: expo/expo-github-action/preview@v9
+        with:
+          qr-target: expo-go
+          command: >-
+            eas update --non-interactive --environment preview
+            --branch pr-${{ github.event.pull_request.number }}
+            --message "PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
+
+      - name: Publicar a versão estável (main)
+        if: steps.setup.outputs.ready == 'true' && github.event_name == 'push'
+        run: eas update --non-interactive --environment preview --branch main --message "main @ $GITHUB_SHA"
