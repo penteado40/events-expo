@@ -99,7 +99,7 @@ function EventCard({ event, draftShown }: { event: Event; draftShown: boolean })
       {event.cancelled ? (
         <Badge label="CANCELADO" tone="red" />
       ) : (
-        event.status === 'DRAFT' &&
+        event.state === 'DRAFT' &&
         draftShown && <Badge label="RASCUNHO · o Group vê só onde e quando" tone="gold" />
       )}
       <Text

@@ -102,17 +102,17 @@ const FIELD_BY_PATH: Record<string, [keyof EventForm, string]> = {
   name: ['name', 'Confira o nome do Event.'],
   place: ['place', 'Confira a cidade ou o local.'],
   'period.startDate': ['startDate', 'Confira a data de início.'],
-  // The form already refuses what is not a date: what the API still refuses is the order.
-  'period.endDate': ['endDate', 'Confira a data final: ela não pode vir antes da inicial.'],
+  'period.endDate': ['endDate', 'Confira a data final.'],
   'period.timezone': ['timezone', 'Escolha o fuso de novo.'],
 }
 
 /**
- * A refused save on the fields it is about: the API's `VALIDATION_ERROR` names them in its
- * details (`period.endDate` for an end before the start). Anything else is the save's.
+ * A refused save on the fields it is about: `EVENT_PERIOD_INVALID` is an end before the start, and
+ * `VALIDATION_ERROR` names its fields in the details. Anything else is the save's.
  */
 export function errorsFromApi(error: unknown): EventFormErrors {
   if (!(error instanceof ApiError)) return { form: MESSAGES.saveFailed }
+  if (error.code === 'EVENT_PERIOD_INVALID') return { endDate: MESSAGES.endBeforeStart }
   if (error.code !== 'VALIDATION_ERROR') return { form: error.message }
   const details = Array.isArray(error.details) ? (error.details as { path?: unknown }[]) : []
   const errors: EventFormErrors = {}

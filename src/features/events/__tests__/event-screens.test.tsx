@@ -63,7 +63,7 @@ describe('NewEventScreen', () => {
     expect(created).toMatchObject({
       place: 'Belo Horizonte, MG',
       period: { startDate: '2026-12-04', endDate: '2026-12-06', timezone: 'America/Sao_Paulo' },
-      status: 'DRAFT',
+      state: 'DRAFT',
     })
     expect(mockRouter.replace).toHaveBeenCalledWith(`/events/${created!.id}`)
   })

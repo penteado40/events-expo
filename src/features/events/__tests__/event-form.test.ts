@@ -9,7 +9,7 @@ const saidaManaus: Event = {
   name: 'Saída Manaus',
   place: 'Manaus, AM',
   period: { startDate: '2026-11-20', endDate: '2026-11-22', timezone: 'America/Manaus' },
-  status: 'DRAFT',
+  state: 'DRAFT',
   cancelled: false,
   isParticipant: true,
 }
@@ -109,8 +109,16 @@ describe('errorsFromApi', () => {
     ])
 
     expect(errorsFromApi(error)).toEqual({
-      endDate: 'Confira a data final: ela não pode vir antes da inicial.',
+      endDate: 'Confira a data final.',
       name: 'Confira o nome do Event.',
+    })
+  })
+
+  it('puts EVENT_PERIOD_INVALID on the end date', () => {
+    const error = new ApiError('EVENT_PERIOD_INVALID', 'A data final do Event não pode ser antes.')
+
+    expect(errorsFromApi(error)).toEqual({
+      endDate: 'A data final não pode ser antes da inicial.',
     })
   })
 

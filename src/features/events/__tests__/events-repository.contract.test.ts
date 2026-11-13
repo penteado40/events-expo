@@ -22,7 +22,7 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
       name: 'Saída Manaus',
       place: 'Manaus, AM',
       period: { startDate: '2026-11-20', endDate: '2026-11-22', timezone: 'America/Manaus' },
-      status: 'PUBLISHED',
+      state: 'PUBLISHED',
       cancelled: false,
       isParticipant: true,
     })
@@ -58,7 +58,7 @@ describe.each(implementations)('EventsRepository contract (%s)', (_, createRepos
 
     const events = await repo.listByGroup(1)
 
-    expect(events.find((e) => e.name === 'Turnê Minas')).toMatchObject({ status: 'DRAFT' })
+    expect(events.find((e) => e.name === 'Turnê Minas')).toMatchObject({ state: 'DRAFT' })
   })
 
   it('keeps a Cancelled Event in the list, marked', async () => {
@@ -125,7 +125,7 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
       name: 'Saída BH',
       place: 'Belo Horizonte, MG',
       period: { startDate: '2026-12-04', endDate: '2026-12-06', timezone: 'America/Sao_Paulo' },
-      status: 'DRAFT',
+      state: 'DRAFT',
       cancelled: false,
       isParticipant: false,
     })
@@ -139,7 +139,7 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
 
     expect(events.find((e) => e.id === created.id)).toMatchObject({
       name: 'Saída BH',
-      status: 'DRAFT',
+      state: 'DRAFT',
     })
   })
 
@@ -160,15 +160,12 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
     await expect(repo.create(2, SAIDA_BH)).resolves.toMatchObject({ groupId: 2 })
   })
 
-  it('refuses an end before the start with VALIDATION_ERROR on the end date', async () => {
+  it('refuses an end before the start with EVENT_PERIOD_INVALID', async () => {
     const repo = createRepository(BRUNO)
 
     await expect(
       repo.create(1, { ...SAIDA_BH, period: { ...SAIDA_BH.period, endDate: '2026-12-03' } }),
-    ).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      details: [expect.objectContaining({ path: 'period.endDate' })],
-    })
+    ).rejects.toMatchObject({ code: 'EVENT_PERIOD_INVALID' })
   })
 
   it.each([
@@ -236,7 +233,7 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
       name: 'Turnê Minas Gerais',
       place: 'Ouro Preto, MG',
       period: { startDate: '2027-03-13', endDate: '2027-03-15' },
-      status: 'DRAFT',
+      state: 'DRAFT',
     })
   })
 
@@ -257,14 +254,14 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
     })
   })
 
-  it('refuses an edit that ends before it starts with VALIDATION_ERROR', async () => {
+  it('refuses an edit that ends before it starts with EVENT_PERIOD_INVALID', async () => {
     const repo = createRepository(BRUNO)
 
     await expect(
       repo.update(3, {
         period: { startDate: '2026-11-22', endDate: '2026-11-20', timezone: 'America/Manaus' },
       }),
-    ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+    ).rejects.toMatchObject({ code: 'EVENT_PERIOD_INVALID' })
   })
 
   it('refuses a Viewer with FORBIDDEN, and someone outside the Group with NOT_FOUND', async () => {
