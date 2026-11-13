@@ -101,10 +101,10 @@ describe('TimelineScreen', () => {
     ])
   })
 
-  it('labels a time in a timezone other than the Event’s: "horário de Vitória"', async () => {
+  it('labels a time in a timezone other than the Event’s by the zone’s city: "horário de São Paulo"', async () => {
     await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
 
-    expect(await screen.findAllByText('Vitória · horário de Vitória')).toHaveLength(2)
+    expect(await screen.findAllByText('Vitória · horário de São Paulo')).toHaveLength(2)
     expect(
       screen.getByRole('button', { name: /^14:30, Check-in/ }).props.accessibilityLabel,
     ).not.toMatch(/horário/)

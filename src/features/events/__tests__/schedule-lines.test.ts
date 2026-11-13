@@ -115,19 +115,19 @@ describe('assembleSchedule', () => {
     expect(lines.days.map((d) => d.date)).toEqual(['2026-11-19', '2026-11-22'])
   })
 
-  it('labels a time in a timezone other than the Event\'s with the place: "horário de Vitória"', () => {
+  it("labels a time in a timezone other than the Event's with the zone's city, never the place", () => {
     const lines = assembleSchedule(manausSchedule, saidaManaus)
     const [departure, hotel] = lines.days[1].items
 
     expect(departure).toMatchObject({
       time: '05:30',
-      timezoneLabel: 'horário de Vitória',
-      detail: 'Vitória · horário de Vitória',
+      timezoneLabel: 'horário de São Paulo',
+      detail: 'Vitória · horário de São Paulo',
     })
     expect(hotel.timezoneLabel).toBeNull()
   })
 
-  it('names the zone by its city when the place has no name', () => {
+  it('names the zone by its city when the place has no name either', () => {
     const bh = item('Ensaio', ['2026-11-21', '10:00'], {
       name: null,
       address: 'Rua da Bahia, 1000',
