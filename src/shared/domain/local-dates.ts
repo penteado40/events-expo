@@ -149,3 +149,47 @@ export function typingDate(text: string): string {
   const openField = at < 3 && at > 0 && fields[at] === '' && fields[at - 1].length < widths[at - 1]
   return openField && text.endsWith('/') ? `${shown}/` : shown
 }
+
+/** A time of day as a place's clock shows it, `HH:mm`; compares correctly as a string. */
+export type LocalTime = string
+
+export const localTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+
+/** A real time of day written `HH:mm`, from 00:00 to 23:59. */
+export function isLocalTime(text: string): boolean {
+  return localTimeSchema.safeParse(text).success
+}
+
+/** A time as people type it, `H:mm` or `HH:mm`, read as `HH:mm`; null if it is not one. */
+export function timeFromTyping(typed: string): LocalTime | null {
+  const match = typed.trim().match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return null
+  const time = `${pad(Number(match[1]))}:${match[2]}`
+  return isLocalTime(time) ? time : null
+}
+
+/**
+ * Puts the colon into a time being typed on a number pad: "004" shows "00:4". A colon typed by hand
+ * after a single digit closes the hour early, so "9:05" stays as typed.
+ */
+export function typingTime(text: string): string {
+  const [hourPart, ...rest] = text.replace(/[^\d:]/g, '').split(':')
+  const closedEarly = rest.length > 0
+  const digits = hourPart + rest.join('')
+  const hourWidth = closedEarly && hourPart.length < 2 ? hourPart.length : 2
+  const hour = digits.slice(0, hourWidth)
+  const minutes = digits.slice(hourWidth, hourWidth + 2)
+  if (minutes) return `${hour}:${minutes}`
+  return closedEarly && hour ? `${hour}:` : hour
+}
+
+/** A day's heading in a schedule: "Sáb 21". */
+export function dayHeading(date: LocalDate): string {
+  const name = weekday(date).replace('.', '')
+  return `${name[0].toUpperCase()}${name.slice(1)} ${parts(date).day}`
+}
+
+/** A date before the period's first day or after its last: "FORA DO PERÍODO". */
+export function isOutsidePeriod(date: LocalDate, { startDate, endDate }: Period): boolean {
+  return date < startDate || date > endDate
+}

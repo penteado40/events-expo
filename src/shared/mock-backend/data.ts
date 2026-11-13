@@ -38,6 +38,25 @@ export type EventRow = {
   participantIds: number[]
 }
 
+/** A place as the mock stores it (events-api PROJ-187): no zone of its own means the Event's. */
+export type ItemPlaceRow = { name: string | null; address: string | null; timezone: string | null }
+
+/**
+ * An Event item as the mock stores it: local date and time, never converted (ADR-0016), in the
+ * production's order (for now, creation's).
+ */
+export type EventItemRow = {
+  id: number
+  eventId: number
+  name: string
+  date: string | null
+  time: string | null
+  place: ItemPlaceRow | null
+  state: 'PUBLISHED'
+  createdAt: string
+  updatedAt: string
+}
+
 export const SUPER_ADMIN_ID = 1
 /** Bruno Reis, the production of Vocal Livre. */
 export const DEMO_OWNER_ID = 2
@@ -116,7 +135,53 @@ export function createDataset() {
       participantIds: [8, DEMO_VIEWER_ID],
     }),
   ]
-  return { users, groups, groupMembers, teams, events }
+  // Saída Manaus (Event 3, in Manaus' timezone): created out of order, as a production does.
+  const vitoria = { name: 'Vitória', address: null, timezone: saoPaulo }
+  const teatro = { name: 'Teatro Amazonas', address: 'Largo de São Sebastião, s/n', timezone: null }
+  const items: EventItemRow[] = [
+    item(1, 'O que levar'),
+    item(2, 'Saída da sede', ['2026-11-20', '05:30'], vitoria),
+    item(3, 'Voo VIX → MAO', ['2026-11-20', '08:10'], {
+      ...vitoria,
+      address: 'Aeroporto de Vitória (VIX)',
+    }),
+    item(4, 'Check-in · Hotel Taj Mahal', ['2026-11-20', '14:30'], {
+      name: 'Hotel Taj Mahal',
+      address: 'Av. Getúlio Vargas, 741 - Centro',
+      timezone: null,
+    }),
+    item(5, 'Show', ['2026-11-21', '19:00'], teatro),
+    item(6, 'Passagem de som', ['2026-11-21', '16:00'], teatro),
+    item(7, 'Almoço', ['2026-11-21', null]),
+    // The transfer after Saturday's show is Sunday's: its date is the calendar's.
+    item(8, 'Translado de volta', ['2026-11-22', '00:40']),
+    item(9, 'Check-out', ['2026-11-22', '11:00']),
+    item(10, 'Voo MAO → VIX', ['2026-11-22', '14:05']),
+    // The eve, outside the period.
+    item(11, 'Técnica viaja antes', ['2026-11-19', null]),
+    item(12, 'Contatos'),
+  ]
+  return { users, groups, groupMembers, teams, events, items }
+
+  function item(
+    id: number,
+    name: string,
+    [date, time]: [string | null, string | null] = [null, null],
+    place: ItemPlaceRow | null = null,
+  ): EventItemRow {
+    const at = '2026-10-20T12:00:00.000Z'
+    return {
+      id,
+      eventId: 3,
+      name,
+      date,
+      time,
+      place,
+      state: 'PUBLISHED',
+      createdAt: at,
+      updatedAt: at,
+    }
+  }
 
   function team(id: number, name: string, memberIds: number[]): TeamRow {
     return { id, groupId: VOCAL_LIVRE, name, createdAt: '2026-09-01T12:00:00.000Z', memberIds }

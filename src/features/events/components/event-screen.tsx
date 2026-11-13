@@ -2,21 +2,25 @@ import { useRouter } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Badge, ErrorState, Icon, ListSkeleton } from '@/shared/components/ui'
+import { Badge, Button, ErrorState, Icon, ListSkeleton } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canEditEvent, canWriteItems, roleIn, seesDrafts } from '@/shared/domain/group-role'
 import { periodLabel } from '@/shared/domain/local-dates'
 import { gmtOffset } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
-import { fonts, palette, spacing, useTheme } from '@/shared/theme'
+import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
+import { useSchedule } from '../hooks/use-schedule'
+import { assembleSchedule } from '../schedule-lines'
 
 /**
- * An Event's screen (D-Rascunho, PROJ-217): the cover in its automatic color, and the card over it
- * with the name, where and when in its timezone. Owners see the Draft and "Editar"; a Viewer only
- * where and when. The schedule, Participants and Publicar come with their own tickets.
+ * An Event's screen (D-Rascunho, PROJ-217, PROJ-220): the cover in its automatic color, and the
+ * card over it with the name, where and when in its timezone. Owners see the Draft, "Editar" and
+ * the schedule in short (the General info and a line per day, with "+ Item" in an Event in Draft),
+ * which opens the Timeline; a Viewer only where and when. Participants and Publicar come with their
+ * own tickets.
  */
 export function EventScreen({ eventId }: { eventId: number }) {
   const theme = useTheme()
@@ -25,6 +29,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
   const insets = useSafeAreaInsets()
   const user = useSession((state) => state.session?.user)
   const event = useEvent(eventId)
+  const role = event.data && user ? roleIn(user, event.data.groupId) : null
   const tone = autoTone(eventId)
   const [from, to] = theme.cover(tone)
 
@@ -49,7 +54,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
             >
               <Icon name="back" color="#FFFFFF" size={20} strokeWidth={2} />
             </Pressable>
-            {event.data && user && canEditEvent(roleIn(user, event.data.groupId), event.data) && (
+            {event.data && role && canEditEvent(role, event.data) && (
               <Pressable
                 onPress={() => router.push(`/events/${eventId}/edit`)}
                 accessibilityRole="button"
@@ -64,10 +69,12 @@ export function EventScreen({ eventId }: { eventId: number }) {
 
         <View style={styles.body}>
           {event.data ? (
-            <EventCard
-              event={event.data}
-              draftShown={!!user && seesDrafts(roleIn(user, event.data.groupId))}
-            />
+            <>
+              <EventCard event={event.data} draftShown={!!role && seesDrafts(role)} />
+              {role && seesDrafts(role) && (
+                <ScheduleSummary event={event.data} editable={canWriteItems(role, event.data)} />
+              )}
+            </>
           ) : event.error ? (
             <ErrorState message={event.error.message} onRetry={() => event.refetch()} />
           ) : (
@@ -113,6 +120,109 @@ function EventCard({ event, draftShown }: { event: Event; draftShown: boolean })
   )
 }
 
+/** D-Rascunho's "Programação": the General info in a line, then one line per day with items. */
+function ScheduleSummary({ event, editable }: { event: Event; editable: boolean }) {
+  const { colors } = useTheme()
+  const router = useRouter()
+  const schedule = useSchedule(event.id)
+  const openTimeline = () => router.push(`/events/${event.id}/timeline`)
+  const lines = schedule.data && assembleSchedule(schedule.data, event.period)
+  const rows = lines
+    ? [
+        ...(lines.generalInfo.length > 0
+          ? [
+              {
+                key: 'info',
+                label: 'INFO',
+                names: lines.generalInfo.map((l) => l.name).join(' · '),
+                count: lines.generalInfo.length,
+                outsidePeriod: false,
+              },
+            ]
+          : []),
+        ...lines.days.map((day) => ({
+          key: day.date,
+          label: day.heading,
+          names: day.items.map((l) => l.name).join(', '),
+          count: day.items.length,
+          outsidePeriod: day.outsidePeriod,
+        })),
+      ]
+    : []
+
+  return (
+    <View style={[styles.schedule, { backgroundColor: colors.surface }]}>
+      <View style={styles.scheduleHeader}>
+        <Text accessibilityRole="header" style={[styles.scheduleTitle, { color: colors.text }]}>
+          Programação
+        </Text>
+        {editable && (
+          <Pressable
+            onPress={() => router.push(`/events/${event.id}/items/new`)}
+            accessibilityRole="button"
+            accessibilityLabel="+ Item"
+            style={[styles.addItem, { backgroundColor: colors.action }]}
+          >
+            <Text style={[styles.addItemLabel, { color: colors.onAction }]}>+ Item</Text>
+          </Pressable>
+        )}
+      </View>
+      {schedule.error ? (
+        <ErrorState message={schedule.error.message} onRetry={() => schedule.refetch()} />
+      ) : !lines ? (
+        <ListSkeleton />
+      ) : lines.isEmpty ? (
+        <Text style={[textStyles.body, styles.empty, { color: colors.textMuted }]}>
+          Nenhum item ainda.
+        </Text>
+      ) : (
+        <>
+          {rows.map((row, i) => (
+            <Pressable
+              key={row.key}
+              onPress={openTimeline}
+              accessibilityRole="button"
+              accessibilityLabel={[
+                row.key === 'info' ? 'Informações gerais' : row.label,
+                row.names,
+                row.outsidePeriod ? 'fora do período' : `${row.count}`,
+              ].join(', ')}
+              style={[
+                styles.scheduleRow,
+                i < rows.length - 1 && { borderBottomWidth: 1, borderColor: colors.divider },
+              ]}
+            >
+              <Text
+                style={[
+                  row.key === 'info' ? styles.infoLabel : styles.dayLabel,
+                  {
+                    color: row.outsidePeriod
+                      ? palette.gold[700]
+                      : row.key === 'info'
+                        ? colors.textMuted
+                        : palette[autoTone(event.id)][700],
+                  },
+                ]}
+              >
+                {row.label}
+              </Text>
+              <Text numberOfLines={1} style={[styles.rowNames, { color: colors.text }]}>
+                {row.names}
+              </Text>
+              {row.outsidePeriod ? (
+                <Badge label="FORA DO PERÍODO" tone="gold" />
+              ) : (
+                <Text style={[styles.rowCount, { color: colors.textMuted }]}>{row.count}</Text>
+              )}
+            </Pressable>
+          ))}
+          <Button label="Abrir a Timeline" variant="link" onPress={openTimeline} />
+        </>
+      )}
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   scroll: { paddingBottom: 32 },
@@ -146,4 +256,27 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.sans700, fontSize: 26, lineHeight: 30 },
   struck: { textDecorationLine: 'line-through' },
   where: { fontFamily: fonts.sans600, fontSize: 14 },
+  schedule: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 4 },
+  scheduleHeader: {
+    paddingTop: 12,
+    paddingBottom: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scheduleTitle: { fontFamily: fonts.sans700, fontSize: 16 },
+  addItem: { height: 36, paddingHorizontal: 12, borderRadius: 18, justifyContent: 'center' },
+  addItemLabel: { fontFamily: fonts.sans600, fontSize: 13 },
+  empty: { paddingVertical: 12 },
+  scheduleRow: {
+    minHeight: spacing.touchTarget,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoLabel: { width: 52, fontFamily: fonts.sans700, fontSize: 11 },
+  dayLabel: { width: 52, fontFamily: fonts.sans700, fontSize: 13 },
+  rowNames: { flex: 1, fontFamily: fonts.sans600, fontSize: 15 },
+  rowCount: { fontFamily: fonts.sans400, fontSize: 13 },
 })

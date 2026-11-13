@@ -3,6 +3,7 @@ import type { User } from '@/shared/session'
 import {
   canCreateEvent,
   canEditEvent,
+  canWriteItems,
   isGroupMember,
   roleIn,
   seesDrafts,
@@ -67,5 +68,17 @@ describe('Event permissions', () => {
     ['OWNER', cancelled, false],
   ])('%s edits an Event %o: %p', (role, event, can) => {
     expect(canEditEvent(role, event)).toBe(can)
+  })
+
+  it.each<[GroupRole, { cancelled: boolean; state: 'DRAFT' | 'PUBLISHED' }, boolean]>([
+    ['OWNER', { cancelled: false, state: 'DRAFT' }, true],
+    ['SUPER_ADMIN', { cancelled: false, state: 'DRAFT' }, true],
+    ['VIEWER', { cancelled: false, state: 'DRAFT' }, false],
+    ['OWNER', { cancelled: true, state: 'DRAFT' }, false],
+    // In a published Event an item is born in Draft, with Publicar: not built yet.
+    ['OWNER', { cancelled: false, state: 'PUBLISHED' }, false],
+    ['SUPER_ADMIN', { cancelled: false, state: 'PUBLISHED' }, false],
+  ])('%s writes Event items in an Event %o: %p', (role, event, can) => {
+    expect(canWriteItems(role, event)).toBe(can)
   })
 })
