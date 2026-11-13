@@ -2,6 +2,7 @@ import { createMockBackend } from './backend'
 
 export {
   createMockBackend,
+  type EventBody,
   type MeChanges,
   type MockBackend,
   type VerifiedIdentity,

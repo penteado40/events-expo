@@ -74,6 +74,9 @@ export default function RootLayout() {
                 options={{ presentation: 'fullScreenModal' }}
               />
               <Stack.Screen name="groups/[groupId]/people/[userId]" />
+              <Stack.Screen name="events/new" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="events/[id]/index" />
+              <Stack.Screen name="events/[id]/edit" options={{ presentation: 'fullScreenModal' }} />
             </Stack.Protected>
           </Stack>
         </ThemeProvider>

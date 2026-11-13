@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Badge } from '@/shared/components/ui'
 import { longDate, periodLabel } from '@/shared/domain/local-dates'
@@ -27,16 +27,21 @@ function describe(line: HomeLine) {
 
 /**
  * One Event of the Início (D-Início, Media kit: Cartões): the date column, and the row with the
- * stripe in the Event's color, or the cover card for the next Event the person goes to.
+ * stripe in the Event's color, or the cover card for the next Event the person goes to. Opens it.
  */
-export function EventLine({ line }: { line: HomeLine }) {
+export function EventLine({ line, onPress }: { line: HomeLine; onPress: () => void }) {
   const theme = useTheme()
   const { colors } = theme
   const { tone, faded } = line
   const accent = theme.badge(tone).text
 
   return (
-    <View accessible accessibilityLabel={describe(line)} style={styles.line}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={describe(line)}
+      style={({ pressed }) => [styles.line, pressed && styles.pressed]}
+    >
       <View style={styles.dates}>
         <Text style={[styles.day, { color: faded ? palette.gray[500] : accent }]}>
           {line.start.day}
@@ -55,7 +60,7 @@ export function EventLine({ line }: { line: HomeLine }) {
         )}
       </View>
       {line.featured ? <Cover line={line} /> : <Row line={line} />}
-    </View>
+    </Pressable>
   )
 }
 
@@ -130,6 +135,7 @@ function Cover({ line }: { line: HomeLine }) {
 
 const styles = StyleSheet.create({
   line: { flexDirection: 'row', gap: 12 },
+  pressed: { opacity: 0.75 },
   dates: { width: 46, alignItems: 'center', paddingTop: 6, gap: 2 },
   day: { fontFamily: fonts.sans700, fontSize: 20, lineHeight: 22 },
   month: { fontFamily: fonts.sans600, fontSize: 12 },
