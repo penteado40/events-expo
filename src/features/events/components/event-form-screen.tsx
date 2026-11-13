@@ -19,7 +19,6 @@ import {
   Icon,
   ListSkeleton,
   Notice,
-  Sheet,
   TextField,
 } from '@/shared/components/ui'
 import { autoTone, type AutoTone } from '@/shared/domain/auto-tone'
@@ -40,6 +39,7 @@ import {
 import { useEvent } from '../hooks/use-event'
 import { useCreateEvent, useUpdateEvent } from '../hooks/use-save-event'
 import { DateField } from './date-field'
+import { TimezoneSheet } from './timezone-sheet'
 
 /** A new Event has no id yet, so no tone: the header previews one, labelled "cor automática". */
 const NEW_EVENT_TONE: AutoTone = 'purple'
@@ -163,7 +163,9 @@ function EventFormView<Input>({
   const offsetOn = dateFromTyping(form.startDate) ?? deviceToday(new Date())
   const timezone = timezoneLabel(form.timezone, offsetOn)
 
-  const timezones = TIMEZONE_CHOICES.includes(form.timezone as (typeof TIMEZONE_CHOICES)[number])
+  const timezones: readonly string[] = TIMEZONE_CHOICES.includes(
+    form.timezone as (typeof TIMEZONE_CHOICES)[number],
+  )
     ? TIMEZONE_CHOICES
     : [form.timezone, ...TIMEZONE_CHOICES]
 
@@ -285,34 +287,15 @@ function EventFormView<Input>({
         <Button label={event ? 'Salvar' : 'Criar Event'} loading={saving} onPress={save} />
       </View>
 
-      <Sheet visible={picking} title="Fuso padrão" onClose={() => setPicking(false)}>
-        <ScrollView style={styles.choices} contentContainerStyle={styles.choicesList}>
-          {timezones.map((choice) => {
-            const selected = choice === form.timezone
-            return (
-              <Pressable
-                key={choice}
-                onPress={() => {
-                  edit('timezone')(choice)
-                  setPicking(false)
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={timezoneLabel(choice, offsetOn)}
-                accessibilityState={{ selected }}
-                style={[
-                  styles.choice,
-                  selected && { backgroundColor: colors.surfaceBrand, borderColor: colors.action },
-                ]}
-              >
-                <Text style={[textStyles.body, { color: colors.text }]}>
-                  {timezoneLabel(choice, offsetOn)}
-                </Text>
-                {selected && <Icon name="check" color={colors.action} size={20} />}
-              </Pressable>
-            )
-          })}
-        </ScrollView>
-      </Sheet>
+      <TimezoneSheet
+        visible={picking}
+        title="Fuso padrão"
+        value={form.timezone}
+        choices={timezones}
+        labelOf={(choice) => timezoneLabel(choice, offsetOn)}
+        onChoose={edit('timezone')}
+        onClose={() => setPicking(false)}
+      />
     </KeyboardAvoidingView>
   )
 }
@@ -370,16 +353,4 @@ const styles = StyleSheet.create({
   draft: { flexDirection: 'row', gap: 10, padding: 14, borderRadius: 16, alignItems: 'flex-start' },
   draftText: { flex: 1, fontFamily: fonts.sans400, fontSize: 13, lineHeight: 19 },
   footer: { paddingHorizontal: 20, paddingTop: 8 },
-  choices: { maxHeight: 420 },
-  choicesList: { gap: 6 },
-  choice: {
-    minHeight: spacing.touchTarget + 8,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
 })

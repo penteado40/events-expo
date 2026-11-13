@@ -3,14 +3,19 @@ import {
   dayLabel,
   deviceToday,
   dateFromTyping,
+  dayHeading,
   isFinished,
+  isLocalTime,
+  isOutsidePeriod,
   isLocalDate,
   longDate,
   periodLabel,
   periodDays,
   todayIn,
   typedDate,
+  timeFromTyping,
   typingDate,
+  typingTime,
   weekday,
   type Period,
 } from '../local-dates'
@@ -167,5 +172,49 @@ describe('typed dates (DD/MM/AAAA)', () => {
     ['20/1/2027', '20/1/2027'],
   ])('puts the slashes in while typing %p: %p', (text, shown) => {
     expect(typingDate(text)).toBe(shown)
+  })
+})
+
+describe('local times', () => {
+  it('knows a time of day written HH:mm, 00:00 to 23:59', () => {
+    expect(isLocalTime('00:40')).toBe(true)
+    expect(isLocalTime('23:59')).toBe(true)
+    expect(isLocalTime('24:00')).toBe(false)
+    expect(isLocalTime('9:05')).toBe(false)
+    expect(isLocalTime('15:60')).toBe(false)
+  })
+
+  it('reads a time as typed, with or without the leading zero', () => {
+    expect(timeFromTyping('16:00')).toBe('16:00')
+    expect(timeFromTyping(' 9:05 ')).toBe('09:05')
+    expect(timeFromTyping('25:00')).toBeNull()
+    expect(timeFromTyping('1600')).toBeNull()
+    expect(timeFromTyping('')).toBeNull()
+  })
+
+  it('puts the colon in as the time is typed on the number pad', () => {
+    expect(typingTime('0')).toBe('0')
+    expect(typingTime('00')).toBe('00')
+    expect(typingTime('004')).toBe('00:4')
+    expect(typingTime('0040')).toBe('00:40')
+    expect(typingTime('00:40')).toBe('00:40')
+    expect(typingTime('00:405')).toBe('00:40')
+    expect(typingTime('9:')).toBe('9:')
+    expect(typingTime('9:05')).toBe('9:05')
+  })
+})
+
+describe('days of a schedule', () => {
+  it('heads a day with its short weekday and number: "Sáb 21"', () => {
+    expect(dayHeading('2026-11-21')).toBe('Sáb 21')
+    expect(dayHeading('2026-11-19')).toBe('Qui 19')
+    expect(dayHeading('2026-12-01')).toBe('Ter 1')
+  })
+
+  it('tells a date outside the period, the eve and the day after included', () => {
+    expect(isOutsidePeriod('2026-11-19', manaus)).toBe(true)
+    expect(isOutsidePeriod('2026-11-20', manaus)).toBe(false)
+    expect(isOutsidePeriod('2026-11-22', manaus)).toBe(false)
+    expect(isOutsidePeriod('2026-11-23', manaus)).toBe(true)
   })
 })

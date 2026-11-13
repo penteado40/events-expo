@@ -1,10 +1,16 @@
 import { isEmail } from '@/shared/domain/email'
-import { isLocalDate, type Period } from '@/shared/domain/local-dates'
+import { isLocalDate, isLocalTime, type Period } from '@/shared/domain/local-dates'
 import { isTimezone } from '@/shared/domain/timezones'
 import { normalizePhone } from '@/shared/domain/phone'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
-import { createDataset, type EventRow, type UserRow } from './data'
+import {
+  createDataset,
+  type EventItemRow,
+  type EventRow,
+  type ItemPlaceRow,
+  type UserRow,
+} from './data'
 
 /** What the API's AuthVerifier reads from a valid Clerk token (events-api ADR-0020). */
 export type VerifiedIdentity = { email: string }
@@ -26,6 +32,8 @@ const superAdminNotAGroupMember = () =>
   new ApiError('SUPER_ADMIN_NOT_A_GROUP_MEMBER', 'O Super admin não pode ser Group member.')
 const eventPeriodInvalid = () =>
   new ApiError('EVENT_PERIOD_INVALID', 'A data final do Event não pode ser antes da data inicial.')
+const eventItemTimeWithoutDate = () =>
+  new ApiError('EVENT_ITEM_TIME_WITHOUT_DATE', 'O Event item só pode ter hora se tiver data.')
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
 
 /** How long an Activation link lasts (the Clerk invitation the events-api creates). */
@@ -92,6 +100,70 @@ function checkEventBody(body: EventBody, { partial }: { partial: boolean }) {
   // Like the API, the order is the domain's check, after the shape's.
   if (period && period.endDate < period.startDate) throw eventPeriodInvalid()
   return checked
+}
+
+/** The body of `POST /events/:id/items`, and of `PATCH` with every field optional (PROJ-187). */
+export type EventItemBody = {
+  name?: string
+  date?: string | null
+  time?: string | null
+  place?: Partial<ItemPlaceRow> | null
+}
+
+const ITEM_NAME_MAX = 200
+const PLACE_NAME_MAX = 200
+const PLACE_ADDRESS_MAX = 500
+
+/**
+ * Checks an Event item's body as the API's DTO and domain would (PROJ-187): the shape first
+ * (`VALIDATION_ERROR` with a detail per field), then a blank name or an empty place. The time only
+ * with a date is checked on what the item ends up with, by the caller.
+ */
+function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
+  const { name, date, time, place, ...rest } = body
+  const details: Detail[] = Object.keys(rest).map((key) => ({
+    path: key,
+    message: 'Campo desconhecido.',
+  }))
+  if (name === undefined && !partial) details.push({ path: 'name', message: 'Obrigatório.' })
+  if (name !== undefined && (name.trim().length < 1 || name.trim().length > ITEM_NAME_MAX)) {
+    details.push({ path: 'name', message: `Use de 1 a ${ITEM_NAME_MAX} caracteres.` })
+  }
+  if (date != null && !isLocalDate(date)) details.push({ path: 'date', message: 'Data inválida.' })
+  if (time != null && !isLocalTime(time)) details.push({ path: 'time', message: 'Hora inválida.' })
+  let checkedPlace: ItemPlaceRow | null | undefined = place === undefined ? undefined : null
+  if (place != null) {
+    const text = (value: string | null | undefined, path: string, max: number) => {
+      const trimmed = value?.trim() ?? ''
+      if (trimmed.length > max) details.push({ path, message: `Use até ${max} caracteres.` })
+      return trimmed || null
+    }
+    const placeTimezone = place.timezone ?? null
+    if (placeTimezone !== null && !isTimezone(placeTimezone)) {
+      details.push({ path: 'place.timezone', message: 'Fuso inválido.' })
+    }
+    checkedPlace = {
+      name: text(place.name, 'place.name', PLACE_NAME_MAX),
+      address: text(place.address, 'place.address', PLACE_ADDRESS_MAX),
+      timezone: placeTimezone,
+    }
+    if (!checkedPlace.name && !checkedPlace.address && !checkedPlace.timezone) {
+      details.push({ path: 'place', message: 'Informe o nome, o endereço ou o fuso.' })
+    }
+  }
+  if (partial && Object.keys(body).length === 0) {
+    details.push({ path: '', message: 'Envie ao menos um campo.' })
+  }
+  if (details.length > 0) throw validationError(details)
+  return { name: name?.trim(), date, time, place: checkedPlace }
+}
+
+/** The days of the Timeline: only those with items, in date order; untimed first, then by time. */
+function byTimeUntimedFirst(a: { time: string | null }, b: { time: string | null }) {
+  if (a.time === b.time) return 0
+  if (a.time === null) return -1
+  if (b.time === null) return 1
+  return a.time.localeCompare(b.time)
 }
 
 type Options = { latencyMs?: number }
@@ -217,6 +289,27 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       period: { startDate, endDate, timezone },
       isParticipant: participantIds.includes(requester.id),
     }
+  }
+
+  /** An Event item as the schedule shows it: when it starts, in its place's zone or the Event's. */
+  function scheduleItemJson(row: EventItemRow, event: EventRow) {
+    const { id, name, date, time, place, state } = row
+    const when = date === null ? null : { date, time, timezone: place?.timezone ?? event.timezone }
+    return { id, name, when, place: place && { ...place }, state }
+  }
+
+  /** An Event item as a write returns it. */
+  function itemJson(row: EventItemRow, event: EventRow) {
+    const { eventId, createdAt, updatedAt } = row
+    return { ...scheduleItemJson(row, event), eventId, createdAt, updatedAt }
+  }
+
+  /** The item of that Event, reached by its editor: `NOT_FOUND` when it is another Event's. */
+  function reachItem(asker: UserRow, eventId: number, itemId: number) {
+    const event = reachEvent(asker, eventId, { write: true })
+    const row = data.items.find((i) => i.id === itemId && i.eventId === eventId)
+    if (!row) throw notFound()
+    return { event, row }
   }
 
   return {
@@ -450,6 +543,91 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       if (place !== undefined) row.place = place
       if (period !== undefined) Object.assign(row, period)
       return eventJson(row, asker)
+    },
+
+    /**
+     * `POST /events/:id/items` (events-api PROJ-187): an Owner or the Super admin creates an Event
+     * item, born published in a Draft Event.
+     */
+    async createItem(identity: VerifiedIdentity | null, eventId: number, body: EventItemBody) {
+      await delay()
+      // Like the API: the guard, then the body's shape, then who may write.
+      const asker = requester(identity)
+      const checked = checkItemBody(body, { partial: false })
+      const event = reachEvent(asker, eventId, { write: true })
+      const date = checked.date ?? null
+      const time = checked.time ?? null
+      if (time !== null && date === null) throw eventItemTimeWithoutDate()
+      const at = new Date().toISOString()
+      const row: EventItemRow = {
+        id: Math.max(0, ...data.items.map((i) => i.id)) + 1,
+        eventId,
+        name: checked.name!,
+        date,
+        time,
+        place: checked.place ?? null,
+        state: 'PUBLISHED',
+        createdAt: at,
+        updatedAt: at,
+      }
+      data.items.push(row)
+      return itemJson(row, event)
+    },
+
+    /**
+     * `PATCH /events/:id/items/:itemId` (PROJ-187): what is left out stays, `null` clears it, the
+     * place goes whole; what is left keeps the time only with a date.
+     */
+    async updateItem(
+      identity: VerifiedIdentity | null,
+      eventId: number,
+      itemId: number,
+      body: EventItemBody,
+    ) {
+      await delay()
+      const asker = requester(identity)
+      const checked = checkItemBody(body, { partial: true })
+      const { event, row } = reachItem(asker, eventId, itemId)
+      const date = checked.date === undefined ? row.date : checked.date
+      const time = checked.time === undefined ? row.time : checked.time
+      if (time !== null && date === null) throw eventItemTimeWithoutDate()
+      Object.assign(row, {
+        name: checked.name ?? row.name,
+        date,
+        time,
+        place: checked.place === undefined ? row.place : checked.place,
+        updatedAt: new Date().toISOString(),
+      })
+      return itemJson(row, event)
+    },
+
+    /** `DELETE /events/:id/items/:itemId` (PROJ-187). */
+    async deleteItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
+      await delay()
+      const { row } = reachItem(requester(identity), eventId, itemId)
+      data.items.splice(data.items.indexOf(row), 1)
+    },
+
+    /**
+     * `GET /events/:id/schedule` (PROJ-187): an Owner or the Super admin reads the whole schedule;
+     * a Viewer gets `FORBIDDEN` for now. The General info in creation order; the Timeline only the
+     * days with items, in date order, outside the period too, each untimed first and then by time.
+     */
+    async schedule(identity: VerifiedIdentity | null, eventId: number) {
+      await delay()
+      const event = reachEvent(requester(identity), eventId, { write: true })
+      const items = data.items.filter((i) => i.eventId === eventId)
+      const dates = [...new Set(items.flatMap((i) => (i.date === null ? [] : [i.date])))].sort()
+      return {
+        generalInfo: items.filter((i) => i.date === null).map((i) => scheduleItemJson(i, event)),
+        timeline: dates.map((date) => ({
+          date,
+          items: items
+            .filter((i) => i.date === date)
+            .sort(byTimeUntimedFirst)
+            .map((i) => scheduleItemJson(i, event)),
+        })),
+      }
     },
 
     /** A sample User as `GET /me` would return it, for Demo mode. */

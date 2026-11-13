@@ -4,6 +4,7 @@ import {
   createMockBackend,
   notFound,
   type EventBody,
+  type EventItemBody,
   type MeChanges,
   type MockBackend,
   type NewViewerBody,
@@ -18,6 +19,8 @@ const STATUS_BY_CODE: Record<string, number> = {
   UNAUTHENTICATED: 401,
   USER_NOT_INVITED: 401,
   USER_DEACTIVATED: 401,
+  EVENT_PERIOD_INVALID: 400,
+  EVENT_ITEM_TIME_WITHOUT_DATE: 400,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   USER_ALREADY_ACTIVE: 409,
@@ -78,6 +81,29 @@ export function createFakeApi({
       }
       if (event?.[1] === 'PATCH') {
         return json(200, { data: await backend.updateEvent(identity, Number(event[2]), body()) })
+      }
+      const itemBody = () => JSON.parse(String(init?.body ?? '{}')) as EventItemBody
+      const items = route.match(/^POST \/events\/(\d+)\/items$/)
+      if (items) {
+        return json(201, { data: await backend.createItem(identity, Number(items[1]), itemBody()) })
+      }
+      const item = route.match(/^(PATCH|DELETE) \/events\/(\d+)\/items\/(\d+)$/)
+      if (item?.[1] === 'PATCH') {
+        const edited = await backend.updateItem(
+          identity,
+          Number(item[2]),
+          Number(item[3]),
+          itemBody(),
+        )
+        return json(200, { data: edited })
+      }
+      if (item?.[1] === 'DELETE') {
+        await backend.deleteItem(identity, Number(item[2]), Number(item[3]))
+        return noContent()
+      }
+      const schedule = route.match(/^GET \/events\/(\d+)\/schedule$/)
+      if (schedule) {
+        return json(200, { data: await backend.schedule(identity, Number(schedule[1])) })
       }
       const groupMembers = route.match(/^GET \/groups\/(\d+)\/members$/)
       if (groupMembers) {

@@ -8,8 +8,8 @@ import {
   type MockBackend,
 } from '@/shared/mock-backend'
 
-import type { EventsRepository } from './repository'
-import { eventSchema } from './schemas'
+import type { EventItemsRepository, EventsRepository, ScheduleRepository } from './repository'
+import { eventItemSchema, eventSchema, scheduleSchema } from './schemas'
 
 type Options = { getEmail?: GetEmail; backend?: MockBackend }
 
@@ -27,5 +27,31 @@ export function createMockEventsRepository({
     get: async (eventId) => eventSchema.parse(await backend.event(await identity(), eventId)),
     update: async (eventId, changes) =>
       eventSchema.parse(await backend.updateEvent(await identity(), eventId, changes)),
+  }
+}
+
+/** EventItemsRepository over the shared mock backend, answers validated like HTTP's. */
+export function createMockEventItemsRepository({
+  getEmail = sessionEmail,
+  backend = mockBackend,
+}: Options = {}): EventItemsRepository {
+  const identity = () => identityOf(getEmail)
+  return {
+    create: async (eventId, input) =>
+      eventItemSchema.parse(await backend.createItem(await identity(), eventId, input)),
+    update: async (eventId, itemId, changes) =>
+      eventItemSchema.parse(await backend.updateItem(await identity(), eventId, itemId, changes)),
+    remove: async (eventId, itemId) => backend.deleteItem(await identity(), eventId, itemId),
+  }
+}
+
+/** ScheduleRepository over the shared mock backend, answers validated like HTTP's. */
+export function createMockScheduleRepository({
+  getEmail = sessionEmail,
+  backend = mockBackend,
+}: Options = {}): ScheduleRepository {
+  return {
+    get: async (eventId) =>
+      scheduleSchema.parse(await backend.schedule(await identityOf(getEmail), eventId)),
   }
 }
