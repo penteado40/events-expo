@@ -48,3 +48,6 @@ beforeEach(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('./src/shared/session/__tests__/fake-clerk').fakeClerk.reset()
 })
+
+// The clipboard is a native module: tests read what was copied from the mock.
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }))

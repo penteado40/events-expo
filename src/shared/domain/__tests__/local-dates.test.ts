@@ -1,5 +1,6 @@
 import {
   dayAndMonth,
+  dayLabel,
   deviceToday,
   dateFromTyping,
   isFinished,
@@ -103,6 +104,13 @@ describe('periodLabel', () => {
     [{ startDate: '2026-10-31', endDate: '2026-11-01' }, '31 de out. a 1 de nov.'],
   ])('writes %p as %p', (dates, label) => {
     expect(periodLabel({ ...dates, timezone: 'America/Sao_Paulo' })).toBe(label)
+  })
+})
+
+describe('dayLabel', () => {
+  it('says the day and the short month', () => {
+    expect(dayLabel('2026-11-16')).toBe('16 de nov.')
+    expect(dayLabel('2027-01-05')).toBe('5 de jan.')
   })
 })
 

@@ -6,6 +6,7 @@ import {
   type EventBody,
   type MeChanges,
   type MockBackend,
+  type NewViewerBody,
   type VerifiedIdentity,
 } from './backend'
 
@@ -19,7 +20,12 @@ const STATUS_BY_CODE: Record<string, number> = {
   USER_DEACTIVATED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
+  USER_ALREADY_ACTIVE: 409,
+  ALREADY_A_GROUP_MEMBER: 409,
+  SUPER_ADMIN_NOT_A_GROUP_MEMBER: 409,
 }
+
+const noContent = () => new Response(null, { status: 204 })
 
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -72,6 +78,35 @@ export function createFakeApi({
       }
       if (event?.[1] === 'PATCH') {
         return json(200, { data: await backend.updateEvent(identity, Number(event[2]), body()) })
+      }
+      const groupMembers = route.match(/^GET \/groups\/(\d+)\/members$/)
+      if (groupMembers) {
+        return json(200, { data: await backend.groupMembers(identity, Number(groupMembers[1])) })
+      }
+      const groupTeams = route.match(/^GET \/groups\/(\d+)\/teams$/)
+      if (groupTeams) {
+        return json(200, { data: await backend.groupTeams(identity, Number(groupTeams[1])) })
+      }
+      const viewers = route.match(/^POST \/groups\/(\d+)\/viewers$/)
+      if (viewers) {
+        const body = JSON.parse(String(init?.body ?? '{}')) as NewViewerBody
+        return json(201, { data: await backend.addViewer(identity, Number(viewers[1]), body) })
+      }
+      const link = route.match(/^POST \/groups\/(\d+)\/members\/(\d+)\/activation-link$/)
+      if (link) {
+        const [, groupId, userId] = link.map(Number)
+        return json(201, { data: await backend.reissueActivationLink(identity, groupId, userId) })
+      }
+      const viewer = route.match(/^DELETE \/groups\/(\d+)\/viewers\/(\d+)$/)
+      if (viewer) {
+        await backend.removeViewer(identity, Number(viewer[1]), Number(viewer[2]))
+        return noContent()
+      }
+      const teamMember = route.match(/^PUT \/groups\/(\d+)\/teams\/(\d+)\/members\/(\d+)$/)
+      if (teamMember) {
+        const [, groupId, teamId, userId] = teamMember.map(Number)
+        await backend.addTeamMember(identity, groupId, teamId, userId)
+        return noContent()
       }
       throw notFound()
     } catch (error) {

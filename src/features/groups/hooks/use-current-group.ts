@@ -42,3 +42,12 @@ export function useCurrentGroup() {
     refetch: query.refetch,
   }
 }
+
+/**
+ * One of the person's Groups by id, with their role there, for a screen opened from it (null while
+ * the Groups load, or when it is not one of them).
+ */
+export function useGroupById(groupId: number) {
+  const { options } = useCurrentGroup()
+  return options.find((g) => g.id === groupId) ?? null
+}

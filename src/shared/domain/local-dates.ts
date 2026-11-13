@@ -87,6 +87,12 @@ export function longDate(date: LocalDate): string {
   return `${weekday(date)}, ${day} de ${MONTHS[month - 1]}.`
 }
 
+/** A day in words: "16 de nov.". */
+export function dayLabel(date: LocalDate): string {
+  const { month, day } = parts(date)
+  return `${day} de ${MONTHS[month - 1]}.`
+}
+
 /** A period in words, without the weekday: "20 a 22 de nov.", "30 de dez. a 2 de jan.". */
 export function periodLabel({ startDate, endDate }: Period): string {
   const start = parts(startDate)

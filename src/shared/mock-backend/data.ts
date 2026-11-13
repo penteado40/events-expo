@@ -7,11 +7,21 @@ export type UserRow = {
   isSuperAdmin: boolean
   /** Set for a Deactivated user (events-api PROJ-166): refused on every request. */
   deactivatedAt: string | null
+  /** Added to a Group but has not activated the account yet (Pending user). */
+  isPending: boolean
 }
 
 export type GroupRow = { id: number; name: string }
 
 export type GroupMemberRow = { groupId: number; userId: number; role: 'OWNER' | 'VIEWER' }
+
+export type TeamRow = {
+  id: number
+  groupId: number
+  name: string
+  createdAt: string
+  memberIds: number[]
+}
 
 /** An Event as the mock stores it: where, when (local dates, ADR-0016), state and Participants. */
 export type EventRow = {
@@ -56,6 +66,7 @@ export function createDataset() {
     // Invited to the platform, but no Owner has added her to a Group yet.
     user(7, 'Rita Souza', 'rita.souza@example.com', '+5527999990007'),
     user(8, 'Ana Prado', 'ana.prado@example.com', '+5527999990008'),
+    user(9, 'Tiago Souza', 'tiago.souza@example.com', '+5527999990009', { isPending: true }),
   ]
   const groups: GroupRow[] = [
     { id: VOCAL_LIVRE, name: 'Vocal Livre' },
@@ -66,8 +77,16 @@ export function createDataset() {
     { groupId: VOCAL_LIVRE, userId: 3, role: 'VIEWER' },
     { groupId: VOCAL_LIVRE, userId: 4, role: 'VIEWER' },
     { groupId: VOCAL_LIVRE, userId: DEMO_VIEWER_ID, role: 'VIEWER' },
+    { groupId: VOCAL_LIVRE, userId: 9, role: 'VIEWER' },
     { groupId: CORAL_JOVEM, userId: 8, role: 'OWNER' },
     { groupId: CORAL_JOVEM, userId: DEMO_VIEWER_ID, role: 'VIEWER' },
+  ]
+  // Ids pick the automatic tone: Produção green, Cantores pink, Banda turquoise, Técnica gold.
+  const teams: TeamRow[] = [
+    team(2, 'Produção', [DEMO_OWNER_ID]),
+    team(4, 'Cantores', [4, DEMO_VIEWER_ID]),
+    team(5, 'Banda', [3]),
+    team(6, 'Técnica', [3]),
   ]
   const everyone = [DEMO_OWNER_ID, 3, 4, DEMO_VIEWER_ID]
   const saoPaulo = 'America/Sao_Paulo'
@@ -97,7 +116,11 @@ export function createDataset() {
       participantIds: [8, DEMO_VIEWER_ID],
     }),
   ]
-  return { users, groups, groupMembers, events }
+  return { users, groups, groupMembers, teams, events }
+
+  function team(id: number, name: string, memberIds: number[]): TeamRow {
+    return { id, groupId: VOCAL_LIVRE, name, createdAt: '2026-09-01T12:00:00.000Z', memberIds }
+  }
 
   function event(
     id: number,
@@ -130,7 +153,16 @@ function user(
   name: string,
   email: string,
   phone: string,
-  extra: Partial<Pick<UserRow, 'isSuperAdmin' | 'deactivatedAt'>> = {},
+  extra: Partial<Pick<UserRow, 'isSuperAdmin' | 'deactivatedAt' | 'isPending'>> = {},
 ): UserRow {
-  return { id, name, email, phone, isSuperAdmin: false, deactivatedAt: null, ...extra }
+  return {
+    id,
+    name,
+    email,
+    phone,
+    isSuperAdmin: false,
+    deactivatedAt: null,
+    isPending: false,
+    ...extra,
+  }
 }

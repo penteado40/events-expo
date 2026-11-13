@@ -36,6 +36,9 @@ type RequestOptions<T> = {
   schema: z.ZodType<T>
 }
 
+/** A write whose answer has nothing to read (`204`, or a body the app ignores). */
+type SendOptions = { body?: unknown }
+
 export type HttpClient = ReturnType<typeof createHttpClient>
 
 /** The client every HTTP repository uses: unwraps `{ data }` and throws every failure as `ApiError`. */
@@ -51,7 +54,7 @@ export function createHttpClient({
   async function request<T>(
     method: string,
     path: string,
-    { body, schema }: RequestOptions<T>,
+    { body, schema }: { body?: unknown; schema: z.ZodType<T> | null },
   ): Promise<T> {
     const sessionId = getSessionId()
     const controller = new AbortController()
@@ -85,8 +88,10 @@ export function createHttpClient({
       if (isSessionEndReason(code)) onSessionRefused?.(sessionId, code)
       throw new ApiError(code, message, details)
     }
+    if (status < 200 || status >= 300) throw internalError({ status })
+    if (schema === null) return undefined as T
     const success = dataEnvelope.safeParse(payload)
-    if (status < 200 || status >= 300 || !success.success) throw internalError({ status })
+    if (!success.success) throw internalError({ status })
     const data = schema.safeParse(success.data.data)
     if (!data.success) throw internalError({ status, issues: data.error.issues })
     return data.data
@@ -96,6 +101,9 @@ export function createHttpClient({
     get: <T>(path: string, options: RequestOptions<T>) => request('GET', path, options),
     post: <T>(path: string, options: RequestOptions<T>) => request('POST', path, options),
     patch: <T>(path: string, options: RequestOptions<T>) => request('PATCH', path, options),
+    /** A write with nothing to read back. */
+    send: (method: 'POST' | 'PUT' | 'DELETE', path: string, { body }: SendOptions = {}) =>
+      request<void>(method, path, { body, schema: null }),
   }
 }
 

@@ -1,3 +1,4 @@
+import { isEmail } from '@/shared/domain/email'
 import { isLocalDate, type Period } from '@/shared/domain/local-dates'
 import { isTimezone } from '@/shared/domain/timezones'
 import { normalizePhone } from '@/shared/domain/phone'
@@ -19,6 +20,17 @@ const userDeactivated = () =>
   new ApiError('USER_DEACTIVATED', 'Seu acesso à plataforma foi retirado.')
 export const notFound = () => new ApiError('NOT_FOUND', 'Recurso não encontrado.')
 const forbidden = () => new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.')
+const alreadyAGroupMember = () =>
+  new ApiError('ALREADY_A_GROUP_MEMBER', 'Esta pessoa já é Group member deste Group.')
+const superAdminNotAGroupMember = () =>
+  new ApiError('SUPER_ADMIN_NOT_A_GROUP_MEMBER', 'O Super admin não pode ser Group member.')
+const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
+
+/** How long an Activation link lasts (the Clerk invitation the events-api creates). */
+const LINK_DAYS = 7
+
+/** The body of `POST /groups/:id/viewers`: name and phone are used only for a new email. */
+export type NewViewerBody = { name: string; email: string; phone: string }
 
 /** The body of `PATCH /me`: what is left out stays. The email is Clerk's and never edited here. */
 export type MeChanges = { name?: string; phone?: string }
@@ -98,7 +110,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
   const delay = () => new Promise((resolve) => setTimeout(resolve, latencyMs))
 
   /** `GET /me`: the User, its Membership, and whether it is the Super admin (PROJ-178). */
-  function userJson({ deactivatedAt: _deactivatedAt, ...user }: UserRow) {
+  function userJson({ deactivatedAt: _deactivatedAt, isPending: _isPending, ...user }: UserRow) {
     const memberships = data.groupMembers
       .filter((m) => m.userId === user.id)
       .map(({ groupId, role }) => ({
@@ -130,12 +142,50 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     const found = data.users.find((u) => u.email === email)
     if (found?.deactivatedAt) throw userDeactivated()
     return (
-      found ?? { id: 0, name: email, email, phone: '', isSuperAdmin: false, deactivatedAt: null }
+      found ?? {
+        id: 0,
+        name: email,
+        email,
+        phone: '',
+        isSuperAdmin: false,
+        deactivatedAt: null,
+        isPending: false,
+      }
     )
   }
 
   const isMember = (userId: number, groupId: number) =>
     data.groupMembers.some((m) => m.userId === userId && m.groupId === groupId)
+  const roleIn = (userId: number, groupId: number) =>
+    data.groupMembers.find((m) => m.userId === userId && m.groupId === groupId)?.role ?? null
+
+  /** Each Activation link handed out, so a new one differs from the last. */
+  let linksIssued = 0
+  function newActivationLink() {
+    linksIssued += 1
+    const expiresAt = new Date(Date.now() + LINK_DAYS * 24 * 60 * 60 * 1000)
+    return {
+      url: `https://clerk.events.test/v1/tickets/accept?ticket=mock-${linksIssued}`,
+      expiresAt: expiresAt.toISOString(),
+    }
+  }
+
+  /** The API's `manageViewers` (and Teams'): the Super admin or an Owner of the Group. */
+  function assertManagesGroup(asker: UserRow, groupId: number) {
+    assertSeesGroup(asker, groupId)
+    if (!asker.isSuperAdmin && roleIn(asker.id, groupId) !== 'OWNER') throw forbidden()
+  }
+
+  /** Anyone outside the Group gets `NOT_FOUND`, so it does not leak. */
+  function assertSeesGroup(asker: UserRow, groupId: number) {
+    const group = data.groups.find((g) => g.id === groupId)
+    if (!group || !(asker.isSuperAdmin || isMember(asker.id, groupId))) throw notFound()
+  }
+
+  const teamsOf = (groupId: number) =>
+    data.teams
+      .filter((t) => t.groupId === groupId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 
   /**
    * The Group as the asker reaches it: `NOT_FOUND` when it does not exist or they are not in it,
@@ -222,6 +272,138 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         .filter((e) => e.groupId === groupId)
         .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id)
         .map((e) => eventJson(e, asker))
+    },
+
+    /**
+     * `GET /groups/:id/members` (events-api PROJ-178): who is in the Group, in the order they
+     * joined.
+     */
+    async groupMembers(identity: VerifiedIdentity | null, groupId: number) {
+      await delay()
+      assertSeesGroup(requester(identity), groupId)
+      return data.groupMembers
+        .filter((m) => m.groupId === groupId)
+        .map(({ userId, role }) => {
+          const { name, email, phone, isPending } = data.users.find((u) => u.id === userId)!
+          return { userId, name, email, phone, role, isPending }
+        })
+    },
+
+    /**
+     * `GET /groups/:id/teams` (events-api PROJ-181): the Group's Teams by name. `members` comes
+     * with PROJ-183, whose shape is assumed (`[{ userId }]`, see the groups feature's schemas).
+     */
+    async groupTeams(identity: VerifiedIdentity | null, groupId: number) {
+      await delay()
+      assertSeesGroup(requester(identity), groupId)
+      return teamsOf(groupId).map(({ id, groupId: group, name, createdAt, memberIds }) => ({
+        id,
+        groupId: group,
+        name,
+        createdAt,
+        members: memberIds.map((userId) => ({ userId })),
+      }))
+    },
+
+    /**
+     * `POST /groups/:id/viewers` (events-api PROJ-177): adds a person as a Viewer by email. A new
+     * email becomes a Pending user with the name and phone, and only then the answer carries the
+     * Activation link. Validated as the API's DTO, then its Phone for the new User.
+     */
+    async addViewer(identity: VerifiedIdentity | null, groupId: number, body: NewViewerBody) {
+      await delay()
+      const asker = requester(identity)
+      const email = body.email?.trim().toLowerCase() ?? ''
+      const name = body.name?.trim() ?? ''
+      const phone = body.phone?.trim() ?? ''
+      const invalid = [
+        !isEmail(email) && 'email',
+        (name.length < 1 || name.length > 100) && 'name',
+        (phone.length < 1 || phone.length > 30) && 'phone',
+      ].filter((path): path is string => path !== false)
+      if (invalid.length > 0) {
+        throw validationError(invalid.map((path) => ({ path, message: 'Dados inválidos.' })))
+      }
+      assertManagesGroup(asker, groupId)
+
+      let user = data.users.find((u) => u.email === email)
+      let activationLink: ReturnType<typeof newActivationLink> | null = null
+      if (user?.isSuperAdmin) throw superAdminNotAGroupMember()
+      if (user && isMember(user.id, groupId)) throw alreadyAGroupMember()
+      // A Pending user who already had a link gets none: only the Group access email.
+      if (!user) {
+        const e164 = normalizePhone(phone)
+        if (e164 === null) throw validationError()
+        user = {
+          id: Math.max(...data.users.map((u) => u.id)) + 1,
+          name,
+          email,
+          phone: e164,
+          isSuperAdmin: false,
+          deactivatedAt: null,
+          isPending: true,
+        }
+        data.users.push(user)
+        activationLink = newActivationLink()
+      }
+      data.groupMembers.push({ groupId, userId: user.id, role: 'VIEWER' })
+      return {
+        member: {
+          groupId,
+          role: 'VIEWER' as const,
+          user: { id: user.id, name: user.name, email: user.email, isPending: user.isPending },
+        },
+        activationLink,
+      }
+    },
+
+    /**
+     * `POST /groups/:id/members/:userId/activation-link` (events-api PROJ-180): a new Activation
+     * link for a pending Group member; the previous one stops working.
+     */
+    async reissueActivationLink(
+      identity: VerifiedIdentity | null,
+      groupId: number,
+      userId: number,
+    ) {
+      await delay()
+      assertManagesGroup(requester(identity), groupId)
+      if (!isMember(userId, groupId)) throw notFound()
+      if (!data.users.find((u) => u.id === userId)!.isPending) throw userAlreadyActive()
+      return newActivationLink()
+    },
+
+    /**
+     * `DELETE /groups/:id/viewers/:userId` (events-api PROJ-179): takes a Viewer out of the Group,
+     * and out of its Teams (PROJ-183). An Owner is `NOT_FOUND` here.
+     */
+    async removeViewer(identity: VerifiedIdentity | null, groupId: number, userId: number) {
+      await delay()
+      assertManagesGroup(requester(identity), groupId)
+      if (roleIn(userId, groupId) !== 'VIEWER') throw notFound()
+      data.groupMembers = data.groupMembers.filter(
+        (m) => !(m.groupId === groupId && m.userId === userId),
+      )
+      for (const team of data.teams.filter((t) => t.groupId === groupId)) {
+        team.memberIds = team.memberIds.filter((id) => id !== userId)
+      }
+    },
+
+    /**
+     * `PUT /groups/:id/teams/:teamId/members/:userId`, as PROJ-183 plans it (not built in the
+     * events-api yet): puts a Group member in a Team; already there, nothing changes.
+     */
+    async addTeamMember(
+      identity: VerifiedIdentity | null,
+      groupId: number,
+      teamId: number,
+      userId: number,
+    ) {
+      await delay()
+      assertManagesGroup(requester(identity), groupId)
+      const team = data.teams.find((t) => t.id === teamId && t.groupId === groupId)
+      if (!team || !isMember(userId, groupId)) throw notFound()
+      if (!team.memberIds.includes(userId)) team.memberIds.push(userId)
     },
 
     /**

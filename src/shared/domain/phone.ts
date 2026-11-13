@@ -42,3 +42,18 @@ export function formatPhone(e164: string): string {
   const [, area, first, last] = brazil
   return `+55 ${area} ${first}-${last}`
 }
+
+/**
+ * A WhatsApp message ready to send: to the phone (stored or typed) when it is one, else to a
+ * contact the sender picks.
+ */
+export function whatsappMessageUrl(phone: string, text: string): string {
+  const digits = normalizePhone(phone)?.slice(1) ?? ''
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`
+}
+
+/** The WhatsApp conversation with a stored phone; null when the person has none. */
+export function whatsappUrl(e164: string): string | null {
+  const digits = e164.replace(/\D/g, '')
+  return digits ? `https://wa.me/${digits}` : null
+}
