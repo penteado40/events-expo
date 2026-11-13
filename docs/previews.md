@@ -31,10 +31,14 @@ No Mac, na raiz do repo, num branch novo:
 ```bash
 npx eas-cli@latest login
 npx eas-cli@latest init              # cria o projeto na Expo e grava expo.extra.eas.projectId (e owner) no app.json
-npx eas-cli@latest update:configure  # instala expo-updates e grava runtimeVersion e updates.url no app.json
+npx eas-cli@latest update:configure  # instala expo-updates e grava updates.url no app.json
 ```
 
 Faça commit do `app.json`, do `package.json` e do `package-lock.json` e abra o PR. O projectId não é segredo.
+
+O `app.json` já tem `"runtimeVersion": { "policy": "sdkVersion" }`, e ele tem de ficar assim. Com essa política o runtime de cada update é `exposdk:<SDK>` (ex.: `exposdk:58.0.0`), o único que o Expo Go carrega. O `update:configure` só grava um `runtimeVersion` quando não há nenhum, então não mexe nesse. Se o diff mostrar outro (ex.: `{ "policy": "appVersion" }`, que daria `1.0.0`), volte para `sdkVersion` antes do commit: com outro runtime o QR abre o Expo Go e o update não carrega.
+
+Não precisa de `eas.json`. O `eas update` roda sem ele, e o `update:configure` não cria um: só grava os channels num `eas.json` que já exista. Channel é coisa de build do EAS, e o Expo Go não usa channel: o QR aponta direto para o update publicado.
 
 ### 3. `EXPO_TOKEN` como secret do GitHub Actions
 
