@@ -15,7 +15,7 @@ function event(id: number, name: string, dates: [string, string], extra: Partial
     name,
     place: 'Vitória, ES',
     period: { startDate: dates[0], endDate: dates[1], timezone: 'America/Sao_Paulo' },
-    status: 'PUBLISHED',
+    state: 'PUBLISHED',
     cancelled: false,
     isParticipant: true,
     ...extra,
@@ -24,7 +24,7 @@ function event(id: number, name: string, dates: [string, string], extra: Partial
 
 const clip = event(1, 'Gravação do clipe', ['2026-10-10', '2026-10-10'])
 const tour = event(2, 'Turnê Minas', ['2027-03-12', '2027-03-14'], {
-  status: 'DRAFT',
+  state: 'DRAFT',
   isParticipant: false,
   place: 'Belo Horizonte, MG',
 })
@@ -120,6 +120,20 @@ describe('homeLines line states', () => {
 
   it('tells a Group member who is not a Participant that they are not going, faded', () => {
     expect(line('Ensaio da Banda')).toMatchObject({ badge: null, notGoing: true, faded: true })
+  })
+
+  it('shows neither VOCÊ VAI nor "você não vai" while the API does not say (no Participants yet)', () => {
+    const unknown = homeLines(
+      ALL.map((e) => ({ ...e, isParticipant: null })),
+      { tab: 'upcoming', query: '', now: NOW, role: OWNER },
+    )
+
+    expect(unknown.find((l) => l.event.name === 'Ensaio da Banda')).toMatchObject({
+      badge: null,
+      notGoing: false,
+      faded: false,
+      featured: false,
+    })
   })
 
   it('never says "você não vai" to the Super admin, who is not a Group member', () => {

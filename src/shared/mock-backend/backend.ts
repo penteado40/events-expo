@@ -24,6 +24,8 @@ const alreadyAGroupMember = () =>
   new ApiError('ALREADY_A_GROUP_MEMBER', 'Esta pessoa já é Group member deste Group.')
 const superAdminNotAGroupMember = () =>
   new ApiError('SUPER_ADMIN_NOT_A_GROUP_MEMBER', 'O Super admin não pode ser Group member.')
+const eventPeriodInvalid = () =>
+  new ApiError('EVENT_PERIOD_INVALID', 'A data final do Event não pode ser antes da data inicial.')
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
 
 /** How long an Activation link lasts (the Clerk invitation the events-api creates). */
@@ -81,15 +83,14 @@ function checkEventBody(body: EventBody, { partial }: { partial: boolean }) {
     if (!isLocalDate(startDate))
       details.push({ path: 'period.startDate', message: 'Data inválida.' })
     if (!isLocalDate(endDate)) details.push({ path: 'period.endDate', message: 'Data inválida.' })
-    else if (isLocalDate(startDate) && endDate < startDate) {
-      details.push({ path: 'period.endDate', message: 'A data final vem antes da inicial.' })
-    }
     if (!isTimezone(timezone)) details.push({ path: 'period.timezone', message: 'Fuso inválido.' })
   }
   if (partial && name === undefined && place === undefined && period === undefined) {
     details.push({ path: '', message: 'Nada para alterar.' })
   }
   if (details.length > 0) throw validationError(details)
+  // Like the API, the order is the domain's check, after the shape's.
+  if (period && period.endDate < period.startDate) throw eventPeriodInvalid()
   return checked
 }
 
@@ -421,7 +422,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         name: name!,
         place: place!,
         ...period!,
-        status: 'DRAFT',
+        state: 'DRAFT',
         cancelled: false,
         participantIds: [],
       }

@@ -14,8 +14,8 @@ export interface EventsRepository {
   listByGroup(groupId: number): Promise<Event[]>
   /**
    * `POST /groups/:id/events`: an Owner (or the Super admin) creates the Event, born in Draft.
-   * `VALIDATION_ERROR` names the field in its details (`period.endDate` for an end before the
-   * start); `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
+   * `EVENT_PERIOD_INVALID` for an end before the start; `VALIDATION_ERROR` names any other field
+   * in its details; `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
    */
   create(groupId: number, input: EventInput): Promise<Event>
   /** `GET /events/:id`: any Group member reads it. `NOT_FOUND` outside the Group. */

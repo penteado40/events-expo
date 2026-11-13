@@ -33,7 +33,7 @@ export type EventRow = {
   startDate: string
   endDate: string
   timezone: string
-  status: 'DRAFT' | 'PUBLISHED'
+  state: 'DRAFT' | 'PUBLISHED'
   cancelled: boolean
   participantIds: number[]
 }
@@ -96,7 +96,7 @@ export function createDataset() {
       participantIds: everyone,
     }),
     event(2, VOCAL_LIVRE, 'Turnê Minas', 'Belo Horizonte, MG', ['2027-03-12', '2027-03-14'], {
-      status: 'DRAFT',
+      state: 'DRAFT',
     }),
     event(3, VOCAL_LIVRE, 'Saída Manaus', 'Manaus, AM', ['2026-11-20', '2026-11-22'], {
       timezone: 'America/Manaus',
@@ -128,7 +128,7 @@ export function createDataset() {
     name: string,
     place: string,
     [startDate, endDate]: [string, string],
-    extra: Partial<Pick<EventRow, 'timezone' | 'status' | 'cancelled' | 'participantIds'>> = {},
+    extra: Partial<Pick<EventRow, 'timezone' | 'state' | 'cancelled' | 'participantIds'>> = {},
   ): EventRow {
     return {
       id,
@@ -138,7 +138,7 @@ export function createDataset() {
       startDate,
       endDate,
       timezone: saoPaulo,
-      status: 'PUBLISHED',
+      state: 'PUBLISHED',
       cancelled: false,
       participantIds: [],
       ...extra,

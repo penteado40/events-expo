@@ -61,10 +61,11 @@ export function homeLines(events: Event[], { tab, query, now, role }: HomeOption
 
   return chosen.map((event) => {
     const { startDate, endDate } = event.period
-    const notGoing = isGroupMember(role) && !event.isParticipant
+    // Unknown (`null`, before the API has Participants) is neither going nor "você não vai".
+    const notGoing = isGroupMember(role) && event.isParticipant === false
     const badge: HomeBadge = event.cancelled
       ? 'cancelled'
-      : event.status === 'DRAFT' && seesDrafts(role)
+      : event.state === 'DRAFT' && seesDrafts(role)
         ? 'draft'
         : event.isParticipant
           ? 'going'
