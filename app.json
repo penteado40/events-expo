@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Events",
-    "slug": "events-expo",
+    "slug": "events",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "sdkVersion"
@@ -51,6 +51,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "01d9708f-864f-430e-963c-0bbe2774027f"
+      }
+    },
+    "owner": "penteado40",
+    "updates": {
+      "url": "https://u.expo.dev/01d9708f-864f-430e-963c-0bbe2774027f"
     }
   }
 }
