@@ -242,7 +242,6 @@ function Details({ groupId, team, back }: { groupId: number; team: Team; back: R
 
       <Sheet visible={sheet === 'add'} title="Adicionar ao Team" onClose={close}>
         <AddPeople
-          tone={tone}
           people={outside}
           adding={membership.add.isPending}
           onAdd={(userId) => changeMembership('add', userId)}
@@ -269,12 +268,10 @@ function Details({ groupId, team, back }: { groupId: number; team: Team; back: R
 
 /** The Group members not in the Team yet: tapping one puts them in it. */
 function AddPeople({
-  tone,
   people,
   adding,
   onAdd,
 }: {
-  tone: AutoTone
   people: GroupMember[]
   adding: boolean
   onAdd: (userId: number) => void
@@ -298,7 +295,7 @@ function AddPeople({
           accessibilityLabel={`Adicionar ${person.name}`}
           style={styles.row}
         >
-          <TeamAvatar tone={tone} name={person.name} />
+          <TeamAvatar tone={null} name={person.name} />
           <Text style={[styles.name, { color: colors.text }]}>{person.name}</Text>
           <Icon name="plus" color={colors.link} size={20} />
         </Pressable>
@@ -307,10 +304,13 @@ function AddPeople({
   )
 }
 
-/** Initials on the Team's chip colors (100 and 700 in light mode). */
-function TeamAvatar({ tone, name }: { tone: AutoTone; name: string }) {
+/**
+ * Initials on the Team's chip colors (100 and 700 in light mode); gray, with no tone, for someone
+ * not in the Team yet.
+ */
+function TeamAvatar({ tone, name }: { tone: AutoTone | null; name: string }) {
   const { teamChip } = useTheme()
-  const chip = teamChip(tone)
+  const chip = teamChip(tone ?? 'gray')
   return (
     <View style={[styles.avatar, { backgroundColor: chip.bg }]}>
       <Text style={[styles.initials, { color: chip.text }]}>{initials(name)}</Text>

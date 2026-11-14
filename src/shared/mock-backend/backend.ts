@@ -42,6 +42,9 @@ const teamNameTaken = () =>
 /** How long an Activation link lasts (the Clerk invitation the events-api creates). */
 const LINK_DAYS = 7
 
+/** The longest Team name the API takes (events-api TeamName). */
+const TEAM_NAME_MAX_LENGTH = 100
+
 /** The body of `POST /groups/:id/teams` and `PATCH /groups/:id/teams/:teamId` (PROJ-181). */
 export type TeamBody = { name: string }
 
@@ -278,7 +281,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
   /** A Team's name as the API's DTO and TeamName check it: trimmed, 1 to 100 characters. */
   function teamName(body: TeamBody): string {
     const name = typeof body?.name === 'string' ? body.name.trim() : ''
-    if (name.length < 1 || name.length > 100) {
+    if (name.length < 1 || name.length > TEAM_NAME_MAX_LENGTH) {
       throw validationError([{ path: 'name', message: 'Dados inválidos.' }])
     }
     return name

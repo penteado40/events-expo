@@ -9,18 +9,19 @@ function useRefreshTeams(groupId: number) {
   return () => client.invalidateQueries({ queryKey: groupTeamsQueryKey(groupId) })
 }
 
-/** Creates a Team by name (PROJ-181), with nobody in it yet. */
+/**
+ * Creates a Team by name (PROJ-181), with nobody in it yet. Done once the Teams reloaded, so the
+ * Team's screen, opened next, finds it instead of "Este Team não existe mais".
+ */
 export function useCreateTeam(groupId: number) {
   const refresh = useRefreshTeams(groupId)
   return useMutation<Team, unknown, string>({
     mutationFn: (name) => groupsRepository.createTeam(groupId, name),
-    onSuccess: () => {
-      void refresh()
-    },
+    onSuccess: refresh,
   })
 }
 
-/** Renames a Team (PROJ-181). */
+/** Renames a Team (PROJ-181), done once the Teams reloaded, so the new name shows as it closes. */
 export function useRenameTeam(groupId: number, teamId: number) {
   const refresh = useRefreshTeams(groupId)
   return useMutation<Team, unknown, string>({
