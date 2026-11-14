@@ -12,6 +12,7 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
+import { participantsAvailable, useGroupPeople, useParticipants } from '../hooks/use-participants'
 import { useSchedule } from '../hooks/use-schedule'
 import { assembleSchedule } from '../schedule-lines'
 
@@ -19,8 +20,8 @@ import { assembleSchedule } from '../schedule-lines'
  * An Event's screen (D-Rascunho, PROJ-217, PROJ-220): the cover in its automatic color, and the
  * card over it with the name, where and when in its timezone. Owners see the Draft, "Editar" and
  * the schedule in short (the General info and a line per day, with "+ Item" in an Event in Draft),
- * which opens the Timeline; a Viewer only where and when. Participants and Publicar come with their
- * own tickets.
+ * which opens the Timeline; a Viewer only where and when. Every Group member sees how many go,
+ * opening the Participants (PROJ-222). Publicar comes with its own ticket.
  */
 export function EventScreen({ eventId }: { eventId: number }) {
   const theme = useTheme()
@@ -71,6 +72,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
           {event.data ? (
             <>
               <EventCard event={event.data} draftShown={!!role && seesDrafts(role)} />
+              {participantsAvailable() && <ParticipantsLine event={event.data} />}
               {role && seesDrafts(role) && (
                 <ScheduleSummary event={event.data} editable={canWriteItems(role, event.data)} />
               )}
@@ -117,6 +119,40 @@ function EventCard({ event, draftShown }: { event: Event; draftShown: boolean })
       </Text>
       <Text style={[styles.where, { color: theme.badge(tone).text }]}>{where.join(' · ')}</Text>
     </View>
+  )
+}
+
+/** D-Rascunho's "Participants": how many of the Group go ("20 de 30 do Group vão"). */
+function ParticipantsLine({ event }: { event: Event }) {
+  const theme = useTheme()
+  const { colors } = theme
+  const router = useRouter()
+  const participants = useParticipants(event.id)
+  const { members } = useGroupPeople(event.groupId)
+  const badge = theme.badge(autoTone(event.id))
+  const count =
+    participants.data && members.data
+      ? `${participants.data.length} de ${members.data.length} do Group vão`
+      : null
+
+  return (
+    <Pressable
+      onPress={() => router.push(`/events/${event.id}/participants`)}
+      accessibilityRole="button"
+      accessibilityLabel={['Participants', count].filter(Boolean).join(', ')}
+      style={[styles.participants, { backgroundColor: colors.surface }]}
+    >
+      <View style={[styles.participantsIcon, { backgroundColor: badge.bg }]}>
+        <Icon name="people" color={badge.text} size={20} />
+      </View>
+      <View style={styles.participantsText}>
+        <Text style={[styles.participantsTitle, { color: colors.text }]}>Participants</Text>
+        {count && <Text style={[textStyles.caption, { color: colors.textMuted }]}>{count}</Text>}
+      </View>
+      <View style={styles.chevron}>
+        <Icon name="back" color={colors.textMuted} size={18} strokeWidth={2} />
+      </View>
+    </Pressable>
   )
 }
 
@@ -256,6 +292,26 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.sans700, fontSize: 26, lineHeight: 30 },
   struck: { textDecorationLine: 'line-through' },
   where: { fontFamily: fonts.sans600, fontSize: 14 },
+  participants: {
+    minHeight: 66,
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  participantsIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  participantsText: { flex: 1 },
+  participantsTitle: { fontFamily: fonts.sans600, fontSize: 16 },
+  // The "back" chevron turned around: the icon set has no right-pointing one.
+  chevron: { transform: [{ rotate: '180deg' }] },
   schedule: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 4 },
   scheduleHeader: {
     paddingTop: 12,

@@ -35,6 +35,8 @@ const eventPeriodInvalid = () =>
   new ApiError('EVENT_PERIOD_INVALID', 'A data final do Event não pode ser antes da data inicial.')
 const eventItemTimeWithoutDate = () =>
   new ApiError('EVENT_ITEM_TIME_WITHOUT_DATE', 'O Event item só pode ter hora se tiver data.')
+const eventCancelled = () =>
+  new ApiError('EVENT_CANCELLED', 'O Event está cancelado. Descancele para alterar.')
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
 const teamNameTaken = () =>
   new ApiError('TEAM_NAME_TAKEN', 'Já existe um Team com este nome neste Group.')
@@ -54,11 +56,19 @@ export type NewViewerBody = { name: string; email: string; phone: string }
 /** The body of `PATCH /me`: what is left out stays. The email is Clerk's and never edited here. */
 export type MeChanges = { name?: string; phone?: string }
 
+/**
+ * Where a new Event's Participants come from (events-api PROJ-189): one or more Teams of the Group.
+ * Left out, the whole Group (PROJ-186).
+ */
+export type ParticipantsFromBody = { teamIds: number[] }
+
 /** The body of `POST /groups/:id/events`, and of `PATCH /events/:id` with every field optional. */
 export type EventBody = {
   name?: string
   place?: string
   period?: Period
+  /** Only when creating (PROJ-189). */
+  participantsFrom?: ParticipantsFromBody
 }
 
 type Detail = { path: string; message: string }
@@ -72,11 +82,13 @@ const EVENT_PLACE_MAX = 200
  * trimmed values, or throws `VALIDATION_ERROR` with a detail per field.
  */
 function checkEventBody(body: EventBody, { partial }: { partial: boolean }) {
-  const { name, place, period, ...rest } = body
-  const details: Detail[] = Object.keys(rest).map((key) => ({
-    path: key,
-    message: 'Campo desconhecido.',
-  }))
+  const { name, place, period, participantsFrom, ...rest } = body
+  // Only the creation takes `participantsFrom`: an edit names it as unknown, like any other.
+  const unknown = [
+    ...Object.keys(rest),
+    ...(partial && participantsFrom ? ['participantsFrom'] : []),
+  ]
+  const details: Detail[] = unknown.map((key) => ({ path: key, message: 'Campo desconhecido.' }))
   const text = (value: string | undefined, path: string, max: number) => {
     if (value === undefined) {
       if (!partial) details.push({ path, message: 'Obrigatório.' })
@@ -102,13 +114,23 @@ function checkEventBody(body: EventBody, { partial }: { partial: boolean }) {
     if (!isLocalDate(endDate)) details.push({ path: 'period.endDate', message: 'Data inválida.' })
     if (!isTimezone(timezone)) details.push({ path: 'period.timezone', message: 'Fuso inválido.' })
   }
+  if (!partial && participantsFrom !== undefined) {
+    const { teamIds, ...other } = participantsFrom ?? {}
+    for (const key of Object.keys(other)) {
+      details.push({ path: `participantsFrom.${key}`, message: 'Campo desconhecido.' })
+    }
+    const valid =
+      Array.isArray(teamIds) && teamIds.length > 0 && teamIds.every((id) => Number.isInteger(id))
+    if (!valid)
+      details.push({ path: 'participantsFrom.teamIds', message: 'Escolha ao menos um Team.' })
+  }
   if (partial && name === undefined && place === undefined && period === undefined) {
     details.push({ path: '', message: 'Nada para alterar.' })
   }
   if (details.length > 0) throw validationError(details)
   // Like the API, the order is the domain's check, after the shape's.
   if (period && period.endDate < period.startDate) throw eventPeriodInvalid()
-  return checked
+  return { ...checked, participantsFrom: partial ? undefined : participantsFrom }
 }
 
 /** The body of `POST /events/:id/items`, and of `PATCH` with every field optional (PROJ-187). */
@@ -325,6 +347,30 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     const row = data.events.find((e) => e.id === eventId)
     if (!row) throw notFound()
     reachGroup(asker, row.groupId, options)
+    return row
+  }
+
+  /**
+   * Who a new Event's Participants are (PROJ-186, PROJ-189): a copy of the Group members of the
+   * moment, or of who is in the Teams chosen, once each. A Team of another Group is `NOT_FOUND`.
+   */
+  function bornParticipants(groupId: number, from: ParticipantsFromBody | undefined): number[] {
+    const members = data.groupMembers.filter((m) => m.groupId === groupId).map((m) => m.userId)
+    if (!from) return members
+    const inTeams = new Set(from.teamIds.flatMap((teamId) => teamIn(groupId, teamId).memberIds))
+    return members.filter((userId) => inTeams.has(userId))
+  }
+
+  /** A Participant as `GET /events/:id/participants` lists them (PROJ-186): assumed shape. */
+  function participantJson(userId: number, groupId: number) {
+    const { name, phone } = data.users.find((u) => u.id === userId)!
+    return { userId, name, phone, role: roleIn(userId, groupId) ?? 'VIEWER' }
+  }
+
+  /** The Event an Owner changes the Participants of: `EVENT_CANCELLED` while it is Cancelled. */
+  function reachParticipants(asker: UserRow, eventId: number) {
+    const row = reachEvent(asker, eventId, { write: true })
+    if (row.cancelled) throw eventCancelled()
     return row
   }
 
@@ -603,13 +649,15 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
     /**
      * `POST /groups/:id/events` (events-api PROJ-182): an Owner or the Super admin creates the
-     * Event, born in Draft and with no Participants yet.
+     * Event, born in Draft, its Participants a copy of the Group members or of the Teams chosen
+     * (`participantsFrom`, PROJ-186 and PROJ-189, planned in the events-api).
      */
     async createEvent(identity: VerifiedIdentity | null, groupId: number, body: EventBody) {
       await delay()
       const asker = requester(identity)
       reachGroup(asker, groupId, { write: true })
-      const { name, place, period } = checkEventBody(body, { partial: false })
+      const { name, place, period, participantsFrom } = checkEventBody(body, { partial: false })
+      const participantIds = bornParticipants(groupId, participantsFrom)
       const row: EventRow = {
         id: Math.max(0, ...data.events.map((e) => e.id)) + 1,
         groupId,
@@ -618,7 +666,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         ...period!,
         state: 'DRAFT',
         cancelled: false,
-        participantIds: [],
+        participantIds,
       }
       data.events.push(row)
       return eventJson(row, asker)
@@ -644,6 +692,40 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       if (place !== undefined) row.place = place
       if (period !== undefined) Object.assign(row, period)
       return eventJson(row, asker)
+    },
+
+    /**
+     * `GET /events/:id/participants`, as PROJ-186 plans it: who goes, for any Group member (going
+     * or not) and the Super admin, by name.
+     */
+    async participants(identity: VerifiedIdentity | null, eventId: number) {
+      await delay()
+      const row = reachEvent(requester(identity), eventId, { write: false })
+      return row.participantIds
+        .map((userId) => participantJson(userId, row.groupId))
+        .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+    },
+
+    /**
+     * `PUT /events/:id/participants/:userId`, as PROJ-190 plans it: an Owner adds a Group member;
+     * already going, nothing changes. Someone outside the Group is `NOT_FOUND`.
+     */
+    async addParticipant(identity: VerifiedIdentity | null, eventId: number, userId: number) {
+      await delay()
+      const row = reachParticipants(requester(identity), eventId)
+      if (!isMember(userId, row.groupId)) throw notFound()
+      if (!row.participantIds.includes(userId)) row.participantIds.push(userId)
+    },
+
+    /**
+     * `DELETE /events/:id/participants/:userId`, as PROJ-190 plans it: takes someone out of the
+     * Participants, `NOT_FOUND` when they are not going.
+     */
+    async removeParticipant(identity: VerifiedIdentity | null, eventId: number, userId: number) {
+      await delay()
+      const row = reachParticipants(requester(identity), eventId)
+      if (!row.participantIds.includes(userId)) throw notFound()
+      row.participantIds = row.participantIds.filter((id) => id !== userId)
     },
 
     /**

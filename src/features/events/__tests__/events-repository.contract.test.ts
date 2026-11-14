@@ -127,7 +127,8 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
       period: { startDate: '2026-12-04', endDate: '2026-12-06', timezone: 'America/Sao_Paulo' },
       state: 'DRAFT',
       cancelled: false,
-      isParticipant: false,
+      // Born with the whole Group as Participants, its Owner too (PROJ-186).
+      isParticipant: true,
     })
   })
 

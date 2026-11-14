@@ -14,8 +14,14 @@ export type EventForm = {
   endDate: string
 }
 
-/** What is wrong with each field, or with the save as a whole (`form`). */
-export type EventFormErrors = Partial<Record<keyof EventForm | 'form', string>>
+/**
+ * Where a new Event's Participants come from ("Participants vêm de"): every Group member, or the
+ * people of some Teams, copied at that moment.
+ */
+export type ParticipantsChoice = { from: 'group' } | { from: 'teams'; teamIds: number[] }
+
+/** What is wrong with each field, the Teams chosen, or the save as a whole (`form`). */
+export type EventFormErrors = Partial<Record<keyof EventForm | 'teams' | 'form', string>>
 
 const NAME_MAX = 100
 const PLACE_MAX = 200
@@ -30,6 +36,7 @@ const MESSAGES = {
   endMissing: 'Informe a data final.',
   notADate: 'Use uma data como 20/11/2026.',
   endBeforeStart: 'A data final não pode ser antes da inicial.',
+  noTeam: 'Escolha ao menos um Team.',
   saveFailed: 'Não foi possível salvar. Tente de novo.',
 }
 
@@ -98,12 +105,30 @@ export function eventFormInput(
   return { errors, input: Object.keys(changes).length > 0 ? changes : null }
 }
 
-const FIELD_BY_PATH: Record<string, [keyof EventForm, string]> = {
+/**
+ * Creating: the fields as `eventFormInput` checks them, and the Participants chosen. The whole
+ * Group sends nothing, the API's default (PROJ-186); some Teams need at least one (PROJ-189).
+ */
+export function newEventInput(
+  form: EventForm,
+  choice: ParticipantsChoice,
+): { errors: EventFormErrors; input: EventInput | null } {
+  const checked = eventFormInput(form)
+  if (choice.from === 'group') return checked
+  if (choice.teamIds.length === 0) {
+    return { errors: { ...checked.errors, teams: MESSAGES.noTeam }, input: null }
+  }
+  const input = checked.input && { ...checked.input, participantsFrom: { teamIds: choice.teamIds } }
+  return { errors: checked.errors, input }
+}
+
+const FIELD_BY_PATH: Record<string, [keyof EventForm | 'teams', string]> = {
   name: ['name', 'Confira o nome do Event.'],
   place: ['place', 'Confira a cidade ou o local.'],
   'period.startDate': ['startDate', 'Confira a data de início.'],
   'period.endDate': ['endDate', 'Confira a data final.'],
   'period.timezone': ['timezone', 'Escolha o fuso de novo.'],
+  'participantsFrom.teamIds': ['teams', 'Escolha os Teams de novo.'],
 }
 
 /**

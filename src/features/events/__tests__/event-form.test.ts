@@ -1,6 +1,12 @@
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
-import { errorsFromApi, eventFormInput, initialEventForm, type EventForm } from '../event-form'
+import {
+  errorsFromApi,
+  eventFormInput,
+  initialEventForm,
+  newEventInput,
+  type EventForm,
+} from '../event-form'
 import type { Event } from '../schemas'
 
 const saidaManaus: Event = {
@@ -75,6 +81,35 @@ describe('eventFormInput, creating', () => {
     ],
   ])('refuses %s on its field, sending nothing', (_, change, errors) => {
     expect(eventFormInput({ ...filled, ...change })).toEqual({ errors, input: null })
+  })
+})
+
+describe('newEventInput, where the Participants come from', () => {
+  it('sends nothing about them for the whole Group, which the API copies by default', () => {
+    const { errors, input } = newEventInput(filled, { from: 'group' })
+
+    expect(errors).toEqual({})
+    expect(input).not.toHaveProperty('participantsFrom')
+    expect(input).toMatchObject({ name: 'Saída BH' })
+  })
+
+  it('sends the Teams chosen', () => {
+    const { input } = newEventInput(filled, { from: 'teams', teamIds: [4, 5] })
+
+    expect(input).toMatchObject({ participantsFrom: { teamIds: [4, 5] } })
+  })
+
+  it('asks for a Team when "Alguns Teams" has none, sending nothing', () => {
+    const { errors, input } = newEventInput(filled, { from: 'teams', teamIds: [] })
+
+    expect(errors).toEqual({ teams: 'Escolha ao menos um Team.' })
+    expect(input).toBeNull()
+  })
+
+  it("keeps the fields' errors alongside", () => {
+    const { errors } = newEventInput({ ...filled, name: '' }, { from: 'teams', teamIds: [] })
+
+    expect(errors).toMatchObject({ name: 'Informe o nome do Event.', teams: expect.any(String) })
   })
 })
 

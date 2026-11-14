@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
   Platform,
@@ -33,21 +33,30 @@ import {
   errorsFromApi,
   eventFormInput,
   initialEventForm,
+  newEventInput,
   type EventForm,
   type EventFormErrors,
+  type ParticipantsChoice,
 } from '../event-form'
 import { useEvent } from '../hooks/use-event'
+import { participantsAvailable } from '../hooks/use-participants'
 import { useCreateEvent, useUpdateEvent } from '../hooks/use-save-event'
 import { DateField } from './date-field'
+import { ParticipantsChoiceField } from './participants-choice'
 import { TimezoneSheet } from './timezone-sheet'
 
 /** A new Event has no id yet, so no tone: the header previews one, labelled "cor automática". */
 const NEW_EVENT_TONE: AutoTone = 'purple'
 
-/** "Novo Event" (D-NovoEvent, PROJ-217): the Owner creates it in the Group, born in Draft. */
+/**
+ * "Novo Event" (D-NovoEvent, PROJ-217): the Owner creates it in the Group, born in Draft, and
+ * chooses where its Participants come from (PROJ-222) where the repository has them.
+ */
 export function NewEventScreen({ groupId }: { groupId: number }) {
   const router = useRouter()
   const create = useCreateEvent(groupId)
+  const [choice, setChoice] = useState<ParticipantsChoice>({ from: 'group' })
+  const choosesParticipants = participantsAvailable()
   const groupName = useSession(
     (state) => state.session?.user.memberships.find((m) => m.groupId === groupId)?.groupName,
   )
@@ -57,9 +66,22 @@ export function NewEventScreen({ groupId }: { groupId: number }) {
       tone={NEW_EVENT_TONE}
       title={['Novo Event', groupName].filter(Boolean).join(' · ')}
       saving={create.isPending}
-      check={(form) => eventFormInput(form)}
+      check={(form) => (choosesParticipants ? newEventInput(form, choice) : eventFormInput(form))}
       send={create.mutateAsync}
       onSaved={(event) => event && router.replace(`/events/${event.id}`)}
+      extra={(errors, clear) =>
+        choosesParticipants && (
+          <ParticipantsChoiceField
+            groupId={groupId}
+            value={choice}
+            onChange={(next) => {
+              setChoice(next)
+              clear('teams')
+            }}
+            error={errors.teams}
+          />
+        )
+      }
     />
   )
 }
@@ -118,6 +140,8 @@ type EventFormViewProps<Input> = {
   send: (input: Input) => Promise<Event>
   /** After the save, or at once when there was nothing to send. */
   onSaved: (event?: Event) => void
+  /** More fields after "Quando", with the errors and a way to clear one of theirs. */
+  extra?: (errors: EventFormErrors, clear: (key: keyof EventFormErrors) => void) => ReactNode
 }
 
 /**
@@ -132,6 +156,7 @@ function EventFormView<Input>({
   check,
   send,
   onSaved,
+  extra,
 }: EventFormViewProps<Input>) {
   const theme = useTheme()
   const { colors } = theme
@@ -269,6 +294,10 @@ function EventFormView<Input>({
           <Text style={[textStyles.caption, { color: colors.textMuted }]}>
             {daysHint(form) ?? 'Só as datas. As horas ficam nos itens.'}
           </Text>
+
+          {extra?.(errors, (key) =>
+            setErrors((current) => ({ ...current, [key]: undefined, form: undefined })),
+          )}
 
           {!event && (
             <View style={[styles.draft, { backgroundColor: theme.badge('gold').bg }]}>

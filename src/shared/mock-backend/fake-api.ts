@@ -28,6 +28,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   ALREADY_A_GROUP_MEMBER: 409,
   SUPER_ADMIN_NOT_A_GROUP_MEMBER: 409,
   TEAM_NAME_TAKEN: 409,
+  EVENT_CANCELLED: 409,
 }
 
 const noContent = () => new Response(null, { status: 204 })
@@ -106,6 +107,17 @@ export function createFakeApi({
       const schedule = route.match(/^GET \/events\/(\d+)\/schedule$/)
       if (schedule) {
         return json(200, { data: await backend.schedule(identity, Number(schedule[1])) })
+      }
+      const participants = route.match(/^GET \/events\/(\d+)\/participants$/)
+      if (participants) {
+        return json(200, { data: await backend.participants(identity, Number(participants[1])) })
+      }
+      const participant = route.match(/^(PUT|DELETE) \/events\/(\d+)\/participants\/(\d+)$/)
+      if (participant) {
+        const [eventId, userId] = participant.slice(2).map(Number)
+        if (participant[1] === 'PUT') await backend.addParticipant(identity, eventId, userId)
+        else await backend.removeParticipant(identity, eventId, userId)
+        return noContent()
       }
       const groupMembers = route.match(/^GET \/groups\/(\d+)\/members$/)
       if (groupMembers) {
