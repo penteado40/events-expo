@@ -22,18 +22,28 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event, EventItem, EventItemChanges, EventItemInput } from '../api'
 import { useEvent } from '../hooks/use-event'
-import { useCreateItem, useUpdateItem } from '../hooks/use-item-writes'
+import { useCreateItem, useUpdateItem, type ItemSave } from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
 import {
+  addTextField,
   draftTimezone,
+  editField,
   errorsFromApi,
+  fieldErrorKey,
+  fieldWrites,
+  hasFieldWrites,
   initialItemDraft,
   itemDraftInput,
+  moveField,
+  removeField,
+  toggleHighlight,
+  type FieldTextChanges,
   type ItemDraft,
   type ItemDraftErrors,
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
 import { DateField } from './date-field'
+import { ItemFields } from './item-fields'
 import { TimezoneSheet } from './timezone-sheet'
 
 /** "+ Item" (D-Editar, PROJ-220): the Owner creates an Event item, born published in a Draft Event. */
@@ -123,7 +133,7 @@ function NewItem({ event }: { event: Event }) {
       saveLabel="Criar item"
       saving={create.isPending}
       check={(draft) => itemDraftInput(draft)}
-      send={create.mutateAsync}
+      send={({ input, fields }) => (input ? create.mutateAsync({ input, fields }) : null)}
       onSaved={() => router.back()}
     />
   )
@@ -154,14 +164,16 @@ type ItemEditorViewProps<Input> = {
   saveLabel: string
   saving: boolean
   check: (draft: ItemDraft) => { errors: ItemDraftErrors; input: Input | null }
-  send: (input: Input) => Promise<unknown>
+  /** The item's payload (`null`: nothing of it changed) and its Fields' writes. */
+  send: (save: ItemSave<Input | null>) => Promise<unknown> | null
   onSaved: () => void
 }
 
 /**
  * The fields of D-Editar: the name on the cover in the Event's color, then when (the day and the
  * local time, both optional, the time only with a day) and where (name, address and the place's
- * own timezone, or the Event's). Fields and "Quem vê" come with their own tickets.
+ * own timezone, or the Event's), then the text Fields (PROJ-223). "Quem vê" comes with its own
+ * ticket.
  */
 function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   event,
@@ -191,13 +203,19 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
       setDraft((current) => ({ ...current, [key]: value }))
       setErrors((current) => ({ ...current, [key]: undefined, form: undefined }))
     }
+  const editFields = (change: (draft: ItemDraft) => ItemDraft, key?: string) => {
+    setDraft(change)
+    if (key)
+      setErrors((current) => ({ ...current, [fieldErrorKey(key)]: undefined, form: undefined }))
+  }
   const save = async () => {
     const checked = check(draft)
     setErrors(checked.errors)
     if (Object.keys(checked.errors).length > 0) return
-    if (!checked.input) return onSaved()
+    const fields = fieldWrites(draft, item)
+    if (!checked.input && !hasFieldWrites(fields)) return onSaved()
     try {
-      await send(checked.input)
+      await send({ input: checked.input, fields })
       onSaved()
     } catch (error) {
       setErrors(errorsFromApi(error))
@@ -328,6 +346,18 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
           <Text style={[textStyles.caption, { color: colors.textMuted }]}>
             A hora é sempre a do lugar, nunca convertida.
           </Text>
+
+          <ItemFields
+            fields={draft.fields}
+            errors={errors}
+            onAdd={() => editFields(addTextField)}
+            onEdit={(key, changes: FieldTextChanges) =>
+              editFields((d) => editField(d, key, changes), key)
+            }
+            onToggleHighlight={(key) => editFields((d) => toggleHighlight(d, key))}
+            onMove={(key, by) => editFields((d) => moveField(d, key, by))}
+            onRemove={(key) => editFields((d) => removeField(d, key), key)}
+          />
           {errors.form && <Notice message={errors.form} />}
         </View>
       </ScrollView>

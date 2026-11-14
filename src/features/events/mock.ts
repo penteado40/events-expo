@@ -18,7 +18,13 @@ import type {
   ParticipantsRepository,
   ScheduleRepository,
 } from './repository'
-import { eventItemSchema, eventSchema, participantSchema, scheduleSchema } from './schemas'
+import {
+  eventItemSchema,
+  eventSchema,
+  itemFieldSchema,
+  participantSchema,
+  scheduleSchema,
+} from './schemas'
 
 type Options = { getEmail?: GetEmail; backend?: MockBackend }
 
@@ -51,6 +57,16 @@ export function createMockEventItemsRepository({
     update: async (eventId, itemId, changes) =>
       eventItemSchema.parse(await backend.updateItem(await identity(), eventId, itemId, changes)),
     remove: async (eventId, itemId) => backend.deleteItem(await identity(), eventId, itemId),
+    addField: async (eventId, itemId, input) =>
+      itemFieldSchema.parse(await backend.addField(await identity(), eventId, itemId, input)),
+    updateField: async (eventId, itemId, fieldId, changes) =>
+      itemFieldSchema.parse(
+        await backend.updateField(await identity(), eventId, itemId, fieldId, changes),
+      ),
+    removeField: async (eventId, itemId, fieldId) =>
+      backend.deleteField(await identity(), eventId, itemId, fieldId),
+    orderFields: async (eventId, itemId, fieldIds) =>
+      backend.orderFields(await identity(), eventId, itemId, { fieldIds }),
   }
 }
 

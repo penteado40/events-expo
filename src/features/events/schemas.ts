@@ -55,6 +55,21 @@ export const itemPlaceSchema = z.object({
 export type ItemPlace = z.infer<typeof itemPlaceSchema>
 
 /**
+ * A Field of an Event item (events-api PROJ-198, PROJ-200): a name and a value of one type, for now
+ * only text (obs, contatos, voltagem, o que levar; a list, a phone or a link are text too), and the
+ * Highlight that takes it to the Summary ("no Resumo").
+ */
+export const itemFieldSchema = z.object({
+  id: z.number().int(),
+  type: z.literal('TEXT'),
+  name: z.string(),
+  value: z.string(),
+  highlight: z.boolean(),
+})
+
+export type ItemField = z.infer<typeof itemFieldSchema>
+
+/**
  * An Event item as the schedule shows it and a write returns it (PROJ-187). `when` is `null` for an
  * item of the General info (no date). The API also sends `eventId`, `createdAt` and `updatedAt` on
  * a write; the app drops them.
@@ -66,6 +81,8 @@ export const eventItemSchema = z.object({
   place: itemPlaceSchema.nullable(),
   /** The API has only `PUBLISHED` (items born published in a Draft Event) until PROJ-224. */
   state: z.enum(['DRAFT', 'PUBLISHED']),
+  /** In the production's order; none while the API does not send them (PROJ-198). */
+  fields: z.array(itemFieldSchema).default([]),
 })
 
 export type EventItem = z.infer<typeof eventItemSchema>

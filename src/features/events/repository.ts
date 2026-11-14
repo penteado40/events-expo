@@ -2,7 +2,7 @@ import type { GroupMember } from '@/shared/domain/group-member'
 import type { Team } from '@/shared/domain/team'
 import type { LocalDate, LocalTime, Period } from '@/shared/domain/local-dates'
 
-import type { Event, EventItem, Participant, Schedule } from './schemas'
+import type { Event, EventItem, ItemField, Participant, Schedule } from './schemas'
 
 /** A new Event's Participants as a copy of who is in these Teams (events-api PROJ-189). */
 export type ParticipantsFrom = { teamIds: number[] }
@@ -98,6 +98,12 @@ export type EventItemInput = {
 /** An edit: what is left out stays, `null` clears it; the place goes whole. */
 export type EventItemChanges = Partial<EventItemInput>
 
+/** A text Field as the Owner writes it (events-api PROJ-198): the Highlight is off unless asked. */
+export type ItemFieldInput = { type: 'TEXT'; name: string; value: string; highlight?: boolean }
+
+/** An edit of a Field: what is left out stays; its type never changes. */
+export type ItemFieldChanges = Partial<Omit<ItemFieldInput, 'type'>>
+
 /** Mirrors the events-api's Event item writes (`/events/:id/items`). */
 export interface EventItemsRepository {
   /**
@@ -110,6 +116,29 @@ export interface EventItemsRepository {
   update(eventId: number, itemId: number, changes: EventItemChanges): Promise<EventItem>
   /** `DELETE /events/:id/items/:itemId`. `FORBIDDEN` for a Viewer, `NOT_FOUND` as `update`. */
   remove(eventId: number, itemId: number): Promise<void>
+  /**
+   * `POST /events/:id/items/:itemId/fields` (PROJ-198): adds a Field at the end of the item's.
+   * `VALIDATION_ERROR` names a blank or long name, a long value or another type; `FORBIDDEN` for
+   * a Viewer; `NOT_FOUND` for an item of another Event.
+   */
+  addField(eventId: number, itemId: number, input: ItemFieldInput): Promise<ItemField>
+  /**
+   * `PATCH …/fields/:fieldId`: name, value or Highlight (PROJ-200). Errors as `addField`; a Field
+   * of another item is `NOT_FOUND`.
+   */
+  updateField(
+    eventId: number,
+    itemId: number,
+    fieldId: number,
+    changes: ItemFieldChanges,
+  ): Promise<ItemField>
+  /** `DELETE …/fields/:fieldId`. Errors as `updateField`. */
+  removeField(eventId: number, itemId: number, fieldId: number): Promise<void>
+  /**
+   * `PUT …/fields/order`: the item's Fields in the order given, every one of them once, or else
+   * `VALIDATION_ERROR`.
+   */
+  orderFields(eventId: number, itemId: number, fieldIds: number[]): Promise<void>
 }
 
 /** Mirrors the events-api's `GET /events/:id/schedule`. */

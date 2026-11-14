@@ -33,8 +33,8 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
     const { generalInfo } = await schedule.get(MANAUS)
 
     expect(generalInfo).toEqual([
-      { id: 1, name: 'O que levar', when: null, place: null, state: 'PUBLISHED' },
-      { id: 12, name: 'Contatos', when: null, place: null, state: 'PUBLISHED' },
+      { id: 1, name: 'O que levar', when: null, place: null, state: 'PUBLISHED', fields: [] },
+      { id: 12, name: 'Contatos', when: null, place: null, state: 'PUBLISHED', fields: [] },
     ])
   })
 
@@ -74,6 +74,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
       when: { date: '2026-11-20', time: '05:30', timezone: 'America/Sao_Paulo' },
       place: { name: 'Vitória', address: null, timezone: 'America/Sao_Paulo' },
       state: 'PUBLISHED',
+      fields: [],
     })
     expect(named('Show')?.when).toEqual({ date: '2026-11-21', time: '19:00', timezone: MANAUS_TZ })
     expect(named('Almoço')?.when).toEqual({ date: '2026-11-21', time: null, timezone: MANAUS_TZ })
@@ -118,6 +119,7 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       when: { date: '2026-11-21', time: '11:00', timezone: MANAUS_TZ },
       place: { name: 'Hotel Taj Mahal', address: null, timezone: null },
       state: 'PUBLISHED',
+      fields: [],
     })
   })
 
@@ -223,6 +225,7 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       when: { date: '2026-11-21', time: null, timezone: 'America/Sao_Paulo' },
       place: { name: 'Teatro Amazonas', address: null, timezone: 'America/Sao_Paulo' },
       state: 'PUBLISHED',
+      fields: expect.any(Array),
     })
   })
 
@@ -271,5 +274,154 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
     await expect(items.create(MANAUS, { name: 'X' })).rejects.toMatchObject({
       code: 'UNAUTHENTICATED',
     })
+  })
+})
+
+/** Passagem de som (Saturday, Teatro Amazonas): its Obs and its Contato, in that order. */
+const PASSAGEM = 6
+
+describe.each(implementations)('Text Fields contract (%s)', (_, createRepository) => {
+  const fieldsOf = async (
+    schedule: ReturnType<typeof createRepository>['schedule'],
+    itemId: number,
+  ) => {
+    const { generalInfo, timeline } = await schedule.get(MANAUS)
+    return [...generalInfo, ...timeline.flatMap((d) => d.items)].find((i) => i.id === itemId)!
+      .fields
+  }
+
+  it('gives each item its text Fields in the production’s order, with their Highlight', async () => {
+    const { schedule } = createRepository(BRUNO)
+
+    expect(await fieldsOf(schedule, PASSAGEM)).toEqual([
+      { id: 1, type: 'TEXT', name: 'Obs', value: 'Despachar o som às 14h', highlight: false },
+      {
+        id: 2,
+        type: 'TEXT',
+        name: 'Contato',
+        value: 'Técnico do teatro: (92) 98888-0000',
+        highlight: true,
+      },
+    ])
+    expect(await fieldsOf(schedule, 7)).toEqual([])
+  })
+
+  it('adds a text Field at the end, trimmed, without Highlight unless asked', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+
+    const added = await items.addField(MANAUS, PASSAGEM, {
+      type: 'TEXT',
+      name: ' Voltagem ',
+      value: ' 127 V ',
+    })
+    const highlighted = await items.addField(MANAUS, PASSAGEM, {
+      type: 'TEXT',
+      name: 'O que levar',
+      value: 'In-ear',
+      highlight: true,
+    })
+
+    expect(added).toEqual({
+      id: expect.any(Number),
+      type: 'TEXT',
+      name: 'Voltagem',
+      value: '127 V',
+      highlight: false,
+    })
+    expect(highlighted.highlight).toBe(true)
+    expect((await fieldsOf(schedule, PASSAGEM)).map((f) => f.name)).toEqual([
+      'Obs',
+      'Contato',
+      'Voltagem',
+      'O que levar',
+    ])
+  })
+
+  it('edits only what it is given, the Highlight too', async () => {
+    const { items } = createRepository(BRUNO)
+
+    expect(await items.updateField(MANAUS, PASSAGEM, 1, { highlight: true })).toEqual({
+      id: 1,
+      type: 'TEXT',
+      name: 'Obs',
+      value: 'Despachar o som às 14h',
+      highlight: true,
+    })
+    expect(await items.updateField(MANAUS, PASSAGEM, 1, { value: 'Às 13h' })).toMatchObject({
+      name: 'Obs',
+      value: 'Às 13h',
+      highlight: true,
+    })
+  })
+
+  it('deletes a Field, gone from the item', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+
+    await items.removeField(MANAUS, PASSAGEM, 1)
+
+    expect((await fieldsOf(schedule, PASSAGEM)).map((f) => f.id)).toEqual([2])
+  })
+
+  it('orders the Fields as given', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+
+    await items.orderFields(MANAUS, PASSAGEM, [2, 1])
+
+    expect((await fieldsOf(schedule, PASSAGEM)).map((f) => f.id)).toEqual([2, 1])
+  })
+
+  it('refuses an order that is not the item’s Fields, each once, with VALIDATION_ERROR', async () => {
+    const { items } = createRepository(BRUNO)
+
+    for (const order of [[1], [1, 1], [1, 2, 99]]) {
+      await expect(items.orderFields(MANAUS, PASSAGEM, order)).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+      })
+    }
+  })
+
+  it.each([
+    ['a blank name', { type: 'TEXT', name: '  ', value: 'x' }, 'name'],
+    ['a name over 100 characters', { type: 'TEXT', name: 'x'.repeat(101), value: '' }, 'name'],
+    [
+      'a value over 2000 characters',
+      { type: 'TEXT', name: 'Obs', value: 'x'.repeat(2001) },
+      'value',
+    ],
+    ['another type', { type: 'PHOTOS', name: 'Paleta', value: '' }, 'type'],
+  ] as const)('refuses %s with VALIDATION_ERROR naming it', async (_, input, path) => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(
+      items.addField(MANAUS, PASSAGEM, input as Parameters<typeof items.addField>[2]),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: [expect.objectContaining({ path })],
+    })
+  })
+
+  it('answers NOT_FOUND for a Field of another item, or none', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(items.updateField(MANAUS, 7, 1, { value: 'x' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+    await expect(items.removeField(MANAUS, PASSAGEM, 99)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+  })
+
+  it('refuses a Viewer with FORBIDDEN, and someone signed out with UNAUTHENTICATED', async () => {
+    const field = { type: 'TEXT', name: 'Obs', value: 'x' } as const
+
+    await expect(
+      createRepository(LU).items.addField(MANAUS, PASSAGEM, field),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      createRepository(LU).items.updateField(MANAUS, PASSAGEM, 1, { highlight: true }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      createRepository(null).items.orderFields(MANAUS, PASSAGEM, [2, 1]),
+    ).rejects.toMatchObject({ code: 'UNAUTHENTICATED' })
   })
 })
