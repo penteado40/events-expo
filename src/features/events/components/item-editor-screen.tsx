@@ -29,13 +29,15 @@ import {
   draftTimezone,
   editField,
   errorsFromApi,
+  fieldErrorKey,
   fieldWrites,
+  hasFieldWrites,
   initialItemDraft,
   itemDraftInput,
   moveField,
   removeField,
   toggleHighlight,
-  type FieldDraft,
+  type FieldTextChanges,
   type ItemDraft,
   type ItemDraftErrors,
 } from '../item-draft'
@@ -203,16 +205,15 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
     }
   const editFields = (change: (draft: ItemDraft) => ItemDraft, key?: string) => {
     setDraft(change)
-    if (key) setErrors((current) => ({ ...current, [`field:${key}`]: undefined, form: undefined }))
+    if (key)
+      setErrors((current) => ({ ...current, [fieldErrorKey(key)]: undefined, form: undefined }))
   }
   const save = async () => {
     const checked = check(draft)
     setErrors(checked.errors)
     if (Object.keys(checked.errors).length > 0) return
     const fields = fieldWrites(draft, item)
-    const fieldsChanged =
-      fields.remove.length + fields.update.length + fields.add.length > 0 || fields.order !== null
-    if (!checked.input && !fieldsChanged) return onSaved()
+    if (!checked.input && !hasFieldWrites(fields)) return onSaved()
     try {
       await send({ input: checked.input, fields })
       onSaved()
@@ -350,7 +351,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             fields={draft.fields}
             errors={errors}
             onAdd={() => editFields(addTextField)}
-            onEdit={(key, changes: Partial<Pick<FieldDraft, 'name' | 'value'>>) =>
+            onEdit={(key, changes: FieldTextChanges) =>
               editFields((d) => editField(d, key, changes), key)
             }
             onToggleHighlight={(key) => editFields((d) => toggleHighlight(d, key))}

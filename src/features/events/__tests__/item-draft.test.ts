@@ -5,6 +5,7 @@ import {
   draftTimezone,
   editField,
   errorsFromApi,
+  FieldWriteError,
   fieldWrites,
   initialItemDraft,
   itemDraftInput,
@@ -197,6 +198,18 @@ describe('errorsFromApi', () => {
       name: 'Confira o nome do item.',
       placeTimezone: 'Escolha o fuso de novo.',
       placeName: 'Informe o nome, o endereço ou o fuso do lugar.',
+    })
+  })
+
+  it('puts a refused Field write on that Field, never on the item’s name', () => {
+    const refused = validationError([{ path: 'name', message: 'x' }])
+    const forbidden = new ApiError('FORBIDDEN', 'Você não tem permissão para esta ação.')
+
+    expect(errorsFromApi(new FieldWriteError('new-1', refused))).toEqual({
+      'field:new-1': 'Confira o nome e o valor do Field.',
+    })
+    expect(errorsFromApi(new FieldWriteError('field-2', forbidden))).toEqual({
+      form: 'Você não tem permissão para esta ação.',
     })
   })
 

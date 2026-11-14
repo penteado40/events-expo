@@ -257,8 +257,8 @@ describe('NewItemScreen', () => {
     await fireEvent.changeText(values[0], '127 V')
     await fireEvent.changeText(names[1], 'O que levar')
     await fireEvent.changeText(values[1], 'In-ear e garrafa')
-    await press('O que levar no Resumo')
-    expect(screen.getByRole('button', { name: 'O que levar no Resumo' })).toBeSelected()
+    await fireEvent.press(screen.getByRole('switch', { name: 'O que levar no Resumo' }))
+    expect(screen.getByRole('switch', { name: 'O que levar no Resumo' })).toBeChecked()
     await press('Subir O que levar')
     await press('Criar item')
 
@@ -268,6 +268,27 @@ describe('NewItemScreen', () => {
       expect.objectContaining({ name: 'O que levar', value: 'In-ear e garrafa', highlight: true }),
       expect.objectContaining({ name: 'Voltagem', value: '127 V', highlight: false }),
     ])
+  })
+
+  it('saving again after a Field failed to save, keeps the one item already created', async () => {
+    const addField = jest.spyOn(mockBackend, 'addField').mockRejectedValueOnce(new Error('offline'))
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
+
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Jantar')
+    await press('+ Field de texto')
+    await fireEvent.changeText(field('Nome do Field'), 'Obs')
+    await fireEvent.changeText(field('Valor'), 'Mesa para 20')
+    await press('Criar item')
+    expect(await screen.findByText('Não foi possível salvar. Tente de novo.')).toBeOnTheScreen()
+    await press('Criar item')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    const dinners = (await allItems(MINAS)).filter((i) => i.name === 'Jantar')
+    expect(dinners).toHaveLength(1)
+    expect(dinners[0].fields).toEqual([
+      expect.objectContaining({ name: 'Obs', value: 'Mesa para 20' }),
+    ])
+    addField.mockRestore()
   })
 
   it('refuses a Field with no name on it, sending nothing', async () => {
@@ -314,9 +335,9 @@ describe('EditItemScreen', () => {
     await renderAs(OWNER, <EditItemScreen eventId={MINAS} itemId={minas.show} />)
 
     expect(await screen.findByDisplayValue('Figurino azul')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Obs no Resumo' })).not.toBeSelected()
+    expect(screen.getByRole('switch', { name: 'Obs no Resumo' })).not.toBeChecked()
     await fireEvent.changeText(screen.getByDisplayValue('Figurino azul'), 'Figurino preto')
-    await press('Obs no Resumo')
+    await fireEvent.press(screen.getByRole('switch', { name: 'Obs no Resumo' }))
     await press('+ Field de texto')
     await fireEvent.changeText(screen.getAllByLabelText('Nome do Field')[2], 'Voltagem')
     await fireEvent.changeText(screen.getAllByLabelText('Valor')[2], '220 V')

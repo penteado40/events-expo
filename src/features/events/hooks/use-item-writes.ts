@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 
 import { itemsRepository, type EventItem, type EventItemChanges, type EventItemInput } from '../api'
-import type { FieldWrites } from '../item-draft'
+import { fieldKey, FieldWriteError, type FieldWrites } from '../item-draft'
 import { scheduleQueryKey } from './use-schedule'
 
 /** A save from the editor: the item's own payload and its Fields' writes. */
@@ -15,16 +16,34 @@ function useInvalidateSchedule(eventId: number) {
 
 /**
  * The Field writes, one route each (PROJ-198): deletes, edits, the new Fields at the end, then the
- * order when it is needed, with the new Fields' ids as they were added.
+ * order when it is needed, with the new Fields' ids as they were added. `added` holds the ids of
+ * the new Fields a failed save already added (by key): saving again edits them instead. A refused
+ * add or edit throws a `FieldWriteError` with the Field's key.
  */
-async function writeFields(eventId: number, itemId: number, writes: FieldWrites) {
+async function writeFields(
+  eventId: number,
+  itemId: number,
+  writes: FieldWrites,
+  added = new Map<string, number>(),
+) {
+  const onField = async (key: string, write: () => Promise<unknown>) => {
+    try {
+      await write()
+    } catch (error) {
+      throw new FieldWriteError(key, error)
+    }
+  }
   for (const fieldId of writes.remove) await itemsRepository.removeField(eventId, itemId, fieldId)
   for (const { id, changes } of writes.update) {
-    await itemsRepository.updateField(eventId, itemId, id, changes)
+    await onField(fieldKey(id), () => itemsRepository.updateField(eventId, itemId, id, changes))
   }
-  const added = new Map<string, number>()
   for (const { key, input } of writes.add) {
-    added.set(key, (await itemsRepository.addField(eventId, itemId, input)).id)
+    const { type: _, ...changes } = input
+    const id = added.get(key)
+    await onField(key, async () => {
+      if (id !== undefined) await itemsRepository.updateField(eventId, itemId, id, changes)
+      else added.set(key, (await itemsRepository.addField(eventId, itemId, input)).id)
+    })
   }
   if (writes.order) {
     const ids = writes.order.map((ref) => (typeof ref === 'number' ? ref : added.get(ref)!))
@@ -33,16 +52,21 @@ async function writeFields(eventId: number, itemId: number, writes: FieldWrites)
 }
 
 /**
- * "Criar item": born published in a Draft Event, then its Fields. The schedule is read again even
- * when a Field write fails, since the item may already exist.
+ * "Criar item": born published in a Draft Event, then its Fields. When a Field write fails after
+ * the item was created, saving again edits that item and the Fields already added, never creating
+ * them twice; the schedule is read again either way.
  */
 export function useCreateItem(eventId: number) {
   const invalidateSchedule = useInvalidateSchedule(eventId)
+  const created = useRef<{ item: EventItem; added: Map<string, number> } | null>(null)
   return useMutation<EventItem, unknown, ItemSave<EventItemInput>>({
     mutationFn: async ({ input, fields }) => {
-      const created = await itemsRepository.create(eventId, input)
-      await writeFields(eventId, created.id, fields)
-      return created
+      const item = created.current
+        ? await itemsRepository.update(eventId, created.current.item.id, input)
+        : await itemsRepository.create(eventId, input)
+      created.current ??= { item, added: new Map() }
+      await writeFields(eventId, item.id, fields, created.current.added)
+      return item
     },
     onSettled: invalidateSchedule,
   })

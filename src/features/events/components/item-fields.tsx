@@ -3,13 +3,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Icon, TextField, type IconName } from '@/shared/components/ui'
 import { fonts, spacing, useTheme } from '@/shared/theme'
 
-import type { FieldDraft, ItemDraftErrors } from '../item-draft'
+import {
+  fieldErrorKey,
+  type FieldDraft,
+  type FieldTextChanges,
+  type ItemDraftErrors,
+} from '../item-draft'
 
 type Props = {
   fields: FieldDraft[]
   errors: ItemDraftErrors
   onAdd: () => void
-  onEdit: (key: string, changes: Partial<Pick<FieldDraft, 'name' | 'value'>>) => void
+  onEdit: (key: string, changes: FieldTextChanges) => void
   onToggleHighlight: (key: string) => void
   onMove: (key: string, by: -1 | 1) => void
   onRemove: (key: string) => void
@@ -34,8 +39,8 @@ export function ItemFields({
     <View style={[styles.card, { backgroundColor: colors.surface }]}>
       <Text style={[styles.title, { color: colors.text }]}>Fields</Text>
       {fields.map((field, index) => {
-        const named = field.name.trim() || 'Field sem nome'
-        const error = errors[`field:${field.key}`]
+        const label = field.name.trim() || 'Field sem nome'
+        const error = errors[fieldErrorKey(field.key)]
         return (
           <View
             key={field.key}
@@ -65,9 +70,9 @@ export function ItemFields({
             <View style={styles.actions}>
               <Pressable
                 onPress={() => onToggleHighlight(field.key)}
-                accessibilityRole="button"
-                accessibilityLabel={`${named} no Resumo`}
-                accessibilityState={{ selected: field.highlight }}
+                accessibilityRole="switch"
+                accessibilityLabel={`${label} no Resumo`}
+                accessibilityState={{ checked: field.highlight }}
                 hitSlop={4}
                 style={[
                   styles.highlight,
@@ -90,19 +95,19 @@ export function ItemFields({
               <View style={styles.spacer} />
               <IconButton
                 icon="chevronUp"
-                label={`Subir ${named}`}
+                label={`Subir ${label}`}
                 disabled={index === 0}
                 onPress={() => onMove(field.key, -1)}
               />
               <IconButton
                 icon="chevronDown"
-                label={`Descer ${named}`}
+                label={`Descer ${label}`}
                 disabled={index === fields.length - 1}
                 onPress={() => onMove(field.key, 1)}
               />
               <IconButton
                 icon="close"
-                label={`Apagar ${named}`}
+                label={`Apagar ${label}`}
                 onPress={() => onRemove(field.key)}
               />
             </View>

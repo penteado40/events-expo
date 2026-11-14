@@ -46,6 +46,12 @@ export type ItemDraftErrors = Partial<
   Record<Exclude<keyof ItemDraft, 'fields'> | 'form' | `field:${string}`, string>
 >
 
+/** Where the editor shows what is wrong with one Field. */
+export const fieldErrorKey = (key: string) => `field:${key}` as const
+
+/** Typing in a Field: its name or its value. */
+export type FieldTextChanges = Partial<Pick<FieldDraft, 'name' | 'value'>>
+
 const NAME_MAX = 200
 const PLACE_NAME_MAX = 200
 const PLACE_ADDRESS_MAX = 500
@@ -63,6 +69,7 @@ const MESSAGES = {
   fieldNameMissing: 'Dê um nome ao Field.',
   fieldNameLong: `Use um nome de até ${FIELD_NAME_MAX} caracteres.`,
   fieldValueLong: `Use um valor de até ${FIELD_VALUE_MAX} caracteres.`,
+  fieldRefused: 'Confira o nome e o valor do Field.',
   saveFailed: 'Não foi possível salvar. Tente de novo.',
 }
 
@@ -85,7 +92,8 @@ export function initialItemDraft(item?: EventItem): ItemDraft {
   }
 }
 
-const fieldKey = (id: number) => `field-${id}`
+/** The key of a Field the item has. */
+export const fieldKey = (id: number) => `field-${id}`
 
 /** "+ Field de texto": an empty text Field at the end, out of the Resumo. */
 export function addTextField(draft: ItemDraft): ItemDraft {
@@ -98,11 +106,7 @@ export function addTextField(draft: ItemDraft): ItemDraft {
 }
 
 /** Typing in a Field's name or value. */
-export function editField(
-  draft: ItemDraft,
-  key: string,
-  changes: Partial<Pick<FieldDraft, 'name' | 'value'>>,
-): ItemDraft {
+export function editField(draft: ItemDraft, key: string, changes: FieldTextChanges): ItemDraft {
   return { ...draft, fields: draft.fields.map((f) => (f.key === key ? { ...f, ...changes } : f)) }
 }
 
@@ -128,20 +132,20 @@ export function removeField(draft: ItemDraft, key: string): ItemDraft {
   return { ...draft, fields: draft.fields.filter((f) => f.key !== key) }
 }
 
-/**
- * The Field writes a save makes, after the item's own (PROJ-198 routes): delete the Fields gone,
- * edit what changed of the others, add the new ones at the end in the editor's order, and then,
- * only when that would not already leave them in the editor's order, order them all: by id, and
- * a new one by its key, as it gets its id only when added. Assumes a draft `itemDraftInput`
- * accepted.
- */
+/** The Field writes of a save, one route each (PROJ-198), made after the item's own. */
 export type FieldWrites = {
   remove: number[]
   update: { id: number; changes: ItemFieldChanges }[]
   add: { key: string; input: ItemFieldInput }[]
+  /** Saved Fields by id, a new one by its key (it gets its id only when added). */
   order: (number | string)[] | null
 }
 
+/**
+ * What a save writes of the Fields: delete those gone, edit what changed of the others, add the
+ * new ones at the end in the editor's order, and then, only when that would not already leave
+ * them in the editor's order, order them all. Assumes a draft `itemDraftInput` accepted.
+ */
 export function fieldWrites(draft: ItemDraft, item?: EventItem): FieldWrites {
   const before = item?.fields ?? []
   const kept = new Set(draft.fields.flatMap((f) => (f.id === null ? [] : [f.id])))
@@ -171,6 +175,21 @@ export function fieldWrites(draft: ItemDraft, item?: EventItem): FieldWrites {
   const inOrder = saved.every((key, i) => key === wanted[i])
   const order = inOrder ? null : draft.fields.map((f) => f.id ?? f.key)
   return { remove, update, add, order }
+}
+
+export function hasFieldWrites({ remove, update, add, order }: FieldWrites): boolean {
+  return remove.length + update.length + add.length > 0 || order !== null
+}
+
+/** A write of one Field (added or edited) that failed, with the key of the Field it was. */
+export class FieldWriteError extends Error {
+  constructor(
+    readonly key: string,
+    readonly cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause))
+    this.name = 'FieldWriteError'
+  }
 }
 
 /** Whose clock the time is on: the place's own zone, or else the Event's ("Hora · Manaus"). */
@@ -221,7 +240,7 @@ export function itemDraftInput(
         : field.value.trim().length > FIELD_VALUE_MAX
           ? MESSAGES.fieldValueLong
           : null
-    if (message) errors[`field:${field.key}`] = message
+    if (message) errors[fieldErrorKey(field.key)] = message
   }
 
   if (Object.keys(errors).length > 0) return { errors, input: null }
@@ -256,10 +275,17 @@ const FIELD_BY_PATH: Record<string, [Exclude<keyof ItemDraft, 'fields'>, string]
 }
 
 /**
- * A refused save on the fields it is about: `EVENT_ITEM_TIME_WITHOUT_DATE` on the time, and
- * `VALIDATION_ERROR` on the fields its details name. Anything else is the save's.
+ * A refused save on the inputs it is about: `EVENT_ITEM_TIME_WITHOUT_DATE` on the time,
+ * `VALIDATION_ERROR` on the inputs its details name, or on the Field whose write it refused.
+ * Anything else is the save's.
  */
 export function errorsFromApi(error: unknown): ItemDraftErrors {
+  if (error instanceof FieldWriteError) {
+    const { cause, key } = error
+    return cause instanceof ApiError && cause.code === 'VALIDATION_ERROR'
+      ? { [fieldErrorKey(key)]: MESSAGES.fieldRefused }
+      : errorsFromApi(cause)
+  }
   if (!(error instanceof ApiError)) return { form: MESSAGES.saveFailed }
   if (error.code === 'EVENT_ITEM_TIME_WITHOUT_DATE') return { time: MESSAGES.timeWithoutDate }
   if (error.code !== 'VALIDATION_ERROR') return { form: error.message }
