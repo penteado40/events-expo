@@ -8,6 +8,7 @@ import { useSession, userSchema } from '@/shared/session'
 import { useEvent } from '../hooks/use-event'
 import { useGroupEvents } from '../hooks/use-group-events'
 import { useParticipants, useParticipantWrites } from '../hooks/use-participants'
+import { useSchedule } from '../hooks/use-schedule'
 
 /** Bruno, Owner of Vocal Livre, in Demo mode: `events` answers from the shared mock backend. */
 function wrapper() {
@@ -23,12 +24,13 @@ const BRUNO = 2
 const ENSAIO_DA_BANDA = 4
 
 describe('changing the Participants', () => {
-  it("reads the Participants, the Event and the Group's list again", async () => {
+  it("reads the Participants, the Event, its schedule and the Group's list again", async () => {
     const { result } = await renderHook(
       () => ({
         participants: useParticipants(ENSAIO_DA_BANDA),
         event: useEvent(ENSAIO_DA_BANDA),
         list: useGroupEvents(1),
+        schedule: useSchedule(ENSAIO_DA_BANDA),
         writes: useParticipantWrites(1, ENSAIO_DA_BANDA),
       }),
       { wrapper: wrapper() },
@@ -36,11 +38,14 @@ describe('changing the Participants', () => {
     await waitFor(() => expect(result.current.list.data).toBeDefined())
     await waitFor(() => expect(result.current.event.data?.isParticipant).toBe(false))
     await waitFor(() => expect(result.current.participants.data).toHaveLength(1))
+    await waitFor(() => expect(result.current.schedule.data).toBeDefined())
+    const scheduleRead = result.current.schedule.dataUpdatedAt
 
     await act(() => result.current.writes.add.mutateAsync([BRUNO, 4]))
 
     await waitFor(() => expect(result.current.participants.data).toHaveLength(3))
     await waitFor(() => expect(result.current.event.data?.isParticipant).toBe(true))
+    await waitFor(() => expect(result.current.schedule.dataUpdatedAt).toBeGreaterThan(scheduleRead))
     const inList = result.current.list.data?.find((e) => e.id === ENSAIO_DA_BANDA)
     expect(inList?.isParticipant).toBe(true)
 

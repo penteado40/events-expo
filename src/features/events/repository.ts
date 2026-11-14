@@ -1,4 +1,5 @@
-import type { GroupMember, Team } from '@/shared/domain/group-people'
+import type { GroupMember } from '@/shared/domain/group-member'
+import type { Team } from '@/shared/domain/team'
 import type { LocalDate, LocalTime, Period } from '@/shared/domain/local-dates'
 
 import type { Event, EventItem, Participant, Schedule } from './schemas'

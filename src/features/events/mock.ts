@@ -8,7 +8,8 @@ import {
   type MockBackend,
 } from '@/shared/mock-backend'
 
-import { groupMemberSchema, teamSchema } from '@/shared/domain/group-people'
+import { groupMemberSchema } from '@/shared/domain/group-member'
+import { teamSchema } from '@/shared/domain/team'
 
 import type {
   EventItemsRepository,

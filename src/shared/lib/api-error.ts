@@ -38,3 +38,7 @@ export const networkError = (cause?: unknown) =>
 /** The API answered with something that is not the contract. Same message as the API's own. */
 export const internalError = (details?: unknown) =>
   new ApiError('INTERNAL_ERROR', 'Erro interno. Tente novamente mais tarde.', details)
+
+/** A refused write as a screen says it: the API's message (a Viewer's 403 too), or a generic one. */
+export const errorMessage = (error: unknown) =>
+  error instanceof ApiError ? error.message : 'Não foi possível concluir. Tente de novo.'

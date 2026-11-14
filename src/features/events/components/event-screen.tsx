@@ -12,7 +12,7 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
-import { participantsAvailable, useGroupPeople, useParticipants } from '../hooks/use-participants'
+import { participantsAvailable, useGroupMembers, useParticipants } from '../hooks/use-participants'
 import { useSchedule } from '../hooks/use-schedule'
 import { assembleSchedule } from '../schedule-lines'
 
@@ -128,7 +128,7 @@ function ParticipantsLine({ event }: { event: Event }) {
   const { colors } = theme
   const router = useRouter()
   const participants = useParticipants(event.id)
-  const { members } = useGroupPeople(event.groupId)
+  const members = useGroupMembers(event.groupId)
   const badge = theme.badge(autoTone(event.id))
   const count =
     participants.data && members.data

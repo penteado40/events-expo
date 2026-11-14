@@ -6,7 +6,7 @@ import { plural } from '@/shared/domain/plural'
 import { fonts, spacing, useTheme } from '@/shared/theme'
 
 import type { ParticipantsChoice } from '../event-form'
-import { useGroupPeople } from '../hooks/use-participants'
+import { useGroupMembers, useGroupTeams } from '../hooks/use-participants'
 
 type Props = {
   groupId: number
@@ -22,7 +22,8 @@ type Props = {
 export function ParticipantsChoiceField({ groupId, value, onChange, error }: Props) {
   const theme = useTheme()
   const { colors } = theme
-  const { members, teams } = useGroupPeople(groupId)
+  const members = useGroupMembers(groupId)
+  const teams = useGroupTeams(groupId)
   const chosen = value.from === 'teams' ? value.teamIds : []
   const toggleTeam = (teamId: number) =>
     onChange({

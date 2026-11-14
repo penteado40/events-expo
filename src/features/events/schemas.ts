@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { groupMemberSchema } from '@/shared/domain/group-member'
 import { localDateSchema, localTimeSchema, periodSchema } from '@/shared/domain/local-dates'
 
 /**
@@ -88,7 +89,7 @@ export const participantSchema = z.object({
   userId: z.number().int(),
   name: z.string(),
   phone: z.string(),
-  role: z.enum(['OWNER', 'VIEWER']),
+  role: groupMemberSchema.shape.role,
 })
 
 export type Participant = z.infer<typeof participantSchema>

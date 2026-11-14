@@ -70,10 +70,10 @@ describe('participantsList', () => {
     const list = participantsList(MEMBERS, TEAMS, going(2, 4), { editable: true })
 
     expect(list.shortcuts).toEqual([
-      { id: 5, name: 'Banda', going: 0, total: 1, missing: [3] },
-      { id: 4, name: 'Cantores', going: 1, total: 2, missing: [5] },
-      { id: 2, name: 'Produção', going: 1, total: 1, missing: [] },
-      { id: 6, name: 'Técnica', going: 0, total: 1, missing: [3] },
+      { id: 5, name: 'Banda', missing: [3] },
+      { id: 4, name: 'Cantores', missing: [5] },
+      { id: 2, name: 'Produção', missing: [] },
+      { id: 6, name: 'Técnica', missing: [3] },
     ])
   })
 
@@ -82,15 +82,16 @@ describe('participantsList', () => {
 
     const list = participantsList(MEMBERS, teams, going(4), { editable: true })
 
-    expect(list.shortcuts).toEqual([{ id: 4, name: 'Cantores', going: 1, total: 2, missing: [5] }])
+    expect(list.shortcuts).toEqual([{ id: 4, name: 'Cantores', missing: [5] }])
   })
 
-  it('still lists a Participant who is no longer a Group member', () => {
+  it('still lists a Participant who is no longer a Group member, without counting them', () => {
     const outsider: Participant = { userId: 6, name: 'Carla Dias', phone: '+55', role: 'VIEWER' }
 
     const list = participantsList(MEMBERS, TEAMS, [...going(2), outsider], { editable: true })
 
     expect(list.rows.find((r) => r.userId === 6)).toMatchObject({ going: true, detail: '' })
-    expect(list.count).toEqual({ going: 2, group: 5 })
+    // Counted out of the Group members: never "6 de 5".
+    expect(list.count).toEqual({ going: 1, group: 5 })
   })
 })

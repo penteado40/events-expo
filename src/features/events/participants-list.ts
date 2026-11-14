@@ -1,4 +1,5 @@
-import type { GroupMember, Team } from '@/shared/domain/group-people'
+import type { GroupMember } from '@/shared/domain/group-member'
+import type { Team } from '@/shared/domain/team'
 
 import type { Participant } from './schemas'
 
@@ -13,18 +14,12 @@ export type ParticipantRow = {
   firstTeamId: number | null
 }
 
-/** "Marcar Team": a Team, how many of its people go, and who marking it would add. */
-export type TeamShortcut = {
-  id: number
-  name: string
-  going: number
-  total: number
-  missing: number[]
-}
+/** "Marcar Team": a Team and who of it marking it would add, none once all of them go. */
+export type TeamShortcut = { id: number; name: string; missing: number[] }
 
 export type ParticipantsList = {
   rows: ParticipantRow[]
-  /** "20 de 30": who goes, out of the Group members. */
+  /** "20 de 30": the Group members who go, out of all of them. */
   count: { going: number; group: number }
   shortcuts: TeamShortcut[]
 }
@@ -43,7 +38,7 @@ export function participantsList(
 ): ParticipantsList {
   const goingIds = new Set(participants.map((p) => p.userId))
   const memberIds = new Set(members.map((m) => m.userId))
-  const people: { userId: number; name: string; role: 'OWNER' | 'VIEWER' | null }[] = [
+  const people: { userId: number; name: string; role: GroupMember['role'] | null }[] = [
     ...members.map(({ userId, name, role }) => ({ userId, name, role })),
     ...participants
       .filter((p) => !memberIds.has(p.userId))
@@ -66,11 +61,12 @@ export function participantsList(
       return { userId, name, going, detail, firstTeamId: own[0]?.id ?? null }
     })
 
-  const shortcuts = teams.map(({ id, name, memberIds: inTeam }) => {
-    const current = inTeam.filter((userId) => memberIds.has(userId))
-    const missing = current.filter((userId) => !goingIds.has(userId))
-    return { id, name, going: current.length - missing.length, total: current.length, missing }
-  })
+  const shortcuts = teams.map(({ id, name, memberIds: inTeam }) => ({
+    id,
+    name,
+    missing: inTeam.filter((userId) => memberIds.has(userId) && !goingIds.has(userId)),
+  }))
+  const going = members.filter((m) => goingIds.has(m.userId)).length
 
-  return { rows, count: { going: participants.length, group: members.length }, shortcuts }
+  return { rows, count: { going, group: members.length }, shortcuts }
 }

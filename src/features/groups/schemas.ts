@@ -5,12 +5,8 @@ export const groupSchema = z.object({ id: z.number().int(), name: z.string() })
 
 export type Group = z.infer<typeof groupSchema>
 
-export {
-  groupMemberSchema,
-  teamSchema,
-  type GroupMember,
-  type Team,
-} from '@/shared/domain/group-people'
+export { groupMemberSchema, type GroupMember } from '@/shared/domain/group-member'
+export { teamSchema, type Team } from '@/shared/domain/team'
 
 /** An Activation link to pass on, as the events-api answers it (PROJ-177, PROJ-180). */
 export const activationLinkSchema = z.object({ url: z.string(), expiresAt: z.string() })

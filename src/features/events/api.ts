@@ -4,7 +4,8 @@ import { apiClient } from '@/shared/lib/api-client'
 import type { HttpClient } from '@/shared/lib/http'
 import { selectRepository } from '@/shared/lib/select-repository'
 
-import { groupMemberSchema, teamSchema } from '@/shared/domain/group-people'
+import { groupMemberSchema } from '@/shared/domain/group-member'
+import { teamSchema } from '@/shared/domain/team'
 
 import {
   createMockEventItemsRepository,
@@ -36,7 +37,8 @@ export type {
   ScheduleRepository,
 } from './repository'
 export type { Event, EventItem, ItemPlace, ItemWhen, Participant, Schedule } from './schemas'
-export type { GroupMember, Team } from '@/shared/domain/group-people'
+export type { GroupMember } from '@/shared/domain/group-member'
+export type { Team } from '@/shared/domain/team'
 
 export function createHttpEventsRepository(http: HttpClient): EventsRepository {
   return {

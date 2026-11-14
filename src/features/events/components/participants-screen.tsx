@@ -7,7 +7,7 @@ import { ErrorState, Icon, ListSkeleton, Notice } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
 import { canEditEvent, roleIn } from '@/shared/domain/group-role'
 import { initials } from '@/shared/domain/initials'
-import { ApiError } from '@/shared/lib/api-error'
+import { errorMessage } from '@/shared/lib/api-error'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
@@ -15,15 +15,12 @@ import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import {
   participantsAvailable,
-  useGroupPeople,
+  useGroupMembers,
+  useGroupTeams,
   useParticipants,
   useParticipantWrites,
 } from '../hooks/use-participants'
 import { participantsList, type ParticipantRow, type TeamShortcut } from '../participants-list'
-
-/** A refused write, as the screen says it: the API's message (a Viewer's 403 too). */
-const messageOf = (error: unknown) =>
-  error instanceof ApiError ? error.message : 'Não foi possível concluir. Tente de novo.'
 
 /**
  * "Quem vai" (D-Participants, PROJ-222): an Event's Participants, for any Group member. Who edits
@@ -56,7 +53,8 @@ function Participants({ event }: { event: Event }) {
   const user = useSession((state) => state.session?.user)
   const editable = !!user && canEditEvent(roleIn(user, event.groupId), event)
   const participants = useParticipants(event.id)
-  const { members, teams } = useGroupPeople(event.groupId)
+  const members = useGroupMembers(event.groupId)
+  const teams = useGroupTeams(event.groupId)
   const writes = useParticipantWrites(event.groupId, event.id)
   const [error, setError] = useState<string | null>(null)
   const tone = autoTone(event.id)
@@ -74,7 +72,7 @@ function Participants({ event }: { event: Event }) {
     void teams.refetch()
   }
 
-  const onError = (failure: unknown) => setError(messageOf(failure))
+  const onError = (failure: unknown) => setError(errorMessage(failure))
   const toggle = (row: ParticipantRow) => {
     setError(null)
     if (row.going) writes.remove.mutate(row.userId, { onError })

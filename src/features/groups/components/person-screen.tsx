@@ -16,7 +16,7 @@ import { autoTone } from '@/shared/domain/auto-tone'
 import { firstName as firstNameOf, initials } from '@/shared/domain/initials'
 import { groupPermissions } from '@/shared/domain/permissions'
 import { formatPhone } from '@/shared/domain/phone'
-import { ApiError } from '@/shared/lib/api-error'
+import { errorMessage } from '@/shared/lib/api-error'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
@@ -34,10 +34,6 @@ const HEADER_HEIGHT = 200
 const CARD_OVERLAP = 90
 /** Gap between the safe area's top and the back button. */
 const BACK_TOP = 8
-
-/** A refused write, as the screen says it: the API's message (a Viewer's 403 too). */
-const messageOf = (error: unknown) =>
-  error instanceof ApiError ? error.message : 'Não foi possível concluir. Tente de novo.'
 
 /**
  * A person of the Group (D-Pessoa, PROJ-218): who they are, their Teams and, to who manages people,
@@ -121,7 +117,7 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
       router.back()
     } catch (error) {
       setConfirming(false)
-      setRemoveError(messageOf(error))
+      setRemoveError(errorMessage(error))
     }
   }
 
@@ -206,7 +202,7 @@ function Details({ groupId, person }: { groupId: number; person: Person }) {
                 <Button label="Gerar novo link" loading={reissue.isPending} onPress={generate} />
               </View>
             )}
-            {reissue.error ? <Notice message={messageOf(reissue.error)} /> : null}
+            {reissue.error ? <Notice message={errorMessage(reissue.error)} /> : null}
           </>
         )}
       </ScrollView>

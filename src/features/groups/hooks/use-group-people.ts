@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { groupMembersQueryKey, groupTeamsQueryKey } from '@/shared/lib/group-query-keys'
+
 import { groupsRepository } from '../api'
 
-export const groupMembersQueryKey = (groupId: number) => ['groups', groupId, 'members'] as const
-export const groupTeamsQueryKey = (groupId: number) => ['groups', groupId, 'teams'] as const
+export { groupMembersQueryKey, groupTeamsQueryKey }
 
 /** Who is in the Group. */
 export function useGroupMembers(groupId: number) {
