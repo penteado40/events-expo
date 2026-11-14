@@ -1,6 +1,6 @@
 const { webBuildEnv } = require('../build-web')
 
-const KEY = 'pk_test_ZHVtbXkuY2xlcmsuYWNjb3VudHMuZGV2JA'
+const KEY = 'pk_test_dummy'
 
 describe('webBuildEnv', () => {
   it('maps API_URL and CLERK_PUBLISHABLE_KEY to the EXPO_PUBLIC_ names Expo inlines', () => {
@@ -21,6 +21,27 @@ describe('webBuildEnv', () => {
     expect(() => webBuildEnv({ CLERK_PUBLISHABLE_KEY: ' ' })).toThrow(
       /API_URL, CLERK_PUBLISHABLE_KEY/,
     )
+  })
+
+  it('falls back to the Demo build on a Vercel preview deploy missing a variable', () => {
+    const env = webBuildEnv({ VERCEL_ENV: 'preview', API_URL: 'https://api.example.com' })
+    expect(env.EXPO_PUBLIC_DEMO_BUILD).toBe('true')
+    expect(env.EXPO_PUBLIC_API_URL).toBeUndefined()
+    expect(env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY).toBeUndefined()
+  })
+
+  it('builds against the API on a Vercel preview deploy that has both variables', () => {
+    const env = webBuildEnv({
+      VERCEL_ENV: 'preview',
+      API_URL: 'https://api.example.com',
+      CLERK_PUBLISHABLE_KEY: KEY,
+    })
+    expect(env.EXPO_PUBLIC_DEMO_BUILD).toBeUndefined()
+    expect(env.EXPO_PUBLIC_API_URL).toBe('https://api.example.com')
+  })
+
+  it('still fails a Vercel production deploy missing a variable', () => {
+    expect(() => webBuildEnv({ VERCEL_ENV: 'production' })).toThrow(/API_URL/)
   })
 
   it('refuses a pk_live_ key', () => {

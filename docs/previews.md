@@ -24,8 +24,9 @@ Nenhum dos dois é segredo: a chave publicável e a URL vão no bundle de qualqu
 
 ### 1. Vercel
 
-1. Em Settings → Environment Variables, cadastre `API_URL` e `CLERK_PUBLISHABLE_KEY` para **Production** e **Preview**. Sem o prefixo `EXPO_PUBLIC_`: a Vercel não aceita nomes com `PUBLIC`. O `npm run build:web` (`scripts/build-web.js`) lê as duas, recusa uma `pk_live_`, e as passa ao `expo export` como `EXPO_PUBLIC_API_URL` e `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, os nomes que o Expo embute no bundle.
-2. Faça um **Redeploy** do último deploy de produção e de um preview: variáveis novas só valem para builds novos.
+1. Em Settings → Environment Variables, cadastre `API_URL` e `CLERK_PUBLISHABLE_KEY` para **Production**. Sem o prefixo `EXPO_PUBLIC_`: a Vercel não aceita nomes com `PUBLIC`. O `npm run build:web` (`scripts/build-web.js`) lê as duas, recusa uma `pk_live_`, e as passa ao `expo export` como `EXPO_PUBLIC_API_URL` e `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`, os nomes que o Expo embute no bundle. Na produção, faltar uma faz o build falhar.
+   - **Preview** é opcional. Um deploy de preview (PR) sem as duas sai como Demo build, só com o mock, e o check da Vercel fica verde. Com as duas, o preview usa a API, mas esbarra no CORS (ver abaixo).
+2. Faça um **Redeploy** do último deploy de produção: variáveis novas só valem para builds novos.
 
 Sem uma das duas, ou com uma `pk_live_`, o build da Vercel falha com a mensagem `build-web: ...` no log.
 

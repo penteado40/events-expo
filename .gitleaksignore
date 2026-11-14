@@ -1,0 +1,2 @@
+# Dummy Clerk key (base64 of "dummy.clerk.accounts.dev$") in a test, since replaced by pk_test_dummy.
+8e8243e5823204bb7f653ebd12bf8e666978bfac:scripts/__tests__/build-web.test.js:generic-api-key:3
