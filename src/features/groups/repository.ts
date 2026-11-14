@@ -25,13 +25,27 @@ export interface GroupsRepository {
   /** Takes a Viewer out of the Group (PROJ-179). `NOT_FOUND` for an Owner; `FORBIDDEN` for a Viewer. */
   removeViewer(groupId: number, userId: number): Promise<void>
   /**
-   * Whether `addTeamMember` works here. False over HTTP until the events-api has Team members
-   * (PROJ-183): screens then offer no Teams to pick.
+   * Creates a Team (PROJ-181), with nobody in it yet. The name is trimmed, 1 to 100 characters,
+   * unique in the Group in any case: `TEAM_NAME_TAKEN`; `VALIDATION_ERROR`; `FORBIDDEN` for a Viewer.
    */
-  addsTeamMembers(): boolean
+  createTeam(groupId: number, name: string): Promise<Team>
+  /** Renames a Team (PROJ-181), as `createTeam` checks the name. `NOT_FOUND` for another Group's. */
+  renameTeam(groupId: number, teamId: number, name: string): Promise<Team>
+  /** Deletes a Team (PROJ-181); its people stay in the Group. `FORBIDDEN` for a Viewer. */
+  deleteTeam(groupId: number, teamId: number): Promise<void>
+  /**
+   * Whether `addTeamMember` and `removeTeamMember` work here. False over HTTP until the events-api
+   * has Team members (PROJ-183): screens then offer no way to change who is in a Team.
+   */
+  editsTeamMembers(): boolean
   /**
    * Puts a Group member in a Team. PROJ-183 is not built in the events-api yet: this follows its
    * planned route, `PUT /groups/:id/teams/:teamId/members/:userId`, with no body either way.
    */
   addTeamMember(groupId: number, teamId: number, userId: number): Promise<void>
+  /**
+   * Takes a person out of a Team; they stay in the Group. PROJ-183's planned route,
+   * `DELETE /groups/:id/teams/:teamId/members/:userId`. `NOT_FOUND` for someone not in it.
+   */
+  removeTeamMember(groupId: number, teamId: number, userId: number): Promise<void>
 }

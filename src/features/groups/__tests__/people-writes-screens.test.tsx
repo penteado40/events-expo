@@ -131,7 +131,7 @@ describe('AddPersonScreen', () => {
 
   it('offers no Teams where the repository cannot put someone in one (the events-api)', async () => {
     signInDemo(DEMO_OWNER_ID)
-    jest.spyOn(groupsRepository, 'addsTeamMembers').mockReturnValue(false)
+    jest.spyOn(groupsRepository, 'editsTeamMembers').mockReturnValue(false)
     const listTeams = jest.spyOn(groupsRepository, 'listTeams')
     await renderWithQuery(<AddPersonScreen groupId={VOCAL_LIVRE} />)
 

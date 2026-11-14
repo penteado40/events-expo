@@ -8,6 +8,7 @@ import {
   type MeChanges,
   type MockBackend,
   type NewViewerBody,
+  type TeamBody,
   type VerifiedIdentity,
 } from './backend'
 
@@ -26,6 +27,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   USER_ALREADY_ACTIVE: 409,
   ALREADY_A_GROUP_MEMBER: 409,
   SUPER_ADMIN_NOT_A_GROUP_MEMBER: 409,
+  TEAM_NAME_TAKEN: 409,
 }
 
 const noContent = () => new Response(null, { status: 204 })
@@ -109,9 +111,28 @@ export function createFakeApi({
       if (groupMembers) {
         return json(200, { data: await backend.groupMembers(identity, Number(groupMembers[1])) })
       }
-      const groupTeams = route.match(/^GET \/groups\/(\d+)\/teams$/)
-      if (groupTeams) {
-        return json(200, { data: await backend.groupTeams(identity, Number(groupTeams[1])) })
+      const teamBody = () => JSON.parse(String(init?.body ?? '{}')) as TeamBody
+      const groupTeams = route.match(/^(GET|POST) \/groups\/(\d+)\/teams$/)
+      if (groupTeams?.[1] === 'GET') {
+        return json(200, { data: await backend.groupTeams(identity, Number(groupTeams[2])) })
+      }
+      if (groupTeams?.[1] === 'POST') {
+        const created = await backend.createTeam(identity, Number(groupTeams[2]), teamBody())
+        return json(201, { data: created })
+      }
+      const team = route.match(/^(PATCH|DELETE) \/groups\/(\d+)\/teams\/(\d+)$/)
+      if (team?.[1] === 'PATCH') {
+        const renamed = await backend.renameTeam(
+          identity,
+          Number(team[2]),
+          Number(team[3]),
+          teamBody(),
+        )
+        return json(200, { data: renamed })
+      }
+      if (team?.[1] === 'DELETE') {
+        await backend.deleteTeam(identity, Number(team[2]), Number(team[3]))
+        return noContent()
       }
       const viewers = route.match(/^POST \/groups\/(\d+)\/viewers$/)
       if (viewers) {
@@ -128,10 +149,11 @@ export function createFakeApi({
         await backend.removeViewer(identity, Number(viewer[1]), Number(viewer[2]))
         return noContent()
       }
-      const teamMember = route.match(/^PUT \/groups\/(\d+)\/teams\/(\d+)\/members\/(\d+)$/)
+      const teamMember = route.match(/^(PUT|DELETE) \/groups\/(\d+)\/teams\/(\d+)\/members\/(\d+)$/)
       if (teamMember) {
-        const [, groupId, teamId, userId] = teamMember.map(Number)
-        await backend.addTeamMember(identity, groupId, teamId, userId)
+        const [groupId, teamId, userId] = teamMember.slice(2).map(Number)
+        if (teamMember[1] === 'PUT') await backend.addTeamMember(identity, groupId, teamId, userId)
+        else await backend.removeTeamMember(identity, groupId, teamId, userId)
         return noContent()
       }
       throw notFound()

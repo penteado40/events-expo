@@ -19,7 +19,8 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import { useGroupById } from '../hooks/use-current-group'
 import { useGroupTeams } from '../hooks/use-group-people'
-import { canAddTeamMembers, useAddViewer, type AddViewerResult } from '../hooks/use-people-writes'
+import { useAddViewer, type AddViewerResult } from '../hooks/use-people-writes'
+import { canEditTeamMembers } from '../hooks/use-team-writes'
 import {
   checkViewerForm,
   viewerErrorsFromApi,
@@ -62,7 +63,7 @@ function AddForm({
   // Putting someone in a Team is a Team write: only who manages Teams picks them, and only where
   // the repository can do it (not over the events-api until PROJ-183).
   const picksTeams =
-    canAddTeamMembers() && (group ? groupPermissions(group.role).managesTeams : false)
+    canEditTeamMembers() && (group ? groupPermissions(group.role).managesTeams : false)
 
   const edit = (field: keyof ViewerForm) => (value: string) => {
     setForm((current) => ({ ...current, [field]: value }))
