@@ -1,0 +1,23 @@
+import { z } from 'zod'
+
+/**
+ * A Team as `GET /groups/:id/teams` lists it (events-api PROJ-181), in the API's name order.
+ * Shared like the Group member (`group-member.ts`).
+ * `members` is not served yet: PROJ-183 ("traz os membros de cada Team") is the pending source of
+ * truth for its shape, assumed here as `[{ userId }]`; absent, the Team has nobody yet.
+ */
+const teamJsonSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  members: z.array(z.object({ userId: z.number().int() })).default([]),
+})
+
+/** A Team of the Group and who is in it, by User id. */
+export type Team = { id: number; name: string; memberIds: number[] }
+
+/** The one place the API's Team becomes the app's: change here when PROJ-183 lands. */
+function toTeam({ id, name, members }: z.infer<typeof teamJsonSchema>): Team {
+  return { id, name, memberIds: members.map((m) => m.userId) }
+}
+
+export const teamSchema = teamJsonSchema.transform(toTeam)

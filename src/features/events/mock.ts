@@ -8,8 +8,17 @@ import {
   type MockBackend,
 } from '@/shared/mock-backend'
 
-import type { EventItemsRepository, EventsRepository, ScheduleRepository } from './repository'
-import { eventItemSchema, eventSchema, scheduleSchema } from './schemas'
+import { groupMemberSchema } from '@/shared/domain/group-member'
+import { teamSchema } from '@/shared/domain/team'
+
+import type {
+  EventItemsRepository,
+  EventsRepository,
+  GroupPeopleRepository,
+  ParticipantsRepository,
+  ScheduleRepository,
+} from './repository'
+import { eventItemSchema, eventSchema, participantSchema, scheduleSchema } from './schemas'
 
 type Options = { getEmail?: GetEmail; backend?: MockBackend }
 
@@ -53,5 +62,34 @@ export function createMockScheduleRepository({
   return {
     get: async (eventId) =>
       scheduleSchema.parse(await backend.schedule(await identityOf(getEmail), eventId)),
+  }
+}
+
+/** ParticipantsRepository over the shared mock backend, which has them as the events-api plans. */
+export function createMockParticipantsRepository({
+  getEmail = sessionEmail,
+  backend = mockBackend,
+}: Options = {}): ParticipantsRepository {
+  const identity = () => identityOf(getEmail)
+  return {
+    available: () => true,
+    list: async (eventId) =>
+      z.array(participantSchema).parse(await backend.participants(await identity(), eventId)),
+    add: async (eventId, userId) => backend.addParticipant(await identity(), eventId, userId),
+    remove: async (eventId, userId) => backend.removeParticipant(await identity(), eventId, userId),
+  }
+}
+
+/** GroupPeopleRepository over the shared mock backend, answers validated like HTTP's. */
+export function createMockGroupPeopleRepository({
+  getEmail = sessionEmail,
+  backend = mockBackend,
+}: Options = {}): GroupPeopleRepository {
+  const identity = () => identityOf(getEmail)
+  return {
+    listMembers: async (groupId) =>
+      z.array(groupMemberSchema).parse(await backend.groupMembers(await identity(), groupId)),
+    listTeams: async (groupId) =>
+      z.array(teamSchema).parse(await backend.groupTeams(await identity(), groupId)),
   }
 }

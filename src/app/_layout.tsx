@@ -79,6 +79,7 @@ export default function RootLayout() {
               <Stack.Screen name="events/[id]/index" />
               <Stack.Screen name="events/[id]/edit" options={{ presentation: 'fullScreenModal' }} />
               <Stack.Screen name="events/[id]/timeline" />
+              <Stack.Screen name="events/[id]/participants" />
               <Stack.Screen
                 name="events/[id]/items/new"
                 options={{ presentation: 'fullScreenModal' }}

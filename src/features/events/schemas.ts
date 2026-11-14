@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { groupMemberSchema } from '@/shared/domain/group-member'
 import { localDateSchema, localTimeSchema, periodSchema } from '@/shared/domain/local-dates'
 
 /**
@@ -79,3 +80,16 @@ export const scheduleSchema = z.object({
 })
 
 export type Schedule = z.infer<typeof scheduleSchema>
+
+/**
+ * A Participant as `GET /events/:id/participants` lists them. PROJ-186 (not built in the
+ * events-api yet) promises name, phone and role; the shape is assumed like a Group member's.
+ */
+export const participantSchema = z.object({
+  userId: z.number().int(),
+  name: z.string(),
+  phone: z.string(),
+  role: groupMemberSchema.shape.role,
+})
+
+export type Participant = z.infer<typeof participantSchema>

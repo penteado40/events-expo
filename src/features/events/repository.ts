@@ -1,21 +1,36 @@
+import type { GroupMember } from '@/shared/domain/group-member'
+import type { Team } from '@/shared/domain/team'
 import type { LocalDate, LocalTime, Period } from '@/shared/domain/local-dates'
 
-import type { Event, EventItem, Schedule } from './schemas'
+import type { Event, EventItem, Participant, Schedule } from './schemas'
 
-/** Where and when of an Event, as the Owner writes it (events-api PROJ-182). */
-export type EventInput = { name: string; place: string; period: Period }
+/** A new Event's Participants as a copy of who is in these Teams (events-api PROJ-189). */
+export type ParticipantsFrom = { teamIds: number[] }
 
-/** An edit: what is left out stays; the period goes whole. */
-export type EventChanges = Partial<EventInput>
+/**
+ * Where and when of an Event, as the Owner writes it (events-api PROJ-182), and, creating it, where
+ * its Participants come from: left out, every Group member (PROJ-186).
+ */
+export type EventInput = {
+  name: string
+  place: string
+  period: Period
+  participantsFrom?: ParticipantsFrom
+}
+
+/** An edit: what is left out stays; the period goes whole. The Participants change on their own. */
+export type EventChanges = Partial<Omit<EventInput, 'participantsFrom'>>
 
 /** Mirrors the events-api's `events` module. */
 export interface EventsRepository {
   /** The Group's Events by start date. `NOT_FOUND` for someone outside the Group. */
   listByGroup(groupId: number): Promise<Event[]>
   /**
-   * `POST /groups/:id/events`: an Owner (or the Super admin) creates the Event, born in Draft.
-   * `EVENT_PERIOD_INVALID` for an end before the start; `VALIDATION_ERROR` names any other field
-   * in its details; `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
+   * `POST /groups/:id/events`: an Owner (or the Super admin) creates the Event, born in Draft, with
+   * its Participants copied from the Group or from `participantsFrom`'s Teams. A Team of another
+   * Group is `NOT_FOUND`, no Team at all `VALIDATION_ERROR`. `EVENT_PERIOD_INVALID` for an end
+   * before the start; `VALIDATION_ERROR` names any other field in its details; `FORBIDDEN` for a
+   * Viewer; `NOT_FOUND` outside the Group.
    */
   create(groupId: number, input: EventInput): Promise<Event>
   /** `GET /events/:id`: any Group member reads it. `NOT_FOUND` outside the Group. */
@@ -25,6 +40,41 @@ export interface EventsRepository {
    * `create`.
    */
   update(eventId: number, changes: EventChanges): Promise<Event>
+}
+
+/**
+ * Mirrors the events-api's Participants of an Event (PROJ-186, PROJ-190), not built there yet: the
+ * HTTP implementation follows the planned routes.
+ */
+export interface ParticipantsRepository {
+  /**
+   * Whether the Participants can be read and changed here, and chosen when creating an Event.
+   * False over HTTP until the events-api has them: screens then show no Participants at all.
+   */
+  available(): boolean
+  /** `GET /events/:id/participants`: any Group member reads it. `NOT_FOUND` outside the Group. */
+  list(eventId: number): Promise<Participant[]>
+  /**
+   * `PUT /events/:id/participants/:userId`, no body: an Owner adds a Group member; already going,
+   * nothing changes. `NOT_FOUND` for someone outside the Group; `EVENT_CANCELLED` while the Event
+   * is Cancelled; `FORBIDDEN` for a Viewer.
+   */
+  add(eventId: number, userId: number): Promise<void>
+  /**
+   * `DELETE /events/:id/participants/:userId`: takes someone out; they stop seeing the items and
+   * stay in the Fields of people marked as out of the Event. `NOT_FOUND` for someone not going;
+   * otherwise as `add`.
+   */
+  remove(eventId: number, userId: number): Promise<void>
+}
+
+/**
+ * The Group's people as choosing Participants needs them: the same `GET /groups/:id/members` and
+ * `GET /groups/:id/teams` the groups feature reads (features do not import each other, ADR-0001).
+ */
+export interface GroupPeopleRepository {
+  listMembers(groupId: number): Promise<GroupMember[]>
+  listTeams(groupId: number): Promise<Team[]>
 }
 
 /** A place as the Owner writes it: each part optional, but not all empty. */

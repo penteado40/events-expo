@@ -147,6 +147,53 @@ describe('NewEventScreen', () => {
     expect(await screen.findByText('Você não tem permissão para esta ação.')).toBeOnTheScreen()
   })
 
+  it('creates it with every Group member as a Participant, by default', async () => {
+    await renderAs(OWNER, <NewEventScreen groupId={1} />)
+    expect(
+      await screen.findByRole('radio', { name: 'Todos os Group members, 5 pessoas' }),
+    ).toBeChecked()
+
+    await fill()
+    await fireEvent.changeText(field('Nome do Event'), 'Saída de todos')
+    await press('Criar Event')
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalled())
+    const created = (await mockBackend.groupEvents(BRUNO, 1)).find(
+      (e) => e.name === 'Saída de todos',
+    )
+    const participants = await mockBackend.participants(BRUNO, created!.id)
+    expect(participants.map((p) => p.userId).sort()).toEqual([2, 3, 4, 5, 9])
+  })
+
+  it('creates it with the people of the Teams chosen', async () => {
+    await renderAs(OWNER, <NewEventScreen groupId={1} />)
+    await fill()
+    await fireEvent.changeText(field('Nome do Event'), 'Ensaio dos Cantores')
+
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Alguns Teams' }))
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Cantores' }))
+    expect(screen.getByRole('checkbox', { name: 'Cantores' })).toBeChecked()
+    await press('Criar Event')
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalled())
+    const created = (await mockBackend.groupEvents(BRUNO, 1)).find(
+      (e) => e.name === 'Ensaio dos Cantores',
+    )
+    const participants = await mockBackend.participants(BRUNO, created!.id)
+    expect(participants.map((p) => p.userId).sort()).toEqual([4, 5])
+  })
+
+  it('asks for a Team when "Alguns Teams" has none, creating nothing', async () => {
+    await renderAs(OWNER, <NewEventScreen groupId={1} />)
+    await fill()
+
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Alguns Teams' }))
+    await press('Criar Event')
+
+    expect(screen.getByText('Escolha ao menos um Team.')).toBeOnTheScreen()
+    expect(mockRouter.replace).not.toHaveBeenCalled()
+  })
+
   it('"Cancelar" goes back without creating', async () => {
     await renderAs(OWNER, <NewEventScreen groupId={1} />)
 
@@ -238,6 +285,23 @@ describe('EventScreen', () => {
 
     await screen.findByText('Festival de Verão')
     expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+  })
+
+  it('shows the Owner who goes, opening the Participants', async () => {
+    await renderAs(OWNER, <EventScreen eventId={3} />)
+
+    const row = await screen.findByRole('button', { name: 'Participants, 4 de 5 do Group vão' })
+    await fireEvent.press(row)
+
+    expect(mockRouter.push).toHaveBeenCalledWith('/events/3/participants')
+  })
+
+  it('shows a Viewer who goes too, even to an Event they do not go to', async () => {
+    await renderAs(VIEWER, <EventScreen eventId={4} />)
+
+    expect(
+      await screen.findByRole('button', { name: 'Participants, 1 de 5 do Group vão' }),
+    ).toBeOnTheScreen()
   })
 
   it('"Voltar" goes back', async () => {

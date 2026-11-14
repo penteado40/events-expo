@@ -4,13 +4,24 @@ import { apiClient } from '@/shared/lib/api-client'
 import type { HttpClient } from '@/shared/lib/http'
 import { selectRepository } from '@/shared/lib/select-repository'
 
+import { groupMemberSchema } from '@/shared/domain/group-member'
+import { teamSchema } from '@/shared/domain/team'
+
 import {
   createMockEventItemsRepository,
   createMockEventsRepository,
+  createMockGroupPeopleRepository,
+  createMockParticipantsRepository,
   createMockScheduleRepository,
 } from './mock'
-import type { EventItemsRepository, EventsRepository, ScheduleRepository } from './repository'
-import { eventItemSchema, eventSchema, scheduleSchema } from './schemas'
+import type {
+  EventItemsRepository,
+  EventsRepository,
+  GroupPeopleRepository,
+  ParticipantsRepository,
+  ScheduleRepository,
+} from './repository'
+import { eventItemSchema, eventSchema, participantSchema, scheduleSchema } from './schemas'
 
 export type {
   EventChanges,
@@ -19,10 +30,15 @@ export type {
   EventItemInput,
   EventItemsRepository,
   EventsRepository,
+  GroupPeopleRepository,
   ItemPlaceInput,
+  ParticipantsFrom,
+  ParticipantsRepository,
   ScheduleRepository,
 } from './repository'
-export type { Event, EventItem, ItemPlace, ItemWhen, Schedule } from './schemas'
+export type { Event, EventItem, ItemPlace, ItemWhen, Participant, Schedule } from './schemas'
+export type { GroupMember } from '@/shared/domain/group-member'
+export type { Team } from '@/shared/domain/team'
 
 export function createHttpEventsRepository(http: HttpClient): EventsRepository {
   return {
@@ -68,4 +84,35 @@ export const itemsRepository = selectRepository<EventItemsRepository>('items', {
 export const scheduleRepository = selectRepository<ScheduleRepository>('schedule', {
   http: createHttpScheduleRepository(apiClient),
   mock: createMockScheduleRepository(),
+})
+
+export function createHttpParticipantsRepository(http: HttpClient): ParticipantsRepository {
+  return {
+    // PROJ-186 and PROJ-190 are not built in the events-api yet: these routes answer 404 there.
+    available: () => false,
+    list: (eventId) =>
+      http.get(`/events/${eventId}/participants`, { schema: z.array(participantSchema) }),
+    add: (eventId, userId) => http.send('PUT', `/events/${eventId}/participants/${userId}`),
+    remove: (eventId, userId) => http.send('DELETE', `/events/${eventId}/participants/${userId}`),
+  }
+}
+
+export function createHttpGroupPeopleRepository(http: HttpClient): GroupPeopleRepository {
+  return {
+    listMembers: (groupId) =>
+      http.get(`/groups/${groupId}/members`, { schema: z.array(groupMemberSchema) }),
+    listTeams: (groupId) => http.get(`/groups/${groupId}/teams`, { schema: z.array(teamSchema) }),
+  }
+}
+
+/** An Event's Participants (the `events` module). */
+export const participantsRepository = selectRepository<ParticipantsRepository>('events', {
+  http: createHttpParticipantsRepository(apiClient),
+  mock: createMockParticipantsRepository(),
+})
+
+/** The Group's people and Teams, read as the groups feature reads them (the `groups` module). */
+export const groupPeopleRepository = selectRepository<GroupPeopleRepository>('groups', {
+  http: createHttpGroupPeopleRepository(apiClient),
+  mock: createMockGroupPeopleRepository(),
 })

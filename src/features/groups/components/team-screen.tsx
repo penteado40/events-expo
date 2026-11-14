@@ -8,7 +8,7 @@ import { autoTone, type AutoTone } from '@/shared/domain/auto-tone'
 import { firstName, initials } from '@/shared/domain/initials'
 import { groupPermissions } from '@/shared/domain/permissions'
 import { plural } from '@/shared/domain/plural'
-import { ApiError } from '@/shared/lib/api-error'
+import { errorMessage } from '@/shared/lib/api-error'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { GroupMember, Team } from '../api'
@@ -24,10 +24,6 @@ import { teamPeople } from '../people-and-teams'
 import { TeamNameSheet } from './team-name-sheet'
 
 type Props = { groupId: number; teamId: number }
-
-/** A refused write, as the screen says it: the API's message (a Viewer's 403 too). */
-const messageOf = (error: unknown) =>
-  error instanceof ApiError ? error.message : 'Não foi possível concluir. Tente de novo.'
 
 /**
  * A Team of the Group (D-Team, PROJ-219): its header in the Team's automatic color, how many are
@@ -103,7 +99,7 @@ function Details({ groupId, team, back }: { groupId: number; team: Team; back: R
 
   const changeMembership = (change: 'add' | 'remove', userId: number) => {
     setError(null)
-    membership[change].mutate(userId, { onError: (failure) => setError(messageOf(failure)) })
+    membership[change].mutate(userId, { onError: (failure) => setError(errorMessage(failure)) })
   }
 
   const confirmDelete = async () => {
@@ -114,7 +110,7 @@ function Details({ groupId, team, back }: { groupId: number; team: Team; back: R
       router.back()
     } catch (failure) {
       close()
-      setError(messageOf(failure))
+      setError(errorMessage(failure))
     }
   }
 

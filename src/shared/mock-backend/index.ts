@@ -3,6 +3,7 @@ import { createMockBackend } from './backend'
 export {
   createMockBackend,
   type EventBody,
+  type ParticipantsFromBody,
   type EventItemBody,
   type MeChanges,
   type MockBackend,
