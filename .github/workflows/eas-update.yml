@@ -1,7 +1,7 @@
 # Native preview in Expo Go (docs/previews.md). A PR publishes an EAS Update on branch `pr-<n>` and
 # comments its QR; a push to main publishes branch `main`. Separate from the web preview (Vercel),
-# so a failure in one never blocks the other. Both run against the real events-api and Clerk (a
-# pk_test_ key), from the repository variables API_URL and CLERK_PUBLISHABLE_KEY.
+# so a failure in one never blocks the other. Both run against the real events-api and Clerk, from
+# the repository variables API_URL and CLERK_PUBLISHABLE_KEY.
 name: EAS Update
 
 on:
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # Until the setup is done (EXPO_TOKEN secret, `eas init`, the two variables), and on PRs from
-      # forks (no secrets), the job skips with a notice instead of failing. A pk_live_ key fails it.
+      # forks (no secrets), the job skips with a notice instead of failing. A secret key fails it.
       - name: Setup do EAS feito?
         id: setup
         env:

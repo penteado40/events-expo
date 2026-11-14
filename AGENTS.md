@@ -34,7 +34,7 @@ Run lint and typecheck before declaring any task done.
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
-Every PR gets two previews, both against the real events-api and Clerk (a `pk_test_` key): the web on Vercel (`vercel.json`, `npm run build:web`) and the app in Expo Go through EAS Update (`.github/workflows/eas-update.yml`). Setup and where to find them: `docs/previews.md`.
+Every PR gets two previews, both against the real events-api and Clerk (the same instance as the events-api): the web on Vercel (`vercel.json`, `npm run build:web`) and the app in Expo Go through EAS Update (`.github/workflows/eas-update.yml`). Setup and where to find them: `docs/previews.md`.
 
 ## Rules
 

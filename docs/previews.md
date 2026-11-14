@@ -7,7 +7,7 @@ Cada PR publica dois previews do app, para testar pelo celular sem o Mac ligado:
 
 Um push no `main` publica a versão estável dos dois: a produção da Vercel e o EAS Update no branch `main`.
 
-Todo deploy roda como a produção: com a events-api de verdade e o login normal do Clerk, sem modo demo (ADR-0005). Todos usam a mesma URL da events-api e a mesma chave do Clerk, sempre uma `pk_test_` (a instância de desenvolvimento): uma `pk_live_` faz o build falhar. Por isso **os previews de PR mexem na mesma events-api e nos mesmos dados que o `main`**: o que se cria ou apaga num preview aparece em todos.
+Todo deploy roda como a produção: com a events-api de verdade e o login normal do Clerk, sem modo demo (ADR-0005). Todos usam a mesma URL da events-api e a mesma chave do Clerk, da mesma instância cuja `CLERK_SECRET_KEY` a events-api usa: hoje a de produção (`pk_live_`). Por isso **os previews de PR mexem na mesma events-api e nos mesmos dados que o `main`**: o que se cria ou apaga num preview aparece em todos.
 
 Os dois caminhos são independentes. A Vercel faz o próprio build (`npm run build:web`) e não roda o EAS. O workflow do EAS não depende da Vercel. Se um falhar, o outro publica igual.
 
@@ -18,7 +18,7 @@ O setup de uma vez só (importar na Vercel, `eas init`, o secret `EXPO_TOKEN`) j
 Os dois valores, iguais na Vercel e no GitHub:
 
 - `API_URL`: a URL base da events-api com o prefixo, ex.: `https://<host>/api/v1`.
-- `CLERK_PUBLISHABLE_KEY`: a *Publishable key* (`pk_test_...`) do Clerk, em *API keys* da mesma instância cuja `CLERK_SECRET_KEY` essa events-api usa. Se as instâncias não baterem, todo login volta 401.
+- `CLERK_PUBLISHABLE_KEY`: a *Publishable key* do Clerk (`pk_live_...` na instância de produção, `pk_test_...` na de desenvolvimento), em *API keys* da mesma instância cuja `CLERK_SECRET_KEY` essa events-api usa. Se as instâncias não baterem, todo login volta 401. A instância de produção do Clerk só funciona num domínio próprio configurado nela: em `*.vercel.app` o login da web falha, e o nativo (Expo Go) funciona.
 
 Nenhum dos dois é segredo: a chave publicável e a URL vão no bundle de qualquer jeito.
 
@@ -28,13 +28,13 @@ Nenhum dos dois é segredo: a chave publicável e a URL vão no bundle de qualqu
    - **Preview** é opcional. Um deploy de preview (PR) sem as duas sai como Demo build, só com o mock, e o check da Vercel fica verde. Com as duas, o preview usa a API, mas esbarra no CORS (ver abaixo).
 2. Faça um **Redeploy** do último deploy de produção: variáveis novas só valem para builds novos.
 
-Sem uma das duas, ou com uma `pk_live_`, o build da Vercel falha com a mensagem `build-web: ...` no log.
+Sem uma das duas, ou com uma chave que não seja publishable (`pk_test_` ou `pk_live_`), o build da Vercel falha com a mensagem `build-web: ...` no log.
 
 ### 2. GitHub Actions
 
 Em `penteado40/events-expo` → Settings → Secrets and variables → Actions → aba **Variables** → **New repository variable**, cadastre `API_URL` e `CLERK_PUBLISHABLE_KEY` com os mesmos valores. São variables, não secrets. O workflow as passa ao `eas update` como `EXPO_PUBLIC_*`.
 
-Sem uma das duas, o workflow `EAS Update` passa verde com o aviso "EAS Update pulado" e não publica nada. Com uma `pk_live_`, ele falha.
+Sem uma das duas, o workflow `EAS Update` passa verde com o aviso "EAS Update pulado" e não publica nada. Com uma chave que não seja publishable, ele falha.
 
 ### 3. EAS: o environment `preview` fica vazio
 

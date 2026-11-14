@@ -8,8 +8,9 @@ const REQUIRED_VARS = ['API_URL', 'CLERK_PUBLISHABLE_KEY']
 
 /**
  * The env for `expo export`: `env` plus EXPO_PUBLIC_API_URL and EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.
- * Throws when either is missing, the URL isn't http(s), or the key isn't a pk_test_ one: every
- * deploy uses Clerk's development instance. A Vercel preview deploy (a PR) missing either one
+ * Throws when either is missing, the URL isn't http(s), or the key isn't a publishable one. The key
+ * must come from the same Clerk instance as the events-api's CLERK_SECRET_KEY, or every sign-in
+ * gets a 401. A Vercel preview deploy (a PR) missing either one
  * builds the Demo build instead, over the mock: the deploy that matters is production.
  */
 function webBuildEnv(env) {
@@ -26,13 +27,10 @@ function webBuildEnv(env) {
   if (!/^https?:\/\/\S+$/.test(apiUrl)) {
     throw new Error(`API_URL must be an http(s) URL, got "${apiUrl}".`)
   }
-  if (key.startsWith('pk_live_')) {
+  if (!/^pk_(test|live)_\S+$/.test(key)) {
     throw new Error(
-      'CLERK_PUBLISHABLE_KEY is a pk_live_ key: the deploys take only a pk_test_ one.',
+      'CLERK_PUBLISHABLE_KEY must be a Clerk publishable key (pk_test_ or pk_live_), never a secret one.',
     )
-  }
-  if (!/^pk_test_\S+$/.test(key)) {
-    throw new Error('CLERK_PUBLISHABLE_KEY must be a pk_test_ Clerk publishable key.')
   }
   return { ...env, EXPO_PUBLIC_API_URL: apiUrl, EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: key }
 }
