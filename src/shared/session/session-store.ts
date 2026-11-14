@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { DEMO_BUILD } from '@/shared/lib/demo-build'
+
 import { createPersistedStore } from './create-persisted-store'
 import { userSchema, type User } from './user'
 
@@ -39,9 +41,12 @@ type SessionState = {
 type Options = {
   /** Development build (`__DEV__`); only there can a Session without an API behind it exist. */
   isDev?: boolean
+  /** Demo build (`EXPO_PUBLIC_DEMO_BUILD`, ADR-0005): Demo mode is the only one. */
+  demoBuild?: boolean
 }
 
-export function createSessionStore({ isDev = __DEV__ }: Options = {}) {
+export function createSessionStore({ isDev = __DEV__, demoBuild = DEMO_BUILD }: Options = {}) {
+  const demoAvailable = isDev || demoBuild
   return createPersistedStore<SessionState, Pick<SessionState, 'session'>>(
     (set) => ({
       session: null,
@@ -68,9 +73,9 @@ export function createSessionStore({ isDev = __DEV__ }: Options = {}) {
           (persisted as { session?: unknown } | undefined)?.session,
         )
         const session = stored.success ? stored.data : null
-        // Only a development build can open one without an API behind it (Demo mode), so a
-        // release build drops any it finds.
-        return { ...current, session: session && !session.live && !isDev ? null : session }
+        // Only a development or Demo build can open one without an API behind it (Demo mode), so
+        // any other release build drops any it finds.
+        return { ...current, session: session && !session.live && !demoAvailable ? null : session }
       },
     },
   )

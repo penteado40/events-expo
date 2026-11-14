@@ -39,10 +39,25 @@ describe('selectRepository', () => {
     useSession.setState({ session: current })
     const repository: Repository = selectRepository('auth', implementations, {
       isDev,
+      demoBuild: false,
       liveModules,
     })
 
     await expect(repository.whoAmI('oi')).resolves.toBe(`oi, ${expected}`)
+  })
+
+  it.each<[string, Session | null]>([
+    ['Demo mode', session(false)],
+    ['no Session yet', null],
+  ])('Demo build, %s, module live → mock', async (_, current) => {
+    useSession.setState({ session: current })
+    const repository: Repository = selectRepository('auth', implementations, {
+      isDev: false,
+      demoBuild: true,
+      liveModules: ['auth'],
+    })
+
+    await expect(repository.whoAmI('oi')).resolves.toBe('oi, mock')
   })
 
   it('decides on every call, so a new Session switches the implementation', async () => {

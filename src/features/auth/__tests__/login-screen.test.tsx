@@ -110,6 +110,21 @@ describe('LoginScreen', () => {
     expect(useSession.getState().session).toMatchObject({ live: false, user: { id: 2 } })
   })
 
+  it('offers only Demo mode, and says it is a preview, in a Demo build', async () => {
+    const client = new QueryClient()
+    await render(
+      <QueryClientProvider client={client}>
+        <LoginScreen withClerk demoBuild />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByText(/preview do app/)).toBeOnTheScreen()
+    expect(screen.queryByText(/EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Entrar' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Super admin' }))
+    expect(useSession.getState().session).toMatchObject({ live: false })
+  })
+
   it('enters Demo mode as the sample Viewer in a development build', async () => {
     await renderLogin()
 

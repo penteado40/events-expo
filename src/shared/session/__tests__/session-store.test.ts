@@ -53,6 +53,15 @@ describe('Session store', () => {
     expect(release.current.session).toBeNull()
   })
 
+  it('keeps a stored Session without an API behind it in a Demo build', async () => {
+    const dev = await open(createSessionStore({ isDev: true }))
+    await act(() => dev.current.signIn(admin))
+
+    const demo = await open(createSessionStore({ isDev: false, demoBuild: true }))
+
+    expect(demo.current.session).toEqual(admin)
+  })
+
   it('keeps a stored live Session in a release build', async () => {
     const live: Session = { ...admin, id: 'sess_1', live: true }
     const dev = await open(createSessionStore({ isDev: true }))

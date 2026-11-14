@@ -106,4 +106,15 @@ describe('ActivationScreen', () => {
     expect(await screen.findByText(LU)).toBeOnTheScreen()
     expect(screen.getByText('do convite')).toBeOnTheScreen()
   })
+
+  it('says an invitation cannot be accepted in a Demo build, pointing to Demo mode', async () => {
+    await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <ActivationScreen link={readActivationLink(luParams('ticket'))} withClerk demoBuild />
+      </QueryClientProvider>,
+    )
+
+    expect(screen.getByText(/preview do app/)).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Crie uma senha')).toBeNull()
+  })
 })
