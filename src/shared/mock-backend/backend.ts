@@ -9,6 +9,7 @@ import {
   type EventItemRow,
   type EventRow,
   type ItemPlaceRow,
+  type TeamRow,
   type UserRow,
 } from './data'
 
@@ -35,9 +36,14 @@ const eventPeriodInvalid = () =>
 const eventItemTimeWithoutDate = () =>
   new ApiError('EVENT_ITEM_TIME_WITHOUT_DATE', 'O Event item só pode ter hora se tiver data.')
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
+const teamNameTaken = () =>
+  new ApiError('TEAM_NAME_TAKEN', 'Já existe um Team com este nome neste Group.')
 
 /** How long an Activation link lasts (the Clerk invitation the events-api creates). */
 const LINK_DAYS = 7
+
+/** The body of `POST /groups/:id/teams` and `PATCH /groups/:id/teams/:teamId` (PROJ-181). */
+export type TeamBody = { name: string }
 
 /** The body of `POST /groups/:id/viewers`: name and phone are used only for a new email. */
 export type NewViewerBody = { name: string; email: string; phone: string }
@@ -262,6 +268,42 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       .filter((t) => t.groupId === groupId)
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
 
+  /** A Team of the Group, else `NOT_FOUND`. */
+  function teamIn(groupId: number, teamId: number): TeamRow {
+    const team = data.teams.find((t) => t.id === teamId && t.groupId === groupId)
+    if (!team) throw notFound()
+    return team
+  }
+
+  /** A Team's name as the API's DTO and TeamName check it: trimmed, 1 to 100 characters. */
+  function teamName(body: TeamBody): string {
+    const name = typeof body?.name === 'string' ? body.name.trim() : ''
+    if (name.length < 1 || name.length > 100) {
+      throw validationError([{ path: 'name', message: 'Dados inválidos.' }])
+    }
+    return name
+  }
+
+  /** The API's unique index on (groupId, lower(name)); `except` is the Team being renamed. */
+  function assertTeamNameFree(groupId: number, name: string, except: number | null) {
+    const lower = name.toLowerCase()
+    if (teamsOf(groupId).some((t) => t.id !== except && t.name.toLowerCase() === lower)) {
+      throw teamNameTaken()
+    }
+  }
+
+  /**
+   * A Team as the API answers it (PROJ-181). `members` comes with PROJ-183, whose shape is assumed
+   * (`[{ userId }]`, see the groups feature's schemas).
+   */
+  const teamJson = ({ id, groupId, name, createdAt, memberIds }: TeamRow) => ({
+    id,
+    groupId,
+    name,
+    createdAt,
+    members: memberIds.map((userId) => ({ userId })),
+  })
+
   /**
    * The Group as the asker reaches it: `NOT_FOUND` when it does not exist or they are not in it,
    * `FORBIDDEN` when they are but only a Viewer and `write` is asked.
@@ -385,20 +427,57 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         })
     },
 
-    /**
-     * `GET /groups/:id/teams` (events-api PROJ-181): the Group's Teams by name. `members` comes
-     * with PROJ-183, whose shape is assumed (`[{ userId }]`, see the groups feature's schemas).
-     */
+    /** `GET /groups/:id/teams` (events-api PROJ-181): the Group's Teams by name. */
     async groupTeams(identity: VerifiedIdentity | null, groupId: number) {
       await delay()
       assertSeesGroup(requester(identity), groupId)
-      return teamsOf(groupId).map(({ id, groupId: group, name, createdAt, memberIds }) => ({
-        id,
-        groupId: group,
+      return teamsOf(groupId).map(teamJson)
+    },
+
+    /**
+     * `POST /groups/:id/teams` (events-api PROJ-181): an Owner or the Super admin creates a Team,
+     * with nobody in it. The name is checked as the API's DTO, then unique in the Group in any case.
+     */
+    async createTeam(identity: VerifiedIdentity | null, groupId: number, body: TeamBody) {
+      await delay()
+      const asker = requester(identity)
+      const name = teamName(body)
+      assertManagesGroup(asker, groupId)
+      assertTeamNameFree(groupId, name, null)
+      const team: TeamRow = {
+        id: Math.max(0, ...data.teams.map((t) => t.id)) + 1,
+        groupId,
         name,
-        createdAt,
-        members: memberIds.map((userId) => ({ userId })),
-      }))
+        createdAt: new Date().toISOString(),
+        memberIds: [],
+      }
+      data.teams.push(team)
+      return teamJson(team)
+    },
+
+    /** `PATCH /groups/:id/teams/:teamId` (events-api PROJ-181): renames a Team of the Group. */
+    async renameTeam(
+      identity: VerifiedIdentity | null,
+      groupId: number,
+      teamId: number,
+      body: TeamBody,
+    ) {
+      await delay()
+      const asker = requester(identity)
+      const name = teamName(body)
+      assertManagesGroup(asker, groupId)
+      const team = teamIn(groupId, teamId)
+      assertTeamNameFree(groupId, name, teamId)
+      team.name = name
+      return teamJson(team)
+    },
+
+    /** `DELETE /groups/:id/teams/:teamId` (events-api PROJ-181): its people stay in the Group. */
+    async deleteTeam(identity: VerifiedIdentity | null, groupId: number, teamId: number) {
+      await delay()
+      assertManagesGroup(requester(identity), groupId)
+      teamIn(groupId, teamId)
+      data.teams = data.teams.filter((t) => t.id !== teamId)
     },
 
     /**
@@ -497,9 +576,26 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     ) {
       await delay()
       assertManagesGroup(requester(identity), groupId)
-      const team = data.teams.find((t) => t.id === teamId && t.groupId === groupId)
-      if (!team || !isMember(userId, groupId)) throw notFound()
+      const team = teamIn(groupId, teamId)
+      if (!isMember(userId, groupId)) throw notFound()
       if (!team.memberIds.includes(userId)) team.memberIds.push(userId)
+    },
+
+    /**
+     * `DELETE /groups/:id/teams/:teamId/members/:userId`, as PROJ-183 plans it: takes a person out
+     * of a Team, `NOT_FOUND` when they are not in it. They stay in the Group.
+     */
+    async removeTeamMember(
+      identity: VerifiedIdentity | null,
+      groupId: number,
+      teamId: number,
+      userId: number,
+    ) {
+      await delay()
+      assertManagesGroup(requester(identity), groupId)
+      const team = teamIn(groupId, teamId)
+      if (!team.memberIds.includes(userId)) throw notFound()
+      team.memberIds = team.memberIds.filter((id) => id !== userId)
     },
 
     /**

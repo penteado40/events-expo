@@ -259,6 +259,112 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
     })
   })
 
+  describe('creating a Team', () => {
+    it('creates the Team with the trimmed name and nobody in it yet', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      const created = await repo.createTeam(1, '  Dança  ')
+
+      expect(created).toEqual({ id: expect.any(Number), name: 'Dança', memberIds: [] })
+      await expect(repo.listTeams(1)).resolves.toContainEqual(created)
+    })
+
+    it('refuses a name the Group already has, in any case, with TEAM_NAME_TAKEN', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.createTeam(1, 'banda')).rejects.toMatchObject({
+        code: 'TEAM_NAME_TAKEN',
+        message: 'Já existe um Team com este nome neste Group.',
+      })
+    })
+
+    it('refuses an empty name with VALIDATION_ERROR', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.createTeam(1, '   ')).rejects.toMatchObject({ code: 'VALIDATION_ERROR' })
+    })
+
+    it('refuses a Viewer with FORBIDDEN', async () => {
+      const repo = createRepository('lu.andrade@example.com')
+
+      await expect(repo.createTeam(1, 'Dança')).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+
+    it('answers NOT_FOUND to someone outside the Group', async () => {
+      const repo = createRepository('ana.prado@example.com')
+
+      await expect(repo.createTeam(1, 'Dança')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+  })
+
+  describe('renaming a Team', () => {
+    it('renames the Team and keeps who is in it', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.renameTeam(1, 5, 'Músicos')).resolves.toEqual({
+        id: 5,
+        name: 'Músicos',
+        memberIds: [3],
+      })
+      await expect(repo.listTeams(1)).resolves.toContainEqual({
+        id: 5,
+        name: 'Músicos',
+        memberIds: [3],
+      })
+    })
+
+    it('takes a new case of its own name', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.renameTeam(1, 5, 'BANDA')).resolves.toMatchObject({ name: 'BANDA' })
+    })
+
+    it("refuses another Team's name with TEAM_NAME_TAKEN", async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.renameTeam(1, 5, 'Cantores')).rejects.toMatchObject({
+        code: 'TEAM_NAME_TAKEN',
+      })
+    })
+
+    it('answers NOT_FOUND for a Team of another Group', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.renameTeam(1, 999, 'Músicos')).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it('refuses a Viewer with FORBIDDEN', async () => {
+      const repo = createRepository('lu.andrade@example.com')
+
+      await expect(repo.renameTeam(1, 5, 'Músicos')).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+  })
+
+  describe('deleting a Team', () => {
+    it('deletes the Team; its people stay in the Group', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await repo.deleteTeam(1, 5)
+
+      const teams = await repo.listTeams(1)
+      expect(teams.map((t) => t.id)).not.toContain(5)
+      const members = await repo.listMembers(1)
+      expect(members.map((m) => m.userId)).toContain(3)
+    })
+
+    it('answers NOT_FOUND for a Team of another Group', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.deleteTeam(1, 999)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it('refuses a Viewer with FORBIDDEN', async () => {
+      const repo = createRepository('lu.andrade@example.com')
+
+      await expect(repo.deleteTeam(1, 5)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
+  })
+
   describe('Team members (PROJ-183, planned)', () => {
     it('puts a Group member in a Team', async () => {
       const repo = createRepository('bruno.reis@example.com')
@@ -280,12 +386,35 @@ describe.each(implementations)('GroupsRepository contract (%s)', (_, createRepos
 
       await expect(repo.addTeamMember(1, 5, 4)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     })
+
+    it('takes a person out of a Team; they stay in the Group', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await repo.removeTeamMember(1, 4, 5)
+
+      const teams = await repo.listTeams(1)
+      expect(teams.find((t) => t.id === 4)?.memberIds).toEqual([4])
+      const members = await repo.listMembers(1)
+      expect(members.map((m) => m.userId)).toContain(5)
+    })
+
+    it('answers NOT_FOUND for someone who is not in the Team', async () => {
+      const repo = createRepository('bruno.reis@example.com')
+
+      await expect(repo.removeTeamMember(1, 5, 4)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it('refuses a Viewer with FORBIDDEN when taking someone out', async () => {
+      const repo = createRepository('lu.andrade@example.com')
+
+      await expect(repo.removeTeamMember(1, 5, 3)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    })
   })
 })
 
-describe('Team members where the repository can add them (PROJ-183)', () => {
-  it('only the mock adds them: the events-api has no Team members yet', () => {
-    expect(createMockGroupsRepository().addsTeamMembers()).toBe(true)
-    expect(createHttpGroupsRepository({} as never).addsTeamMembers()).toBe(false)
+describe('Team members where the repository can change them (PROJ-183)', () => {
+  it('only the mock changes them: the events-api has no Team members yet', () => {
+    expect(createMockGroupsRepository().editsTeamMembers()).toBe(true)
+    expect(createHttpGroupsRepository({} as never).editsTeamMembers()).toBe(false)
   })
 })

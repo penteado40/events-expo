@@ -18,6 +18,7 @@ const ICONS = {
   ),
   back: <Path d="M15 5l-7 7 7 7" />,
   plus: <Path d="M12 5v14M5 12h14" />,
+  close: <Path d="M6 6l12 12M18 6 6 18" />,
   chevronDown: <Path d="m6 9 6 6 6-6" />,
   check: <Path d="M5 12.5l4.5 4.5L19 7.5" />,
   calendar: (

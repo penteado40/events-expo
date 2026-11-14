@@ -6,6 +6,7 @@ export {
   type EventItemBody,
   type MeChanges,
   type MockBackend,
+  type TeamBody,
   type VerifiedIdentity,
 } from './backend'
 export { DEMO_OWNER_ID, DEMO_VIEWER_ID, SUPER_ADMIN_ID } from './data'

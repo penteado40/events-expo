@@ -1,4 +1,4 @@
-import { useRouter, type Href } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useState } from 'react'
 import {
   Pressable,
@@ -18,9 +18,11 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { CurrentGroup } from '../current-group'
 import { useGroupMembers, useGroupTeams } from '../hooks/use-group-people'
+import { useCreateTeam } from '../hooks/use-team-writes'
 import { joinPeopleAndTeams } from '../people-and-teams'
 import { peopleSections } from '../people-sections'
 import { MemberRow } from './member-row'
+import { TeamNameSheet } from './team-name-sheet'
 import { TeamsList } from './teams-list'
 
 type Tab = 'people' | 'teams'
@@ -32,8 +34,6 @@ const TABS: {
   count: (n: number) => string
   add: string
   permission: keyof GroupPermissions
-  /** Where "+" goes; none yet for Teams (PROJ-219). */
-  addRoute?: (groupId: number) => Href
 }[] = [
   {
     tab: 'people',
@@ -41,7 +41,6 @@ const TABS: {
     count: (n) => plural(n, 'pessoa', 'pessoas'),
     add: '+ Pessoa',
     permission: 'managesPeople',
-    addRoute: (groupId) => `/groups/${groupId}/people/add`,
   },
   {
     tab: 'teams',
@@ -60,8 +59,8 @@ type Props = {
 
 /**
  * The Group's people and Teams (D-Pessoas, D-Teams, PROJ-216). "+ Pessoa" and "+ Team" show only
- * to who manages them: "+ Pessoa" adds a Viewer (PROJ-218); "+ Team" comes with PROJ-219. A person
- * opens their page.
+ * to who manages them: "+ Pessoa" adds a Viewer (PROJ-218); "+ Team" names a new Team and opens it
+ * (PROJ-219). A person opens their page, a Team its own.
  */
 export function GroupPeople({ group, onRefresh }: Props) {
   const { colors } = useTheme()
@@ -70,6 +69,8 @@ export function GroupPeople({ group, onRefresh }: Props) {
   const [tab, setTab] = useState<Tab>('people')
   const [query, setQuery] = useState('')
   const [pulling, setPulling] = useState(false)
+  const [creatingTeam, setCreatingTeam] = useState(false)
+  const createTeam = useCreateTeam(group.id)
   const members = useGroupMembers(group.id)
   const teams = useGroupTeams(group.id)
   const permissions = groupPermissions(group.role)
@@ -78,7 +79,8 @@ export function GroupPeople({ group, onRefresh }: Props) {
   const shownQuery = tab === 'people' ? members : teams
   const countLabel = shownQuery.data && shown.count(shownQuery.data.length)
   const canAdd = permissions[shown.permission]
-  const addRoute = shown.addRoute?.(group.id)
+  const add = () =>
+    tab === 'people' ? router.push(`/groups/${group.id}/people/add`) : setCreatingTeam(true)
   // The Pessoas tab does not wait for the Teams: people show first, their Teams once they come.
   const joined = joinPeopleAndTeams(members.data ?? [], teams.data ?? [])
   const sections = peopleSections(joined.people, query)
@@ -101,12 +103,10 @@ export function GroupPeople({ group, onRefresh }: Props) {
           </Text>
           {canAdd && (
             <Pressable
-              disabled={!addRoute}
-              onPress={() => addRoute && router.push(addRoute)}
+              onPress={add}
               accessibilityRole="button"
               accessibilityLabel={shown.add}
-              accessibilityState={{ disabled: !addRoute }}
-              style={[styles.add, !addRoute && styles.addOff]}
+              style={styles.add}
             >
               <Text style={styles.addLabel}>{shown.add}</Text>
             </Pressable>
@@ -163,7 +163,10 @@ export function GroupPeople({ group, onRefresh }: Props) {
         ) : shownQuery.error && !shownQuery.data ? (
           <ErrorState message={shownQuery.error.message} onRetry={() => shownQuery.refetch()} />
         ) : tab === 'teams' ? (
-          <TeamsList teams={joined.teams} />
+          <TeamsList
+            teams={joined.teams}
+            onOpen={(teamId) => router.push(`/groups/${group.id}/teams/${teamId}`)}
+          />
         ) : sections.length === 0 ? (
           <Text style={[textStyles.body, styles.empty, { color: colors.textMuted }]}>
             {query.trim()
@@ -188,6 +191,18 @@ export function GroupPeople({ group, onRefresh }: Props) {
           ))
         )}
       </ScrollView>
+
+      <TeamNameSheet
+        visible={creatingTeam}
+        title="Novo Team"
+        submitLabel="Criar Team"
+        onSubmit={async (name) => {
+          const created = await createTeam.mutateAsync(name)
+          setCreatingTeam(false)
+          router.push(`/groups/${group.id}/teams/${created.id}`)
+        }}
+        onClose={() => setCreatingTeam(false)}
+      />
     </View>
   )
 }
@@ -209,7 +224,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
   },
-  addOff: { opacity: 0.6 },
   addLabel: { fontFamily: fonts.sans700, fontSize: 14, color: palette.blue[700] },
   tabs: { flexDirection: 'row', alignItems: 'baseline', gap: 18 },
   tab: { fontFamily: fonts.sans500, fontSize: 22, color: palette.blue[100] },

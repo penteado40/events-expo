@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { Icon } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
@@ -7,8 +7,14 @@ import { fonts, textStyles, useTheme } from '@/shared/theme'
 
 import type { TeamSummary } from '../people-and-teams'
 
-/** The Teams tab (D-Teams), read only: a card per Team and what choosing one means. */
-export function TeamsList({ teams }: { teams: TeamSummary[] }) {
+type Props = {
+  teams: TeamSummary[]
+  /** Opens the Team (D-Team). */
+  onOpen: (teamId: number) => void
+}
+
+/** The Teams tab (D-Teams): a card per Team, opening it, and what choosing one means. */
+export function TeamsList({ teams, onOpen }: Props) {
   const { colors, cover } = useTheme()
 
   return (
@@ -21,8 +27,15 @@ export function TeamsList({ teams }: { teams: TeamSummary[] }) {
         <View style={styles.grid}>
           {teams.map((team) => {
             const [from, to] = cover(autoTone(team.id))
+            const count = plural(team.memberCount, 'pessoa', 'pessoas')
             return (
-              <View key={team.id} style={[styles.card, { backgroundColor: colors.surface }]}>
+              <Pressable
+                key={team.id}
+                onPress={() => onOpen(team.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`${team.name}, ${count}`}
+                style={[styles.card, { backgroundColor: colors.surface }]}
+              >
                 <View
                   style={[
                     styles.cover,
@@ -31,11 +44,9 @@ export function TeamsList({ teams }: { teams: TeamSummary[] }) {
                 />
                 <View style={styles.body}>
                   <Text style={[styles.name, { color: colors.text }]}>{team.name}</Text>
-                  <Text style={[textStyles.caption, { color: colors.textMuted }]}>
-                    {plural(team.memberCount, 'pessoa', 'pessoas')}
-                  </Text>
+                  <Text style={[textStyles.caption, { color: colors.textMuted }]}>{count}</Text>
                 </View>
-              </View>
+              </Pressable>
             )
           })}
         </View>

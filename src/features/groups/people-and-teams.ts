@@ -31,3 +31,18 @@ export function joinPeopleAndTeams(
     })),
   }
 }
+
+/**
+ * A Team's screen: the Group members in it and the ones who could join, each by name. Someone the
+ * Team still names but who is no longer a Group member is in neither, as in `joinPeopleAndTeams`.
+ */
+export function teamPeople(
+  members: GroupMember[],
+  team: Team,
+): { inTeam: GroupMember[]; outside: GroupMember[] } {
+  const byName = [...members].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+  return {
+    inTeam: byName.filter((m) => team.memberIds.includes(m.userId)),
+    outside: byName.filter((m) => !team.memberIds.includes(m.userId)),
+  }
+}

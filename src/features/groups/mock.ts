@@ -40,8 +40,18 @@ export function createMockGroupsRepository({
       ),
     removeViewer: async (groupId, userId) =>
       backend.removeViewer(await identityOf(getEmail), groupId, userId),
-    addsTeamMembers: () => true,
+    createTeam: async (groupId, name) =>
+      teamSchema.parse(await backend.createTeam(await identityOf(getEmail), groupId, { name })),
+    renameTeam: async (groupId, teamId, name) =>
+      teamSchema.parse(
+        await backend.renameTeam(await identityOf(getEmail), groupId, teamId, { name }),
+      ),
+    deleteTeam: async (groupId, teamId) =>
+      backend.deleteTeam(await identityOf(getEmail), groupId, teamId),
+    editsTeamMembers: () => true,
     addTeamMember: async (groupId, teamId, userId) =>
       backend.addTeamMember(await identityOf(getEmail), groupId, teamId, userId),
+    removeTeamMember: async (groupId, teamId, userId) =>
+      backend.removeTeamMember(await identityOf(getEmail), groupId, teamId, userId),
   }
 }

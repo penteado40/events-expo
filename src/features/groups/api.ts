@@ -30,10 +30,17 @@ export function createHttpGroupsRepository(http: HttpClient): GroupsRepository {
         schema: activationLinkSchema,
       }),
     removeViewer: (groupId, userId) => http.send('DELETE', `/groups/${groupId}/viewers/${userId}`),
-    // PROJ-183 is not built in the events-api yet: the route below answers 404 there.
-    addsTeamMembers: () => false,
+    createTeam: (groupId, name) =>
+      http.post(`/groups/${groupId}/teams`, { body: { name }, schema: teamSchema }),
+    renameTeam: (groupId, teamId, name) =>
+      http.patch(`/groups/${groupId}/teams/${teamId}`, { body: { name }, schema: teamSchema }),
+    deleteTeam: (groupId, teamId) => http.send('DELETE', `/groups/${groupId}/teams/${teamId}`),
+    // PROJ-183 is not built in the events-api yet: the two routes below answer 404 there.
+    editsTeamMembers: () => false,
     addTeamMember: (groupId, teamId, userId) =>
       http.send('PUT', `/groups/${groupId}/teams/${teamId}/members/${userId}`),
+    removeTeamMember: (groupId, teamId, userId) =>
+      http.send('DELETE', `/groups/${groupId}/teams/${teamId}/members/${userId}`),
   }
 }
 
