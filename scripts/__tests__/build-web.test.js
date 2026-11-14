@@ -44,22 +44,24 @@ describe('webBuildEnv', () => {
     expect(() => webBuildEnv({ VERCEL_ENV: 'production' })).toThrow(/API_URL/)
   })
 
-  it('refuses a pk_live_ key', () => {
-    expect(() =>
-      webBuildEnv({ API_URL: 'https://api.example.com', CLERK_PUBLISHABLE_KEY: 'pk_live_x' }),
-    ).toThrow(/pk_live_/)
+  it("accepts a pk_live_ key, from Clerk's production instance", () => {
+    const env = webBuildEnv({
+      API_URL: 'https://api.example.com',
+      CLERK_PUBLISHABLE_KEY: 'pk_live_x',
+    })
+    expect(env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY).toBe('pk_live_x')
   })
 
-  it('refuses a key that is not a pk_test_ one', () => {
+  it('refuses a key that is not a publishable one, such as a secret key', () => {
     expect(() =>
-      webBuildEnv({ API_URL: 'https://api.example.com', CLERK_PUBLISHABLE_KEY: 'sk_test_x' }),
-    ).toThrow(/pk_test_/)
+      webBuildEnv({ API_URL: 'https://api.example.com', CLERK_PUBLISHABLE_KEY: 'sk_live_x' }),
+    ).toThrow(/publishable/)
   })
 
   it('refuses values with surrounding spaces, which the EAS workflow would inline as they are', () => {
     expect(() =>
       webBuildEnv({ API_URL: 'https://api.example.com', CLERK_PUBLISHABLE_KEY: `${KEY} ` }),
-    ).toThrow(/pk_test_/)
+    ).toThrow(/publishable/)
     expect(() =>
       webBuildEnv({ API_URL: ' https://api.example.com', CLERK_PUBLISHABLE_KEY: KEY }),
     ).toThrow(/API_URL/)
