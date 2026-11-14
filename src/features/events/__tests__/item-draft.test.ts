@@ -1,10 +1,16 @@
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
 import {
+  addTextField,
   draftTimezone,
+  editField,
   errorsFromApi,
+  fieldWrites,
   initialItemDraft,
   itemDraftInput,
+  moveField,
+  removeField,
+  toggleHighlight,
   type ItemDraft,
 } from '../item-draft'
 import type { EventItem } from '../schemas'
@@ -18,6 +24,10 @@ const passagem: EventItem = {
   when: { date: '2026-11-21', time: '15:00', timezone: MANAUS_TZ },
   place: { name: 'Teatro Amazonas', address: 'Largo de São Sebastião, s/n', timezone: null },
   state: 'PUBLISHED',
+  fields: [
+    { id: 1, type: 'TEXT', name: 'Obs', value: 'Despachar o som às 14h', highlight: false },
+    { id: 2, type: 'TEXT', name: 'Contato', value: '(92) 98888-0000', highlight: true },
+  ],
 }
 
 const empty = initialItemDraft()
@@ -37,6 +47,7 @@ describe('initialItemDraft', () => {
       placeName: '',
       placeAddress: '',
       placeTimezone: null,
+      fields: [],
     })
   })
 
@@ -48,6 +59,10 @@ describe('initialItemDraft', () => {
       placeName: 'Teatro Amazonas',
       placeAddress: 'Largo de São Sebastião, s/n',
       placeTimezone: null,
+      fields: [
+        { key: 'field-1', id: 1, name: 'Obs', value: 'Despachar o som às 14h', highlight: false },
+        { key: 'field-2', id: 2, name: 'Contato', value: '(92) 98888-0000', highlight: true },
+      ],
     })
   })
 })
@@ -192,5 +207,121 @@ describe('errorsFromApi', () => {
     expect(errorsFromApi(new Error('boom'))).toEqual({
       form: 'Não foi possível salvar. Tente de novo.',
     })
+  })
+})
+
+/** The keys of the draft's Fields, in the editor's order. */
+const keys = (draft: ItemDraft) => draft.fields.map((f) => f.key)
+
+describe('the Field actions', () => {
+  const opened = initialItemDraft(passagem)
+
+  it('adds an empty text Field at the end, out of the Resumo', () => {
+    const added = addTextField(addTextField(opened))
+
+    expect(added.fields.slice(2)).toEqual([
+      { key: 'new-1', id: null, name: '', value: '', highlight: false },
+      { key: 'new-2', id: null, name: '', value: '', highlight: false },
+    ])
+  })
+
+  it('edits the name and the value of one Field', () => {
+    const edited = editField(opened, 'field-1', { value: 'Às 13h' })
+
+    expect(edited.fields[0]).toMatchObject({ name: 'Obs', value: 'Às 13h' })
+    expect(edited.fields[1]).toBe(opened.fields[1])
+  })
+
+  it('turns the Highlight on and off', () => {
+    const on = toggleHighlight(opened, 'field-1')
+
+    expect(on.fields[0].highlight).toBe(true)
+    expect(toggleHighlight(on, 'field-1').fields[0].highlight).toBe(false)
+  })
+
+  it('moves a Field up and down, staying put at either end', () => {
+    expect(keys(moveField(opened, 'field-2', -1))).toEqual(['field-2', 'field-1'])
+    expect(keys(moveField(opened, 'field-1', 1))).toEqual(['field-2', 'field-1'])
+    expect(keys(moveField(opened, 'field-1', -1))).toEqual(['field-1', 'field-2'])
+    expect(keys(moveField(opened, 'field-2', 1))).toEqual(['field-1', 'field-2'])
+  })
+
+  it('deletes a Field', () => {
+    expect(keys(removeField(opened, 'field-1'))).toEqual(['field-2'])
+  })
+})
+
+describe('itemDraftInput, the Fields', () => {
+  it('refuses a Field with no name, or a long name or value, on that Field', () => {
+    const draft = addTextField({ ...filled, fields: [] })
+    const named = (name: string, value = '') => editField(draft, 'new-1', { name, value })
+
+    expect(itemDraftInput(named('  ', 'In-ear'))).toEqual({
+      errors: { 'field:new-1': 'Dê um nome ao Field.' },
+      input: null,
+    })
+    expect(itemDraftInput(named('x'.repeat(101))).errors).toEqual({
+      'field:new-1': 'Use um nome de até 100 caracteres.',
+    })
+    expect(itemDraftInput(named('Obs', 'x'.repeat(2001))).errors).toEqual({
+      'field:new-1': 'Use um valor de até 2000 caracteres.',
+    })
+  })
+})
+
+describe('fieldWrites', () => {
+  const opened = initialItemDraft(passagem)
+
+  it('creating, adds every Field in the editor’s order, trimmed, with its Highlight', () => {
+    let draft = addTextField(addTextField(filled))
+    draft = editField(draft, 'new-1', { name: ' Voltagem ', value: ' 127 V ' })
+    draft = toggleHighlight(editField(draft, 'new-2', { name: 'O que levar', value: '' }), 'new-2')
+    draft = moveField(draft, 'new-2', -1)
+
+    expect(fieldWrites(draft)).toEqual({
+      remove: [],
+      update: [],
+      add: [
+        { key: 'new-2', input: { type: 'TEXT', name: 'O que levar', value: '', highlight: true } },
+        {
+          key: 'new-1',
+          input: { type: 'TEXT', name: 'Voltagem', value: '127 V', highlight: false },
+        },
+      ],
+      order: null,
+    })
+  })
+
+  it('editing, writes nothing when no Field changed', () => {
+    expect(fieldWrites(opened, passagem)).toEqual({ remove: [], update: [], add: [], order: null })
+  })
+
+  it('sends only what changed of a Field, the Highlight on its own', () => {
+    const draft = toggleHighlight(editField(opened, 'field-1', { value: 'Às 13h' }), 'field-2')
+
+    expect(fieldWrites(draft, passagem).update).toEqual([
+      { id: 1, changes: { value: 'Às 13h' } },
+      { id: 2, changes: { highlight: false } },
+    ])
+  })
+
+  it('deletes the Fields gone from the editor', () => {
+    expect(fieldWrites(removeField(opened, 'field-1'), passagem)).toEqual({
+      remove: [1],
+      update: [],
+      add: [],
+      order: null,
+    })
+  })
+
+  it('orders the Fields as the editor has them, by id and a new one by key, when adding at the end would not', () => {
+    const swapped = moveField(opened, 'field-2', -1)
+    const newFirst = moveField(moveField(addTextField(opened), 'new-1', -1), 'new-1', -1)
+    const newLast = addTextField(opened)
+    const named = (draft: ItemDraft) => editField(draft, 'new-1', { name: 'Obs 2' })
+
+    expect(fieldWrites(swapped, passagem).order).toEqual([2, 1])
+    expect(fieldWrites(named(newFirst), passagem).order).toEqual(['new-1', 1, 2])
+    expect(fieldWrites(named(newLast), passagem).order).toBeNull()
   })
 })

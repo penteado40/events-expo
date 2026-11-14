@@ -79,7 +79,7 @@ const API_ITEM = {
 }
 
 describe('HTTP items and schedule over the events-api as it is', () => {
-  it('reads the schedule with the time as { date, time, timezone }', async () => {
+  it('reads the schedule with the time as { date, time, timezone }, and no Fields before PROJ-198', async () => {
     const { eventId: _, createdAt: __, updatedAt: ___, ...scheduled } = API_ITEM
     const { http, fetch } = clientAnswering({
       data: { generalInfo: [], timeline: [{ date: '2026-11-14', items: [scheduled] }] },
@@ -87,7 +87,7 @@ describe('HTTP items and schedule over the events-api as it is', () => {
 
     await expect(createHttpScheduleRepository(http).get(7)).resolves.toEqual({
       generalInfo: [],
-      timeline: [{ date: '2026-11-14', items: [scheduled] }],
+      timeline: [{ date: '2026-11-14', items: [{ ...scheduled, fields: [] }] }],
     })
     expect(fetch.mock.calls[0][0]).toBe('https://api.test/events/7/schedule')
   })
@@ -104,6 +104,7 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       when: { date: '2026-11-14', time: '15:00', timezone: 'America/Manaus' },
       place: { name: 'Teatro Amazonas', address: null, timezone: null },
       state: 'PUBLISHED',
+      fields: [],
     })
     expect(fetch.mock.calls[0][0]).toBe('https://api.test/events/7/items')
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual(input)
@@ -123,5 +124,37 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     await expect(
       createHttpEventItemsRepository(http).update(7, 9, { date: null }),
     ).rejects.toMatchObject({ code: 'EVENT_ITEM_TIME_WITHOUT_DATE' })
+  })
+
+  it('writes a Field and its order on the item’s fields routes', async () => {
+    const field = { id: 4, type: 'TEXT', name: 'Obs', value: 'Despachar o som', highlight: true }
+    const { http, fetch } = clientAnswering({ data: field }, 201)
+    const items = createHttpEventItemsRepository(http)
+
+    await expect(
+      items.addField(7, 9, {
+        type: 'TEXT',
+        name: 'Obs',
+        value: 'Despachar o som',
+        highlight: true,
+      }),
+    ).resolves.toEqual(field)
+    await items.updateField(7, 9, 4, { highlight: false })
+    await items.orderFields(7, 9, [4, 3])
+
+    const calls = fetch.mock.calls.map(([url, init]) => [
+      init?.method,
+      url,
+      JSON.parse(String(init?.body)),
+    ])
+    expect(calls).toEqual([
+      [
+        'POST',
+        'https://api.test/events/7/items/9/fields',
+        { type: 'TEXT', name: 'Obs', value: 'Despachar o som', highlight: true },
+      ],
+      ['PATCH', 'https://api.test/events/7/items/9/fields/4', { highlight: false }],
+      ['PUT', 'https://api.test/events/7/items/9/fields/order', { fieldIds: [4, 3] }],
+    ])
   })
 })

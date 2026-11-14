@@ -1,12 +1,30 @@
 import { dateFromTyping, timeFromTyping, typedDate } from '@/shared/domain/local-dates'
 import { ApiError } from '@/shared/lib/api-error'
 
-import type { EventItemChanges, EventItemInput, ItemPlaceInput } from './repository'
+import type {
+  EventItemChanges,
+  EventItemInput,
+  ItemFieldChanges,
+  ItemFieldInput,
+  ItemPlaceInput,
+} from './repository'
 import type { EventItem } from './schemas'
 
 /**
- * The item draft (PRD, pure modules): the editor's state of an Event item, for now its name, date,
- * time and place (Fields and Audience come with PROJ-223 and after). The date is typed
+ * A text Field as the editor holds it: `key` names it on screen (`field-<id>` for one the item
+ * has, `new-<n>` for one added here), `id` is the API's, `null` until it is saved.
+ */
+export type FieldDraft = {
+  key: string
+  id: number | null
+  name: string
+  value: string
+  highlight: boolean
+}
+
+/**
+ * The item draft (PRD, pure modules): the editor's state of an Event item, its name, date, time,
+ * place and text Fields in the editor's order (Audience comes after). The date is typed
  * `DD/MM/AAAA` and the time `HH:mm`, both local to the place, never converted.
  */
 export type ItemDraft = {
@@ -17,14 +35,22 @@ export type ItemDraft = {
   placeAddress: string
   /** The place's own IANA zone; `null` means the Event's. */
   placeTimezone: string | null
+  fields: FieldDraft[]
 }
 
-/** What is wrong with each field, or with the save as a whole (`form`). */
-export type ItemDraftErrors = Partial<Record<keyof ItemDraft | 'form', string>>
+/**
+ * What is wrong with each input, with each Field (`field:<key>`), or with the save as a whole
+ * (`form`).
+ */
+export type ItemDraftErrors = Partial<
+  Record<Exclude<keyof ItemDraft, 'fields'> | 'form' | `field:${string}`, string>
+>
 
 const NAME_MAX = 200
 const PLACE_NAME_MAX = 200
 const PLACE_ADDRESS_MAX = 500
+const FIELD_NAME_MAX = 100
+const FIELD_VALUE_MAX = 2000
 
 const MESSAGES = {
   nameMissing: 'Informe o nome do item.',
@@ -34,6 +60,9 @@ const MESSAGES = {
   timeWithoutDate: 'Para pôr a hora, informe o dia.',
   placeNameLong: `Use até ${PLACE_NAME_MAX} caracteres.`,
   placeAddressLong: `Use até ${PLACE_ADDRESS_MAX} caracteres.`,
+  fieldNameMissing: 'Dê um nome ao Field.',
+  fieldNameLong: `Use um nome de até ${FIELD_NAME_MAX} caracteres.`,
+  fieldValueLong: `Use um valor de até ${FIELD_VALUE_MAX} caracteres.`,
   saveFailed: 'Não foi possível salvar. Tente de novo.',
 }
 
@@ -46,7 +75,102 @@ export function initialItemDraft(item?: EventItem): ItemDraft {
     placeName: item?.place?.name ?? '',
     placeAddress: item?.place?.address ?? '',
     placeTimezone: item?.place?.timezone ?? null,
+    fields: (item?.fields ?? []).map(({ id, name, value, highlight }) => ({
+      key: fieldKey(id),
+      id,
+      name,
+      value,
+      highlight,
+    })),
   }
+}
+
+const fieldKey = (id: number) => `field-${id}`
+
+/** "+ Field de texto": an empty text Field at the end, out of the Resumo. */
+export function addTextField(draft: ItemDraft): ItemDraft {
+  const added = draft.fields.map((f) => Number(f.key.match(/^new-(\d+)$/)?.[1] ?? 0))
+  const key = `new-${Math.max(0, ...added) + 1}`
+  return {
+    ...draft,
+    fields: [...draft.fields, { key, id: null, name: '', value: '', highlight: false }],
+  }
+}
+
+/** Typing in a Field's name or value. */
+export function editField(
+  draft: ItemDraft,
+  key: string,
+  changes: Partial<Pick<FieldDraft, 'name' | 'value'>>,
+): ItemDraft {
+  return { ...draft, fields: draft.fields.map((f) => (f.key === key ? { ...f, ...changes } : f)) }
+}
+
+/** "no Resumo": the Highlight on or off. */
+export function toggleHighlight(draft: ItemDraft, key: string): ItemDraft {
+  return {
+    ...draft,
+    fields: draft.fields.map((f) => (f.key === key ? { ...f, highlight: !f.highlight } : f)),
+  }
+}
+
+/** One place up (`-1`) or down (`1`); at either end it stays. */
+export function moveField(draft: ItemDraft, key: string, by: -1 | 1): ItemDraft {
+  const from = draft.fields.findIndex((f) => f.key === key)
+  const to = from + by
+  if (from < 0 || to < 0 || to >= draft.fields.length) return draft
+  const fields = [...draft.fields]
+  ;[fields[from], fields[to]] = [fields[to], fields[from]]
+  return { ...draft, fields }
+}
+
+export function removeField(draft: ItemDraft, key: string): ItemDraft {
+  return { ...draft, fields: draft.fields.filter((f) => f.key !== key) }
+}
+
+/**
+ * The Field writes a save makes, after the item's own (PROJ-198 routes): delete the Fields gone,
+ * edit what changed of the others, add the new ones at the end in the editor's order, and then,
+ * only when that would not already leave them in the editor's order, order them all: by id, and
+ * a new one by its key, as it gets its id only when added. Assumes a draft `itemDraftInput`
+ * accepted.
+ */
+export type FieldWrites = {
+  remove: number[]
+  update: { id: number; changes: ItemFieldChanges }[]
+  add: { key: string; input: ItemFieldInput }[]
+  order: (number | string)[] | null
+}
+
+export function fieldWrites(draft: ItemDraft, item?: EventItem): FieldWrites {
+  const before = item?.fields ?? []
+  const kept = new Set(draft.fields.flatMap((f) => (f.id === null ? [] : [f.id])))
+  const update: FieldWrites['update'] = []
+  const add: FieldWrites['add'] = []
+  for (const field of draft.fields) {
+    const name = field.name.trim()
+    const value = field.value.trim()
+    const was = field.id === null ? undefined : before.find((f) => f.id === field.id)
+    if (!was) {
+      add.push({ key: field.key, input: { type: 'TEXT', name, value, highlight: field.highlight } })
+      continue
+    }
+    const changes: ItemFieldChanges = {
+      ...(name !== was.name && { name }),
+      ...(value !== was.value && { value }),
+      ...(field.highlight !== was.highlight && { highlight: field.highlight }),
+    }
+    if (Object.keys(changes).length > 0) update.push({ id: was.id, changes })
+  }
+  const remove = before.filter((f) => !kept.has(f.id)).map((f) => f.id)
+  const saved = [
+    ...before.filter((f) => kept.has(f.id)).map((f) => fieldKey(f.id)),
+    ...add.map((a) => a.key),
+  ]
+  const wanted = draft.fields.map((f) => f.key)
+  const inOrder = saved.every((key, i) => key === wanted[i])
+  const order = inOrder ? null : draft.fields.map((f) => f.id ?? f.key)
+  return { remove, update, add, order }
 }
 
 /** Whose clock the time is on: the place's own zone, or else the Event's ("Hora · Manaus"). */
@@ -88,6 +212,17 @@ export function itemDraftInput(
   if (placeAddress && placeAddress.length > PLACE_ADDRESS_MAX) {
     errors.placeAddress = MESSAGES.placeAddressLong
   }
+  for (const field of draft.fields) {
+    const fieldName = field.name.trim()
+    const message = !fieldName
+      ? MESSAGES.fieldNameMissing
+      : fieldName.length > FIELD_NAME_MAX
+        ? MESSAGES.fieldNameLong
+        : field.value.trim().length > FIELD_VALUE_MAX
+          ? MESSAGES.fieldValueLong
+          : null
+    if (message) errors[`field:${field.key}`] = message
+  }
 
   if (Object.keys(errors).length > 0) return { errors, input: null }
   const place: ItemPlaceInput | null =
@@ -110,7 +245,7 @@ export function itemDraftInput(
   return { errors, input: Object.keys(changes).length > 0 ? changes : null }
 }
 
-const FIELD_BY_PATH: Record<string, [keyof ItemDraft, string]> = {
+const FIELD_BY_PATH: Record<string, [Exclude<keyof ItemDraft, 'fields'>, string]> = {
   name: ['name', 'Confira o nome do item.'],
   date: ['date', 'Confira o dia.'],
   time: ['time', 'Confira a hora.'],

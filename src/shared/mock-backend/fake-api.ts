@@ -5,6 +5,8 @@ import {
   notFound,
   type EventBody,
   type EventItemBody,
+  type FieldOrderBody,
+  type ItemFieldBody,
   type MeChanges,
   type MockBackend,
   type NewViewerBody,
@@ -103,6 +105,29 @@ export function createFakeApi({
       if (item?.[1] === 'DELETE') {
         await backend.deleteItem(identity, Number(item[2]), Number(item[3]))
         return noContent()
+      }
+      const fieldBody = () => JSON.parse(String(init?.body ?? '{}')) as ItemFieldBody
+      const fields = route.match(/^POST \/events\/(\d+)\/items\/(\d+)\/fields$/)
+      if (fields) {
+        const [eventId, itemId] = fields.slice(1).map(Number)
+        return json(201, { data: await backend.addField(identity, eventId, itemId, fieldBody()) })
+      }
+      const order = route.match(/^PUT \/events\/(\d+)\/items\/(\d+)\/fields\/order$/)
+      if (order) {
+        const [eventId, itemId] = order.slice(1).map(Number)
+        const orderBody = JSON.parse(String(init?.body ?? '{}')) as FieldOrderBody
+        await backend.orderFields(identity, eventId, itemId, orderBody)
+        return noContent()
+      }
+      const field = route.match(/^(PATCH|DELETE) \/events\/(\d+)\/items\/(\d+)\/fields\/(\d+)$/)
+      if (field) {
+        const [eventId, itemId, fieldId] = field.slice(2).map(Number)
+        if (field[1] === 'DELETE') {
+          await backend.deleteField(identity, eventId, itemId, fieldId)
+          return noContent()
+        }
+        const edited = await backend.updateField(identity, eventId, itemId, fieldId, fieldBody())
+        return json(200, { data: edited })
       }
       const schedule = route.match(/^GET \/events\/(\d+)\/schedule$/)
       if (schedule) {

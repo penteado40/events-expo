@@ -8,6 +8,7 @@ import {
   createDataset,
   type EventItemRow,
   type EventRow,
+  type ItemFieldRow,
   type ItemPlaceRow,
   type TeamRow,
   type UserRow,
@@ -184,6 +185,46 @@ function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
   }
   if (details.length > 0) throw validationError(details)
   return { name: name?.trim(), date, time, place: checkedPlace }
+}
+
+/** The body of `POST …/items/:itemId/fields`, and of `PATCH` with no type (PROJ-198, PROJ-200). */
+export type ItemFieldBody = { type?: string; name?: string; value?: string; highlight?: boolean }
+
+/** The body of `PUT …/items/:itemId/fields/order`. */
+export type FieldOrderBody = { fieldIds?: number[] }
+
+const FIELD_NAME_MAX = 100
+const FIELD_VALUE_MAX = 2000
+
+/**
+ * Checks a Field's body as the API's DTO would: for now only `TEXT`, a name of 1 to 100 characters
+ * trimmed, a value (empty too) of up to 2000, and the Highlight. An edit never changes the type.
+ */
+function checkFieldBody(body: ItemFieldBody, { partial }: { partial: boolean }) {
+  const { type, name, value, highlight, ...rest } = body
+  const details: Detail[] = Object.keys(rest).map((key) => ({
+    path: key,
+    message: 'Campo desconhecido.',
+  }))
+  if (partial ? type !== undefined : type !== 'TEXT') {
+    details.push({ path: 'type', message: 'Use TEXT.' })
+  }
+  if (name === undefined && !partial) details.push({ path: 'name', message: 'Obrigatório.' })
+  if (name !== undefined && (name.trim().length < 1 || name.trim().length > FIELD_NAME_MAX)) {
+    details.push({ path: 'name', message: `Use de 1 a ${FIELD_NAME_MAX} caracteres.` })
+  }
+  if (value === undefined && !partial) details.push({ path: 'value', message: 'Obrigatório.' })
+  if (value !== undefined && value.trim().length > FIELD_VALUE_MAX) {
+    details.push({ path: 'value', message: `Use até ${FIELD_VALUE_MAX} caracteres.` })
+  }
+  if (highlight !== undefined && typeof highlight !== 'boolean') {
+    details.push({ path: 'highlight', message: 'Use true ou false.' })
+  }
+  if (partial && Object.keys(body).length === 0) {
+    details.push({ path: '', message: 'Envie ao menos um campo.' })
+  }
+  if (details.length > 0) throw validationError(details)
+  return { name: name?.trim(), value: value?.trim(), highlight }
 }
 
 /** A place with no part is the domain's refusal (after who may write), with no details. */
@@ -386,9 +427,19 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
   /** An Event item as the schedule shows it: when it starts, in its place's zone or the Event's. */
   function scheduleItemJson(row: EventItemRow, event: EventRow) {
-    const { id, name, date, time, place, state } = row
+    const { id, name, date, time, place, state, fields } = row
     const when = date === null ? null : { date, time, timezone: place?.timezone ?? event.timezone }
-    return { id, name, when, place: place && { ...place }, state }
+    return { id, name, when, place: place && { ...place }, state, fields: fields.map(fieldJson) }
+  }
+
+  const fieldJson = (field: ItemFieldRow) => ({ ...field })
+
+  /** The Field of that item: `NOT_FOUND` when it is another item's. */
+  function reachField(asker: UserRow, eventId: number, itemId: number, fieldId: number) {
+    const { row } = reachItem(asker, eventId, itemId)
+    const field = row.fields.find((f) => f.id === fieldId)
+    if (!field) throw notFound()
+    return { row, field }
   }
 
   /** An Event item as a write returns it. */
@@ -751,6 +802,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         time,
         place: checked.place ?? null,
         state: 'PUBLISHED',
+        fields: [],
         createdAt: at,
         updatedAt: at,
       }
@@ -791,6 +843,83 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       await delay()
       const { row } = reachItem(requester(identity), eventId, itemId)
       data.items.splice(data.items.indexOf(row), 1)
+    },
+
+    /** `POST /events/:id/items/:itemId/fields` (PROJ-198): a text Field at the end of the item's. */
+    async addField(
+      identity: VerifiedIdentity | null,
+      eventId: number,
+      itemId: number,
+      body: ItemFieldBody,
+    ) {
+      await delay()
+      const asker = requester(identity)
+      const checked = checkFieldBody(body, { partial: false })
+      const { row } = reachItem(asker, eventId, itemId)
+      const field: ItemFieldRow = {
+        id: Math.max(0, ...data.items.flatMap((i) => i.fields.map((f) => f.id))) + 1,
+        type: 'TEXT',
+        name: checked.name!,
+        value: checked.value!,
+        highlight: checked.highlight ?? false,
+      }
+      row.fields.push(field)
+      return fieldJson(field)
+    },
+
+    /** `PATCH …/fields/:fieldId` (PROJ-198, PROJ-200): name, value or Highlight; the rest stays. */
+    async updateField(
+      identity: VerifiedIdentity | null,
+      eventId: number,
+      itemId: number,
+      fieldId: number,
+      body: ItemFieldBody,
+    ) {
+      await delay()
+      const asker = requester(identity)
+      const { name, value, highlight } = checkFieldBody(body, { partial: true })
+      const { field } = reachField(asker, eventId, itemId, fieldId)
+      if (name !== undefined) field.name = name
+      if (value !== undefined) field.value = value
+      if (highlight !== undefined) field.highlight = highlight
+      return fieldJson(field)
+    },
+
+    /** `DELETE …/fields/:fieldId` (PROJ-198). */
+    async deleteField(
+      identity: VerifiedIdentity | null,
+      eventId: number,
+      itemId: number,
+      fieldId: number,
+    ) {
+      await delay()
+      const { row, field } = reachField(requester(identity), eventId, itemId, fieldId)
+      row.fields.splice(row.fields.indexOf(field), 1)
+    },
+
+    /** `PUT …/fields/order` (PROJ-198): every Field of the item, each once, in the new order. */
+    async orderFields(
+      identity: VerifiedIdentity | null,
+      eventId: number,
+      itemId: number,
+      body: FieldOrderBody,
+    ) {
+      await delay()
+      const asker = requester(identity)
+      const ids = body.fieldIds
+      if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id))) {
+        throw validationError([{ path: 'fieldIds', message: 'Envie os ids dos Fields.' }])
+      }
+      const { row } = reachItem(asker, eventId, itemId)
+      const fields = ids.map((id) => row.fields.find((f) => f.id === id))
+      if (
+        ids.length !== row.fields.length ||
+        new Set(ids).size !== ids.length ||
+        fields.some((f) => f === undefined)
+      ) {
+        throw validationError([{ path: 'fieldIds', message: 'Envie cada Field do item uma vez.' }])
+      }
+      row.fields = fields as ItemFieldRow[]
     },
 
     /**

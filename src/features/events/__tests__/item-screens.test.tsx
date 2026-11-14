@@ -42,7 +42,7 @@ const allItems = async (eventId: number) => {
 }
 
 /** The items written in Turnê Minas (the Owner writes items only in an Event in Draft). */
-const minas = { passagem: 0, show: 0 }
+const minas = { passagem: 0, show: 0, fields: { obs: 0, contato: 0 } }
 beforeAll(async () => {
   const palacio = { name: 'Palácio das Artes', address: 'Av. Afonso Pena, 1537' }
   minas.passagem = (
@@ -61,6 +61,10 @@ beforeAll(async () => {
       place: palacio,
     })
   ).id
+  const field = (name: string, value: string) =>
+    mockBackend.addField(BRUNO, MINAS, minas.show, { type: 'TEXT', name, value })
+  minas.fields.obs = (await field('Obs', 'Figurino azul')).id
+  minas.fields.contato = (await field('Contato', 'Produção: (27) 99999-0000')).id
   await mockBackend.createItem(BRUNO, MINAS, {
     name: 'Check-out',
     date: '2027-03-14',
@@ -241,6 +245,45 @@ describe('NewItemScreen', () => {
     })
   })
 
+  it('creates the item with its text Fields in the editor’s order, one in the Resumo', async () => {
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
+
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio geral')
+    await press('+ Field de texto')
+    await press('+ Field de texto')
+    const names = screen.getAllByLabelText('Nome do Field')
+    const values = screen.getAllByLabelText('Valor')
+    await fireEvent.changeText(names[0], 'Voltagem')
+    await fireEvent.changeText(values[0], '127 V')
+    await fireEvent.changeText(names[1], 'O que levar')
+    await fireEvent.changeText(values[1], 'In-ear e garrafa')
+    await press('O que levar no Resumo')
+    expect(screen.getByRole('button', { name: 'O que levar no Resumo' })).toBeSelected()
+    await press('Subir O que levar')
+    await press('Criar item')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    const created = (await allItems(MINAS)).find((i) => i.name === 'Ensaio geral')
+    expect(created?.fields).toEqual([
+      expect.objectContaining({ name: 'O que levar', value: 'In-ear e garrafa', highlight: true }),
+      expect.objectContaining({ name: 'Voltagem', value: '127 V', highlight: false }),
+    ])
+  })
+
+  it('refuses a Field with no name on it, sending nothing', async () => {
+    const createItem = jest.spyOn(mockBackend, 'createItem')
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
+
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio')
+    await press('+ Field de texto')
+    await fireEvent.changeText(field('Valor'), 'Sem nome')
+    await press('Criar item')
+
+    expect(screen.getByText('Dê um nome ao Field.')).toBeOnTheScreen()
+    expect(createItem).not.toHaveBeenCalled()
+    createItem.mockRestore()
+  })
+
   it('is not open in a published Event', async () => {
     await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
 
@@ -265,6 +308,30 @@ describe('EditItemScreen', () => {
       when: { date: '2027-03-13', time: '17:00', timezone: 'America/Sao_Paulo' },
       place: { name: 'Palácio das Artes' },
     })
+  })
+
+  it('edits, deletes, reorders and highlights the item’s text Fields, saved in that order', async () => {
+    await renderAs(OWNER, <EditItemScreen eventId={MINAS} itemId={minas.show} />)
+
+    expect(await screen.findByDisplayValue('Figurino azul')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Obs no Resumo' })).not.toBeSelected()
+    await fireEvent.changeText(screen.getByDisplayValue('Figurino azul'), 'Figurino preto')
+    await press('Obs no Resumo')
+    await press('+ Field de texto')
+    await fireEvent.changeText(screen.getAllByLabelText('Nome do Field')[2], 'Voltagem')
+    await fireEvent.changeText(screen.getAllByLabelText('Valor')[2], '220 V')
+    await press('Subir Voltagem')
+    await press('Subir Voltagem')
+    await press('Apagar Contato')
+    expect(screen.queryByDisplayValue('Produção: (27) 99999-0000')).toBeNull()
+    await press('Salvar')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    const show = (await allItems(MINAS)).find((i) => i.id === minas.show)
+    expect(show?.fields).toEqual([
+      expect.objectContaining({ name: 'Voltagem', value: '220 V', highlight: false }),
+      { id: minas.fields.obs, type: 'TEXT', name: 'Obs', value: 'Figurino preto', highlight: true },
+    ])
   })
 
   it('is not open for an item of a published Event', async () => {

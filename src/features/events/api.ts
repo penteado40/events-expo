@@ -21,7 +21,13 @@ import type {
   ParticipantsRepository,
   ScheduleRepository,
 } from './repository'
-import { eventItemSchema, eventSchema, participantSchema, scheduleSchema } from './schemas'
+import {
+  eventItemSchema,
+  eventSchema,
+  itemFieldSchema,
+  participantSchema,
+  scheduleSchema,
+} from './schemas'
 
 export type {
   EventChanges,
@@ -31,12 +37,22 @@ export type {
   EventItemsRepository,
   EventsRepository,
   GroupPeopleRepository,
+  ItemFieldChanges,
+  ItemFieldInput,
   ItemPlaceInput,
   ParticipantsFrom,
   ParticipantsRepository,
   ScheduleRepository,
 } from './repository'
-export type { Event, EventItem, ItemPlace, ItemWhen, Participant, Schedule } from './schemas'
+export type {
+  Event,
+  EventItem,
+  ItemField,
+  ItemPlace,
+  ItemWhen,
+  Participant,
+  Schedule,
+} from './schemas'
 export type { GroupMember } from '@/shared/domain/group-member'
 export type { Team } from '@/shared/domain/team'
 
@@ -65,6 +81,20 @@ export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepo
     update: (eventId, itemId, changes) =>
       http.patch(`/events/${eventId}/items/${itemId}`, { body: changes, schema: eventItemSchema }),
     remove: (eventId, itemId) => http.send('DELETE', `/events/${eventId}/items/${itemId}`),
+    addField: (eventId, itemId, input) =>
+      http.post(`/events/${eventId}/items/${itemId}/fields`, {
+        body: input,
+        schema: itemFieldSchema,
+      }),
+    updateField: (eventId, itemId, fieldId, changes) =>
+      http.patch(`/events/${eventId}/items/${itemId}/fields/${fieldId}`, {
+        body: changes,
+        schema: itemFieldSchema,
+      }),
+    removeField: (eventId, itemId, fieldId) =>
+      http.send('DELETE', `/events/${eventId}/items/${itemId}/fields/${fieldId}`),
+    orderFields: (eventId, itemId, fieldIds) =>
+      http.send('PUT', `/events/${eventId}/items/${itemId}/fields/order`, { body: { fieldIds } }),
   }
 }
 

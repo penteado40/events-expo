@@ -41,9 +41,18 @@ export type EventRow = {
 /** A place as the mock stores it (events-api PROJ-187): no zone of its own means the Event's. */
 export type ItemPlaceRow = { name: string | null; address: string | null; timezone: string | null }
 
+/** A Field of an Event item (events-api PROJ-198): for now only text, with its Highlight. */
+export type ItemFieldRow = {
+  id: number
+  type: 'TEXT'
+  name: string
+  value: string
+  highlight: boolean
+}
+
 /**
  * An Event item as the mock stores it: local date and time, never converted (ADR-0016), in the
- * production's order (for now, creation's).
+ * production's order (for now, creation's), with its Fields in the order the production gave.
  */
 export type EventItemRow = {
   id: number
@@ -53,6 +62,7 @@ export type EventItemRow = {
   time: string | null
   place: ItemPlaceRow | null
   state: 'PUBLISHED'
+  fields: ItemFieldRow[]
   createdAt: string
   updatedAt: string
 }
@@ -151,7 +161,10 @@ export function createDataset() {
       timezone: null,
     }),
     item(5, 'Show', ['2026-11-21', '19:00'], teatro),
-    item(6, 'Passagem de som', ['2026-11-21', '16:00'], teatro),
+    item(6, 'Passagem de som', ['2026-11-21', '16:00'], teatro, [
+      textField(1, 'Obs', 'Despachar o som às 14h'),
+      textField(2, 'Contato', 'Técnico do teatro: (92) 98888-0000', true),
+    ]),
     item(7, 'Almoço', ['2026-11-21', null]),
     // The transfer after Saturday's show is Sunday's: its date is the calendar's.
     item(8, 'Translado de volta', ['2026-11-22', '00:40']),
@@ -168,6 +181,7 @@ export function createDataset() {
     name: string,
     [date, time]: [string | null, string | null] = [null, null],
     place: ItemPlaceRow | null = null,
+    fields: ItemFieldRow[] = [],
   ): EventItemRow {
     const at = '2026-10-20T12:00:00.000Z'
     return {
@@ -178,9 +192,14 @@ export function createDataset() {
       time,
       place,
       state: 'PUBLISHED',
+      fields,
       createdAt: at,
       updatedAt: at,
     }
+  }
+
+  function textField(id: number, name: string, value: string, highlight = false): ItemFieldRow {
+    return { id, type: 'TEXT', name, value, highlight }
   }
 
   function team(id: number, name: string, memberIds: number[]): TeamRow {
