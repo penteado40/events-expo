@@ -351,19 +351,18 @@ export function setAudienceKind(
 }
 
 /**
- * A Team in the chosen list: copies who of it goes, each once, or, when they all are in already,
- * takes them back out. The Team is never kept, only its people; it chooses the list from "Todos".
+ * "Copiar de um Team": adds who of it goes to the chosen list, each once, choosing the list from
+ * "Todos". The Team is never kept, only its people; taking someone out is done one by one.
  */
-export function toggleTeam(
+export function copyTeam(
   audience: AudienceDraft,
   team: Team,
   participantIds: readonly number[],
 ): AudienceDraft {
-  const people = teamParticipants(team, participantIds)
-  const userIds = teamCopied(audience, team, participantIds)
-    ? audience.userIds.filter((id) => !people.includes(id))
-    : ascending([...audience.userIds, ...people])
-  return { kind: 'SELECTED', userIds }
+  return {
+    kind: 'SELECTED',
+    userIds: ascending([...audience.userIds, ...teamParticipants(team, participantIds)]),
+  }
 }
 
 /** One Participant ("avulso") in or out of the chosen list. */
@@ -399,11 +398,15 @@ function audienceInput({ kind, userIds }: AudienceDraft): Audience {
   return kind === 'ALL' ? { kind } : { kind, userIds }
 }
 
+/** Whether two id lists, both ascending, hold the same ids. */
+const sameIds = (a: readonly number[], b: readonly number[]) =>
+  a.length === b.length && a.every((id, i) => id === b[i])
+
 /** Whether the Audience is the item's (`"Todos"` for a new item). */
 function sameAudience(draft: AudienceDraft, item?: EventItem): boolean {
   const was = audienceDraft(item?.audience)
   if (draft.kind !== was.kind) return false
-  return draft.kind === 'ALL' || JSON.stringify(draft.userIds) === JSON.stringify(was.userIds)
+  return draft.kind === 'ALL' || sameIds(draft.userIds, was.userIds)
 }
 
 /** The Field writes of a save, one route each (PROJ-198), made after the item's own. */

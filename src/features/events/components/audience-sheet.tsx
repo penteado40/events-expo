@@ -10,11 +10,11 @@ import { fonts, spacing, textStyles, useTheme } from '@/shared/theme'
 import type { Team } from '../api'
 import {
   audienceReach,
+  copyTeam,
   setAudienceKind,
   teamCopied,
   teamParticipants,
   togglePerson,
-  toggleTeam,
   type AudienceDraft,
   type FieldDraft,
   type PersonChoice,
@@ -88,10 +88,12 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
                 return (
                   <Pressable
                     key={team.id}
-                    onPress={() => setChoice((c) => toggleTeam(c, team, going))}
-                    accessibilityRole="checkbox"
-                    accessibilityLabel={label}
-                    accessibilityState={{ checked: on }}
+                    onPress={() => setChoice((c) => copyTeam(c, team, going))}
+                    disabled={on}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Copiar ${label}`}
+                    accessibilityHint={on ? 'Já está todo na lista' : undefined}
+                    accessibilityState={{ disabled: on }}
                     style={[
                       styles.team,
                       { backgroundColor: on ? chip.text : chip.bg, borderColor: chip.text },
@@ -106,7 +108,8 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
               })}
             </View>
             <Text style={[textStyles.caption, { color: colors.textMuted }]}>
-              Copia quem do Team vai agora; mudar o Team depois não muda a lista.
+              Copia quem do Team vai agora; mudar o Team depois não muda a lista. Para tirar alguém,
+              desmarque em Avulsos.
             </Text>
           </>
         )}

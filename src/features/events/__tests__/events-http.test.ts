@@ -222,6 +222,30 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ audience })
   })
 
+  it('creates an item with a chosen Audience in the body', async () => {
+    const audience: Audience = { kind: 'SELECTED', userIds: [5] }
+    const { http, fetch } = clientAnswering({ data: { ...API_ITEM, audience } }, 201)
+    const input = { name: 'Ensaio no hotel', audience }
+
+    const created = await createHttpEventItemsRepository(http).create(7, input)
+
+    expect(created.audience).toEqual(audience)
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual(input)
+  })
+
+  it("throws the API's 409 for someone chosen who is not going", async () => {
+    const { http } = clientAnswering(
+      { error: { code: 'NOT_A_PARTICIPANT', message: 'Só Participants do Event.' } },
+      409,
+    )
+
+    await expect(
+      createHttpEventItemsRepository(http).update(7, 9, {
+        audience: { kind: 'SELECTED', userIds: [9] },
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_A_PARTICIPANT' })
+  })
+
   it('offers no choice of Audience until the events-api has it', () => {
     const { http } = clientAnswering({ data: null })
 

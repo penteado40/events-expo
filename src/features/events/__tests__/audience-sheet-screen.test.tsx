@@ -56,8 +56,8 @@ describe('"Quem vê" in the item editor', () => {
 
     await fireEvent.press(screen.getByRole('radio', { name: /^Escolher pessoas/ }))
     expect(screen.getByText('0 pessoas veem')).toBeOnTheScreen()
-    await fireEvent.press(screen.getByRole('checkbox', { name: 'Cantores · 2' }))
-    expect(screen.getByRole('checkbox', { name: 'Cantores · 2' })).toBeChecked()
+    await fireEvent.press(screen.getByRole('button', { name: 'Copiar Cantores · 2' }))
+    expect(screen.getByRole('button', { name: 'Copiar Cantores · 2' })).toBeDisabled()
     expect(screen.getByRole('checkbox', { name: 'Jacque Moreira' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Lu Andrade' })).toBeChecked()
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Matias Costa' }))

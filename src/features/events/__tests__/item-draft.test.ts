@@ -22,7 +22,7 @@ import {
   teamParticipants,
   toggleHighlight,
   togglePerson,
-  toggleTeam,
+  copyTeam,
   audienceReach,
   type AudienceDraft,
   type ItemDraft,
@@ -603,16 +603,16 @@ describe('the Audience ("Quem vê")', () => {
   it('copies a Team into a chosen list, without repeating anyone, switching from "Todos"', () => {
     const everyone: AudienceDraft = { kind: 'ALL', userIds: [] }
 
-    expect(toggleTeam(everyone, cantores, going)).toEqual(selected([4, 5]))
-    expect(toggleTeam(selected([3, 5]), cantores, going)).toEqual(selected([3, 4, 5]))
+    expect(copyTeam(everyone, cantores, going)).toEqual(selected([4, 5]))
+    expect(copyTeam(selected([3, 5]), cantores, going)).toEqual(selected([3, 4, 5]))
   })
 
-  it('takes a Team copied whole back out, keeping whoever else was chosen', () => {
-    const audience = toggleTeam(selected([3]), cantores, going)
+  it('tells a Team copied whole, and copying it again changes nothing, never undoing other choices', () => {
+    const audience = copyTeam(selected([3, 4]), cantores, going)
 
     expect(teamCopied(audience, cantores, going)).toBe(true)
     expect(teamCopied(audience, banda, going)).toBe(true)
-    expect(toggleTeam(audience, cantores, going)).toEqual(selected([3]))
+    expect(copyTeam(audience, cantores, going)).toEqual(selected([3, 4, 5]))
     expect(teamCopied(selected([4]), cantores, going)).toBe(false)
   })
 

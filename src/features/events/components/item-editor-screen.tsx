@@ -24,6 +24,7 @@ import {
 import { autoTone } from '@/shared/domain/auto-tone'
 import { canEditEvent, roleIn, writesEvents } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
+import { plural } from '@/shared/domain/plural'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -67,7 +68,6 @@ import {
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
 import { DRAFT_BADGE } from '../item-state'
-import { plural } from '@/shared/domain/plural'
 import { AudienceSheet } from './audience-sheet'
 import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
@@ -407,11 +407,11 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             <AudienceRow
               audience={draft.audience}
               reach={
-                participants.data &&
+                participantChoices &&
                 audienceReach(
                   draft.audience,
                   draft.fields,
-                  participants.data.map((p) => p.userId),
+                  participantChoices.map((p) => p.userId),
                 )
               }
               error={errors.audience}
