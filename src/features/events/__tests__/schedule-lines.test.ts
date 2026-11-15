@@ -26,6 +26,8 @@ function item(
     state: 'PUBLISHED',
     fields: [],
     audience: { kind: 'ALL' },
+    updatedAt: null,
+    updatedBy: null,
   }
 }
 

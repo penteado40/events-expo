@@ -81,7 +81,7 @@ const API_ITEM = {
 }
 
 describe('HTTP items and schedule over the events-api as it is', () => {
-  it('reads the schedule with the time as { date, time, timezone }, and no Fields before PROJ-198', async () => {
+  it('reads the schedule with the time as { date, time, timezone }, no Fields before PROJ-198 and no authorship yet', async () => {
     const { eventId: _, createdAt: __, updatedAt: ___, ...scheduled } = API_ITEM
     const { http, fetch } = clientAnswering({
       data: { generalInfo: [], timeline: [{ date: '2026-11-14', items: [scheduled] }] },
@@ -90,7 +90,18 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     await expect(createHttpScheduleRepository(http).get(7)).resolves.toEqual({
       generalInfo: [],
       timeline: [
-        { date: '2026-11-14', items: [{ ...scheduled, fields: [], audience: { kind: 'ALL' } }] },
+        {
+          date: '2026-11-14',
+          items: [
+            {
+              ...scheduled,
+              fields: [],
+              audience: { kind: 'ALL' },
+              updatedAt: null,
+              updatedBy: null,
+            },
+          ],
+        },
       ],
     })
     expect(fetch.mock.calls[0][0]).toBe('https://api.test/events/7/schedule')
@@ -110,6 +121,9 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       state: 'PUBLISHED',
       fields: [],
       audience: { kind: 'ALL' },
+      // A write says when, not yet by whom (ADR-0013).
+      updatedAt: '2026-11-12T22:00:00.000Z',
+      updatedBy: null,
     })
     expect(fetch.mock.calls[0][0]).toBe('https://api.test/events/7/items')
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual(input)

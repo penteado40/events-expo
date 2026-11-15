@@ -41,6 +41,8 @@ const passagem: EventItem = {
   place: { name: 'Teatro Amazonas', address: 'Largo de São Sebastião, s/n', timezone: null },
   state: 'PUBLISHED',
   audience: { kind: 'ALL' },
+  updatedAt: null,
+  updatedBy: null,
   fields: [
     { id: 1, type: 'TEXT', name: 'Obs', value: 'Despachar o som às 14h', highlight: false },
     { id: 2, type: 'TEXT', name: 'Contato', value: '(92) 98888-0000', highlight: true },
@@ -382,6 +384,8 @@ const translado: EventItem = {
   place: null,
   state: 'PUBLISHED',
   audience: { kind: 'ALL' },
+  updatedAt: null,
+  updatedBy: null,
   fields: [
     {
       id: 3,

@@ -67,7 +67,7 @@ import {
   type ItemDraftErrors,
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
-import { DRAFT_BADGE } from '../item-state'
+import { DRAFT_BADGE, lastChangeText } from '../item-state'
 import { AUDIENCE_KIND_LABELS, AudienceSheet } from './audience-sheet'
 import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
@@ -214,7 +214,8 @@ type ItemEditorViewProps<Input> = {
  * local time, both optional, the time only with a day) and where (name, address and the place's
  * own timezone, or the Event's), then the text Fields (PROJ-223) and the Fields of people
  * (PROJ-225), and "Quem vê", the Audience (PROJ-233). An item in Draft is saved as it is or
- * published with what changed (PROJ-226).
+ * published with what changed (PROJ-226). An item already written ends with who changed it last
+ * and when, "Alterado por Bruno Reis há 2 h" (PROJ-234).
  */
 function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   event,
@@ -290,6 +291,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
     ...TIMEZONE_CHOICES,
   ]
   const timeLabel = `Hora · ${timezoneCity(draftTimezone(draft, eventTimezone))}`
+  const lastChange = item && lastChangeText(item, new Date())
 
   return (
     <KeyboardAvoidingView
@@ -445,6 +447,9 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             }}
           />
           {errors.form && <Notice message={errors.form} />}
+          {lastChange && (
+            <Text style={[styles.lastChange, { color: colors.textMuted }]}>{lastChange}</Text>
+          )}
         </View>
       </ScrollView>
 
@@ -588,6 +593,7 @@ const styles = StyleSheet.create({
   pickerLabel: { fontFamily: fonts.sans600, fontSize: 12 },
   pickerValue: { fontFamily: fonts.sans400, fontSize: 16 },
   error: { fontFamily: fonts.sans400, fontSize: 13, lineHeight: 18 },
+  lastChange: { fontFamily: fonts.sans400, fontSize: 12 },
   footer: { paddingHorizontal: 20, paddingTop: 8, flexDirection: 'row', gap: 10 },
   footerButton: { flex: 1 },
   publish: { flex: 1.4 },

@@ -94,6 +94,8 @@ export type EventItemRow = {
   audience: AudienceRow
   createdAt: string
   updatedAt: string
+  /** The Author of the last write (events-api ADR-0013): `null` for a write by no User. */
+  updatedById: number | null
 }
 
 export const SUPER_ADMIN_ID = 1
@@ -232,6 +234,7 @@ export function createDataset() {
       audience: { kind: 'ALL' },
       createdAt: at,
       updatedAt: at,
+      updatedById: DEMO_OWNER_ID,
     }
   }
 

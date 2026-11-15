@@ -592,9 +592,12 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     }
   }
 
-  /** An Event item as the schedule shows it: when it starts, in its place's zone or the Event's. */
+  /**
+   * An Event item as the schedule shows it: when it starts, in its place's zone or the Event's, and
+   * who wrote it last and when (ADR-0013; the API does not send them yet, shape assumed).
+   */
   function scheduleItemJson(row: EventItemRow, event: EventRow) {
-    const { id, name, date, time, place, state, fields, audience } = row
+    const { id, name, date, time, place, state, fields, audience, updatedAt, updatedById } = row
     const when = date === null ? null : { date, time, timezone: place?.timezone ?? event.timezone }
     const fieldsJson = fields.map((field) => fieldJson(field, event))
     const audienceJson =
@@ -609,7 +612,15 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       state,
       fields: fieldsJson,
       audience: audienceJson,
+      updatedAt,
+      updatedBy: authorJson(updatedById),
     }
+  }
+
+  /** The Author of a write as `{ id, name }`, or `null` for a write by no User. */
+  function authorJson(userId: number | null) {
+    if (userId === null) return null
+    return { id: userId, name: data.users.find((u) => u.id === userId)!.name }
   }
 
   /**
@@ -662,8 +673,8 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
   /** An Event item as a write returns it. */
   function itemJson(row: EventItemRow, event: EventRow) {
-    const { eventId, createdAt, updatedAt } = row
-    return { ...scheduleItemJson(row, event), eventId, createdAt, updatedAt }
+    const { eventId, createdAt } = row
+    return { ...scheduleItemJson(row, event), eventId, createdAt }
   }
 
   /** The Event an Owner writes items in: `EVENT_CANCELLED` while it is Cancelled, frozen. */
@@ -703,10 +714,12 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
   ) {
     await delay()
     const { from, to, frozenToo, refused } = ITEM_MOVES[move]
-    const { event, row } = reachItem(requester(identity), eventId, itemId, { frozenToo })
+    const asker = requester(identity)
+    const { event, row } = reachItem(asker, eventId, itemId, { frozenToo })
     if (row.state !== from) throw refused()
     row.state = to
     row.updatedAt = new Date().toISOString()
+    row.updatedById = asker.id
     return itemJson(row, event)
   }
 
@@ -1067,6 +1080,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         audience: checked.audience ?? { kind: 'ALL' },
         createdAt: at,
         updatedAt: at,
+        updatedById: asker.id,
       }
       data.items.push(row)
       return itemJson(row, event)
@@ -1098,6 +1112,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         place: checked.place === undefined ? row.place : checked.place,
         audience: checked.audience ?? row.audience,
         updatedAt: new Date().toISOString(),
+        updatedById: asker.id,
       })
       return itemJson(row, event)
     },
