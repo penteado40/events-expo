@@ -22,7 +22,7 @@ import {
   TextField,
 } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canWriteItems, roleIn } from '@/shared/domain/group-role'
+import { canEditEvent, roleIn, writesEvents } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
@@ -30,7 +30,12 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event, EventItem, EventItemChanges, EventItemInput } from '../api'
 import { useEvent } from '../hooks/use-event'
-import { useCreateItem, useUpdateItem, type ItemSave } from '../hooks/use-item-writes'
+import {
+  useCreateItem,
+  useUpdateItem,
+  type ItemSave,
+  type SaveAction,
+} from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
 import {
   addTextField,
@@ -50,6 +55,7 @@ import {
   type ItemDraftErrors,
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
+import { DRAFT_BADGE } from '../item-state'
 import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
 import { TimezoneSheet } from './timezone-sheet'
@@ -102,10 +108,10 @@ function EditableEvent({
   const event = useEvent(eventId)
   const user = useSession((state) => state.session?.user)
   const role = event.data && user ? roleIn(user, event.data.groupId) : null
-  if (event.data && role && canWriteItems(role, event.data)) return children(event.data)
+  if (event.data && role && canEditEvent(role, event.data)) return children(event.data)
   const refused = !event.data
     ? null
-    : role && event.data.cancelled && canWriteItems(role, { cancelled: false })
+    : role && event.data.cancelled && writesEvents(role)
       ? 'O Event está cancelado. Descancele para editar os itens.'
       : 'Você não pode editar os itens deste Event.'
   return <Waiting error={event.error} refused={refused} onRetry={() => event.refetch()} />
@@ -185,7 +191,7 @@ type ItemEditorViewProps<Input> = {
   inDraft: boolean
   saving: boolean
   check: (draft: ItemDraft) => { errors: ItemDraftErrors; input: Input | null }
-  /** The item's payload (`null`: nothing of it changed), its Fields' writes, and publishing it. */
+  /** The item's payload (`null`: nothing of it changed), its Fields' writes, and the action. */
   send: (save: ItemSave<Input | null>) => Promise<unknown> | null
   onSaved: () => void
 }
@@ -214,7 +220,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   const [draft, setDraft] = useState<ItemDraft>(() => initialItemDraft(item))
   const [errors, setErrors] = useState<ItemDraftErrors>({})
   const [picking, setPicking] = useState(false)
-  const [publishing, setPublishing] = useState(false)
+  const [action, setAction] = useState<SaveAction>('save')
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
@@ -231,15 +237,15 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
     if (key)
       setErrors((current) => ({ ...current, [fieldErrorKey(key)]: undefined, form: undefined }))
   }
-  const save = async (publish = false) => {
-    setPublishing(publish)
+  const submit = async (chosen: SaveAction) => {
+    setAction(chosen)
     const checked = check(draft)
     setErrors(checked.errors)
     if (Object.keys(checked.errors).length > 0) return
     const fields = fieldWrites(draft, item)
-    if (!checked.input && !hasFieldWrites(fields) && !publish) return onSaved()
+    if (!checked.input && !hasFieldWrites(fields) && chosen === 'save') return onSaved()
     try {
-      await send({ input: checked.input, fields, publish })
+      await send({ input: checked.input, fields, action: chosen })
       onSaved()
     } catch (error) {
       setErrors(errorsFromApi(error))
@@ -286,7 +292,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             >
               <Text style={styles.cancelLabel}>Cancelar</Text>
             </Pressable>
-            {inDraft && <Badge label="RASCUNHO · só Owners veem" tone="gold" />}
+            {inDraft && <Badge label={DRAFT_BADGE} tone="gold" />}
           </View>
           <Text style={[styles.headerNote, { color: muted }]}>{title}</Text>
           <TextInput
@@ -393,17 +399,17 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
         <Button
           label={saveLabel}
           variant={inDraft ? 'secondary' : 'primary'}
-          loading={saving && !publishing}
+          loading={saving && action === 'save'}
           disabled={saving}
-          onPress={() => save()}
+          onPress={() => submit('save')}
           style={styles.footerButton}
         />
         {inDraft && (
           <Button
             label="Publicar"
-            loading={saving && publishing}
+            loading={saving && action === 'saveAndPublish'}
             disabled={saving}
-            onPress={() => save(true)}
+            onPress={() => submit('saveAndPublish')}
             style={styles.publish}
           />
         )}

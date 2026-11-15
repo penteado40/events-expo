@@ -52,6 +52,23 @@ const eventItemCancelled = () =>
   )
 const eventItemNotCancelled = () =>
   new ApiError('EVENT_ITEM_NOT_CANCELLED', 'O Event item não está cancelado.')
+/**
+ * Each move of an Event item's state: the one state it moves from, the one it moves to, whether it
+ * reaches a Cancelled item (frozen to any other write), and its refusal from any other state.
+ */
+const ITEM_MOVES = {
+  publish: { from: 'DRAFT', to: 'PUBLISHED', frozenToo: true, refused: eventItemNotDraft },
+  cancel: { from: 'PUBLISHED', to: 'CANCELLED', frozenToo: false, refused: eventItemNotPublished },
+  uncancel: { from: 'CANCELLED', to: 'PUBLISHED', frozenToo: true, refused: eventItemNotCancelled },
+} as const satisfies Record<
+  string,
+  {
+    from: EventItemRow['state']
+    to: EventItemRow['state']
+    frozenToo: boolean
+    refused: () => ApiError
+  }
+>
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
 const teamNameTaken = () =>
   new ApiError('TEAM_NAME_TAKEN', 'Já existe um Team com este nome neste Group.')
@@ -487,10 +504,23 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     return { event, row }
   }
 
-  /** Moves the item to its new state, a write like any other on it. */
-  function moveItemTo(row: EventItemRow, state: EventItemRow['state']) {
-    row.state = state
+  /**
+   * A move of the item's state (PROJ-194, PROJ-195), from the one state it takes, refused from any
+   * other: a write like any other on the item, frozen or not as the move says.
+   */
+  async function moveItem(
+    identity: VerifiedIdentity | null,
+    eventId: number,
+    itemId: number,
+    move: keyof typeof ITEM_MOVES,
+  ) {
+    await delay()
+    const { from, to, frozenToo, refused } = ITEM_MOVES[move]
+    const { event, row } = reachItem(requester(identity), eventId, itemId, { frozenToo })
+    if (row.state !== from) throw refused()
+    row.state = to
     row.updatedAt = new Date().toISOString()
+    return itemJson(row, event)
   }
 
   return {
@@ -886,34 +916,19 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     },
 
     /** `POST …/items/:itemId/publish` (PROJ-194): only a Draft is published. */
-    async publishItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
-      await delay()
-      const { event, row } = reachItem(requester(identity), eventId, itemId, { frozenToo: true })
-      if (row.state !== 'DRAFT') throw eventItemNotDraft()
-      moveItemTo(row, 'PUBLISHED')
-      return itemJson(row, event)
-    },
+    publishItem: (identity: VerifiedIdentity | null, eventId: number, itemId: number) =>
+      moveItem(identity, eventId, itemId, 'publish'),
 
     /**
      * `POST …/items/:itemId/cancel` (PROJ-195): a published item stays in the schedule, Cancelled
      * and frozen; a Draft is deleted instead.
      */
-    async cancelItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
-      await delay()
-      const { event, row } = reachItem(requester(identity), eventId, itemId)
-      if (row.state !== 'PUBLISHED') throw eventItemNotPublished()
-      moveItemTo(row, 'CANCELLED')
-      return itemJson(row, event)
-    },
+    cancelItem: (identity: VerifiedIdentity | null, eventId: number, itemId: number) =>
+      moveItem(identity, eventId, itemId, 'cancel'),
 
     /** `POST …/items/:itemId/uncancel` (PROJ-195): back to published, taking writes again. */
-    async uncancelItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
-      await delay()
-      const { event, row } = reachItem(requester(identity), eventId, itemId, { frozenToo: true })
-      if (row.state !== 'CANCELLED') throw eventItemNotCancelled()
-      moveItemTo(row, 'PUBLISHED')
-      return itemJson(row, event)
-    },
+    uncancelItem: (identity: VerifiedIdentity | null, eventId: number, itemId: number) =>
+      moveItem(identity, eventId, itemId, 'uncancel'),
 
     /** `POST /events/:id/items/:itemId/fields` (PROJ-198): a text Field at the end of the item's. */
     async addField(
