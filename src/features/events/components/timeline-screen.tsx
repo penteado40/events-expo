@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canWriteItems, itemActions, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canEditEvent, itemActions, roleIn, seesDrafts } from '@/shared/domain/group-role'
 import { weekday } from '@/shared/domain/local-dates'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -56,7 +56,7 @@ export function TimelineScreen({ eventId }: { eventId: number }) {
       <Timeline
         event={event.data}
         lines={assembleSchedule(schedule.data, event.data.period)}
-        editable={!!role && canWriteItems(role, event.data)}
+        editable={!!role && canEditEvent(role, event.data)}
       />
     )
   }

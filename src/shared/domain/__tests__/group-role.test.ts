@@ -3,7 +3,6 @@ import type { User } from '@/shared/session'
 import {
   canCreateEvent,
   canEditEvent,
-  canWriteItems,
   isGroupMember,
   itemActions,
   roleIn,
@@ -50,9 +49,6 @@ describe('roleIn', () => {
 })
 
 describe('Event permissions', () => {
-  const draft = { cancelled: false }
-  const cancelled = { cancelled: true }
-
   it.each<[GroupRole, boolean]>([
     ['OWNER', true],
     ['SUPER_ADMIN', true],
@@ -61,28 +57,19 @@ describe('Event permissions', () => {
     expect(canCreateEvent(role)).toBe(can)
   })
 
-  it.each<[GroupRole, { cancelled: boolean }, boolean]>([
-    ['OWNER', draft, true],
-    ['SUPER_ADMIN', draft, true],
-    ['VIEWER', draft, false],
-    // A Cancelled Event stays frozen until un-cancelled.
-    ['OWNER', cancelled, false],
-  ])('%s edits an Event %o: %p', (role, event, can) => {
-    expect(canEditEvent(role, event)).toBe(can)
-  })
-
   it.each<[GroupRole, { cancelled: boolean; state: 'DRAFT' | 'PUBLISHED' }, boolean]>([
     ['OWNER', { cancelled: false, state: 'DRAFT' }, true],
     ['SUPER_ADMIN', { cancelled: false, state: 'DRAFT' }, true],
     ['VIEWER', { cancelled: false, state: 'DRAFT' }, false],
+    // A Cancelled Event stays frozen, items and all, until un-cancelled.
     ['OWNER', { cancelled: true, state: 'DRAFT' }, false],
-    // In a published Event an item is born in Draft, with Publicar.
+    // In a published Event too: there an item is born in Draft, with Publicar.
     ['OWNER', { cancelled: false, state: 'PUBLISHED' }, true],
     ['SUPER_ADMIN', { cancelled: false, state: 'PUBLISHED' }, true],
     ['VIEWER', { cancelled: false, state: 'PUBLISHED' }, false],
     ['OWNER', { cancelled: true, state: 'PUBLISHED' }, false],
-  ])('%s writes Event items in an Event %o: %p', (role, event, can) => {
-    expect(canWriteItems(role, event)).toBe(can)
+  ])('%s edits an Event %o and its items: %p', (role, event, can) => {
+    expect(canEditEvent(role, event)).toBe(can)
   })
 })
 

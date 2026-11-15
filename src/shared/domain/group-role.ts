@@ -31,18 +31,12 @@ export function roleIn(user: User, groupId: number): GroupRole {
 export const canCreateEvent = (role: GroupRole) => role !== 'VIEWER'
 
 /**
- * Owners and the Super admin edit an Event's name, place and dates, a Finished event too; a
- * Cancelled one stays frozen until it is un-cancelled.
+ * Owners and the Super admin edit an Event: its name, place and dates, and its items, in Draft or
+ * published (where an item is born in Draft, with "RASCUNHO" and Publicar), a Finished event too;
+ * a Cancelled one stays frozen, items and all, until it is un-cancelled.
  */
 export const canEditEvent = (role: GroupRole, event: { cancelled: boolean }) =>
   role !== 'VIEWER' && !event.cancelled
-
-/**
- * Who edits the Event writes its items, in Draft or published (where an item is born in Draft,
- * with "RASCUNHO" and Publicar); a Cancelled Event's stay frozen until it is un-cancelled.
- */
-export const canWriteItems = (role: GroupRole, event: { cancelled: boolean }) =>
-  canEditEvent(role, event)
 
 /** An Event item's state (events-api PROJ-194, PROJ-195). */
 export type ItemState = 'DRAFT' | 'PUBLISHED' | 'CANCELLED'

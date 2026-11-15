@@ -22,7 +22,7 @@ import {
   TextField,
 } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canWriteItems, roleIn } from '@/shared/domain/group-role'
+import { canEditEvent, roleIn } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
@@ -102,10 +102,10 @@ function EditableEvent({
   const event = useEvent(eventId)
   const user = useSession((state) => state.session?.user)
   const role = event.data && user ? roleIn(user, event.data.groupId) : null
-  if (event.data && role && canWriteItems(role, event.data)) return children(event.data)
+  if (event.data && role && canEditEvent(role, event.data)) return children(event.data)
   const refused = !event.data
     ? null
-    : role && event.data.cancelled && canWriteItems(role, { cancelled: false })
+    : role && event.data.cancelled && canEditEvent(role, { cancelled: false })
       ? 'O Event está cancelado. Descancele para editar os itens.'
       : 'Você não pode editar os itens deste Event.'
   return <Waiting error={event.error} refused={refused} onRetry={() => event.refetch()} />
