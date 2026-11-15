@@ -30,7 +30,12 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event, EventItem, EventItemChanges, EventItemInput } from '../api'
 import { useEvent } from '../hooks/use-event'
-import { useCreateItem, useUpdateItem, type ItemSave } from '../hooks/use-item-writes'
+import {
+  useCreateItem,
+  useUpdateItem,
+  type ItemSave,
+  type SaveAction,
+} from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
 import {
   addTextField,
@@ -185,7 +190,7 @@ type ItemEditorViewProps<Input> = {
   inDraft: boolean
   saving: boolean
   check: (draft: ItemDraft) => { errors: ItemDraftErrors; input: Input | null }
-  /** The item's payload (`null`: nothing of it changed), its Fields' writes, and publishing it. */
+  /** The item's payload (`null`: nothing of it changed), its Fields' writes, and the action. */
   send: (save: ItemSave<Input | null>) => Promise<unknown> | null
   onSaved: () => void
 }
@@ -214,7 +219,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   const [draft, setDraft] = useState<ItemDraft>(() => initialItemDraft(item))
   const [errors, setErrors] = useState<ItemDraftErrors>({})
   const [picking, setPicking] = useState(false)
-  const [publishing, setPublishing] = useState(false)
+  const [action, setAction] = useState<SaveAction>('save')
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
@@ -231,15 +236,15 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
     if (key)
       setErrors((current) => ({ ...current, [fieldErrorKey(key)]: undefined, form: undefined }))
   }
-  const save = async (publish = false) => {
-    setPublishing(publish)
+  const submit = async (chosen: SaveAction) => {
+    setAction(chosen)
     const checked = check(draft)
     setErrors(checked.errors)
     if (Object.keys(checked.errors).length > 0) return
     const fields = fieldWrites(draft, item)
-    if (!checked.input && !hasFieldWrites(fields) && !publish) return onSaved()
+    if (!checked.input && !hasFieldWrites(fields) && chosen === 'save') return onSaved()
     try {
-      await send({ input: checked.input, fields, publish })
+      await send({ input: checked.input, fields, action: chosen })
       onSaved()
     } catch (error) {
       setErrors(errorsFromApi(error))
@@ -393,17 +398,17 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
         <Button
           label={saveLabel}
           variant={inDraft ? 'secondary' : 'primary'}
-          loading={saving && !publishing}
+          loading={saving && action === 'save'}
           disabled={saving}
-          onPress={() => save()}
+          onPress={() => submit('save')}
           style={styles.footerButton}
         />
         {inDraft && (
           <Button
             label="Publicar"
-            loading={saving && publishing}
+            loading={saving && action === 'saveAndPublish'}
             disabled={saving}
-            onPress={() => save(true)}
+            onPress={() => submit('saveAndPublish')}
             style={styles.publish}
           />
         )}

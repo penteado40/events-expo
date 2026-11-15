@@ -497,6 +497,18 @@ describe('EditItemScreen', () => {
     await mockBackend.deleteItem(BRUNO, MANAUS, id)
   })
 
+  it('publishes an item in Draft with Publicar even when nothing of it changed', async () => {
+    const { id } = await mockBackend.createItem(BRUNO, MANAUS, { name: 'Ensaio no hall' })
+    await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={id} />)
+
+    expect(await screen.findByText('RASCUNHO · só Owners veem')).toBeOnTheScreen()
+    await press('Publicar')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    expect((await allItems(MANAUS)).find((i) => i.id === id)?.state).toBe('PUBLISHED')
+    await mockBackend.deleteItem(BRUNO, MANAUS, id)
+  })
+
   it('is not open for a Cancelled item', async () => {
     await mockBackend.cancelItem(BRUNO, MANAUS, 9)
     await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={9} />)
