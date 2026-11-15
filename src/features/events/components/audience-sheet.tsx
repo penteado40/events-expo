@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 
-import { Button, Icon, Sheet } from '@/shared/components/ui'
+import { Button, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
 import { initials } from '@/shared/domain/initials'
 import { plural } from '@/shared/domain/plural'
@@ -19,7 +19,9 @@ import {
   type FieldDraft,
   type PersonChoice,
 } from '../item-draft'
+import { CheckRow } from './check-row'
 import { ChoiceOption } from './choice-option'
+import { TeamChip } from './team-chip'
 
 type Props = {
   visible: boolean
@@ -82,28 +84,19 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
             <Text style={[styles.section, { color: colors.textMuted }]}>COPIAR DE UM TEAM</Text>
             <View style={styles.teams}>
               {withPeople.map((team) => {
-                const on = teamCopied(choice, team, going)
-                const chip = theme.teamChip(autoTone(team.id))
                 const label = `${team.name} · ${teamParticipants(team, going).length}`
+                const copied = teamCopied(choice, team, going)
                 return (
-                  <Pressable
+                  <TeamChip
                     key={team.id}
-                    onPress={() => setChoice((c) => copyTeam(c, team, going))}
-                    disabled={on}
-                    accessibilityRole="button"
+                    teamId={team.id}
+                    label={label}
+                    kind="button"
+                    checked={copied}
                     accessibilityLabel={`Copiar ${label}`}
-                    accessibilityHint={on ? 'Já está todo na lista' : undefined}
-                    accessibilityState={{ disabled: on }}
-                    style={[
-                      styles.team,
-                      { backgroundColor: on ? chip.text : chip.bg, borderColor: chip.text },
-                    ]}
-                  >
-                    {on && <Icon name="check" color={chip.bg} size={16} strokeWidth={2.6} />}
-                    <Text style={[styles.teamLabel, { color: on ? chip.bg : chip.text }]}>
-                      {label}
-                    </Text>
-                  </Pressable>
+                    disabled={copied}
+                    onPress={() => setChoice((c) => copyTeam(c, team, going))}
+                  />
                 )
               })}
             </View>
@@ -119,19 +112,15 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
             <Text style={[styles.section, { color: colors.textMuted }]}>AVULSOS</Text>
             <View style={[styles.people, { backgroundColor: colors.bg }]}>
               {participants.map((person, i) => {
-                const on = choice.userIds.includes(person.userId)
                 const chip = theme.teamChip(autoTone(person.userId))
                 return (
-                  <Pressable
+                  <CheckRow
                     key={person.userId}
+                    label={person.name}
+                    checked={choice.userIds.includes(person.userId)}
+                    first={i === 0}
                     onPress={() => setChoice((c) => togglePerson(c, person.userId))}
-                    accessibilityRole="checkbox"
-                    accessibilityLabel={person.name}
-                    accessibilityState={{ checked: on }}
-                    style={[
-                      styles.person,
-                      i > 0 && { borderTopWidth: 1, borderTopColor: colors.divider },
-                    ]}
+                    style={styles.person}
                   >
                     <View style={[styles.avatar, { backgroundColor: chip.bg }]}>
                       <Text style={[styles.initials, { color: chip.text }]}>
@@ -139,19 +128,7 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
                       </Text>
                     </View>
                     <Text style={[styles.name, { color: colors.text }]}>{person.name}</Text>
-                    <View
-                      style={[
-                        styles.box,
-                        on
-                          ? { backgroundColor: colors.action, borderColor: colors.action }
-                          : { borderColor: colors.border },
-                      ]}
-                    >
-                      {on && (
-                        <Icon name="check" color={colors.onAction} size={16} strokeWidth={2.6} />
-                      )}
-                    </View>
-                  </Pressable>
+                  </CheckRow>
                 )
               })}
             </View>
@@ -180,23 +157,8 @@ const styles = StyleSheet.create({
   list: { gap: 10 },
   section: { fontFamily: fonts.sans700, fontSize: 13, letterSpacing: 0.5, marginTop: 4 },
   teams: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  team: {
-    minHeight: spacing.touchTarget,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  teamLabel: { fontFamily: fonts.sans700, fontSize: 14 },
   people: { borderRadius: 18, paddingHorizontal: 14 },
-  person: {
-    minHeight: spacing.touchTarget + 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
+  person: { minHeight: spacing.touchTarget + 6, gap: 10 },
   avatar: {
     width: 32,
     height: 32,
@@ -206,14 +168,6 @@ const styles = StyleSheet.create({
   },
   initials: { fontFamily: fonts.sans700, fontSize: 11 },
   name: { flex: 1, fontFamily: fonts.sans400, fontSize: 15 },
-  box: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   footer: { gap: 6 },
   reach: { fontFamily: fonts.sans700, fontSize: 15, textAlign: 'center' },
   notice: { textAlign: 'center' },
