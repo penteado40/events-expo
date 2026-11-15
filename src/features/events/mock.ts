@@ -52,6 +52,7 @@ export function createMockEventItemsRepository({
 }: Options = {}): EventItemsRepository {
   const identity = () => identityOf(getEmail)
   return {
+    peopleFieldsAvailable: () => true,
     create: async (eventId, input) =>
       eventItemSchema.parse(await backend.createItem(await identity(), eventId, input)),
     update: async (eventId, itemId, changes) =>

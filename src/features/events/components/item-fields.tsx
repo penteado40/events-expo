@@ -3,35 +3,58 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Icon, TextField, type IconName } from '@/shared/components/ui'
 import { fonts, spacing, useTheme } from '@/shared/theme'
 
+import type { PersonalNotesVisibility } from '../api'
 import {
   fieldErrorKey,
   type FieldDraft,
   type FieldTextChanges,
   type ItemDraftErrors,
+  type PersonChoice,
 } from '../item-draft'
+import { PeopleField } from './people-field'
+
+/** The editor's actions on a Field of people, by the Field's key. */
+export type PeopleFieldActions = {
+  onAddParticipant: (key: string, person: PersonChoice) => void
+  onAddLooseName: (key: string, name: string) => void
+  onRemovePerson: (key: string, personKey: string) => void
+  onEditNote: (key: string, personKey: string, note: string) => void
+  onVisibility: (key: string, visibility: PersonalNotesVisibility) => void
+}
 
 type Props = {
   fields: FieldDraft[]
   errors: ItemDraftErrors
+  /** Whether Fields of people can be added here (not over the events-api yet). */
+  peopleFields: boolean
+  /** The Event's Participants for "+ Participant", or `null` where there are none to read. */
+  participants: PersonChoice[] | null
   onAdd: () => void
+  onAddPeople: () => void
   onEdit: (key: string, changes: FieldTextChanges) => void
   onToggleHighlight: (key: string) => void
   onMove: (key: string, by: -1 | 1) => void
   onRemove: (key: string) => void
+  people: PeopleFieldActions
 }
 
 /**
- * The item's text Fields in D-Editar (PROJ-223): each with its name, its value and "no Resumo"
- * (the Highlight), moved up and down or deleted, in the order they are saved.
+ * The item's Fields in D-Editar: text ones (PROJ-223) with their name and value, and of people
+ * (PROJ-225) with their people and Personal notes; each with "no Resumo" (the Highlight), moved
+ * up and down or deleted, in the order they are saved.
  */
 export function ItemFields({
   fields,
   errors,
+  peopleFields,
+  participants,
   onAdd,
+  onAddPeople,
   onEdit,
   onToggleHighlight,
   onMove,
   onRemove,
+  people,
 }: Props) {
   const { colors, badge } = useTheme()
   const danger = badge('red').text
@@ -49,19 +72,34 @@ export function ItemFields({
               index > 0 && { borderTopColor: colors.divider, borderTopWidth: 1 },
             ]}
           >
-            <TextField
-              label="Nome do Field"
-              value={field.name}
-              onChangeText={(name) => onEdit(field.key, { name })}
-              placeholder="Obs, Contatos, Voltagem…"
-              autoCapitalize="sentences"
-            />
-            <TextField
-              label="Valor"
-              value={field.value}
-              onChangeText={(value) => onEdit(field.key, { value })}
-              multiline
-            />
+            {field.type === 'TEXT' ? (
+              <>
+                <TextField
+                  label="Nome do Field"
+                  value={field.name}
+                  onChangeText={(name) => onEdit(field.key, { name })}
+                  placeholder="Obs, Contatos, Voltagem…"
+                  autoCapitalize="sentences"
+                />
+                <TextField
+                  label="Valor"
+                  value={field.value}
+                  onChangeText={(value) => onEdit(field.key, { value })}
+                  multiline
+                />
+              </>
+            ) : (
+              <PeopleField
+                field={field}
+                participants={participants}
+                onRename={(name) => onEdit(field.key, { name })}
+                onAddParticipant={(person) => people.onAddParticipant(field.key, person)}
+                onAddLooseName={(name) => people.onAddLooseName(field.key, name)}
+                onRemovePerson={(personKey) => people.onRemovePerson(field.key, personKey)}
+                onEditNote={(personKey, note) => people.onEditNote(field.key, personKey, note)}
+                onVisibility={(visibility) => people.onVisibility(field.key, visibility)}
+              />
+            )}
             {error && (
               <Text accessibilityLiveRegion="polite" style={[styles.error, { color: danger }]}>
                 {error}
@@ -114,9 +152,16 @@ export function ItemFields({
           </View>
         )
       })}
-      <Pressable onPress={onAdd} accessibilityRole="button" style={styles.add}>
-        <Text style={[styles.addLabel, { color: colors.link }]}>+ Field de texto</Text>
-      </Pressable>
+      <View style={styles.adds}>
+        <Pressable onPress={onAdd} accessibilityRole="button" style={styles.add}>
+          <Text style={[styles.addLabel, { color: colors.link }]}>+ Field de texto</Text>
+        </Pressable>
+        {peopleFields && (
+          <Pressable onPress={onAddPeople} accessibilityRole="button" style={styles.add}>
+            <Text style={[styles.addLabel, { color: colors.link }]}>+ Field de pessoas</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   )
 }
@@ -170,6 +215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   disabled: { opacity: 0.35 },
+  adds: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 20 },
   add: { alignSelf: 'flex-start', height: spacing.touchTarget, justifyContent: 'center' },
   addLabel: { fontFamily: fonts.sans700, fontSize: 14 },
 })

@@ -41,14 +41,35 @@ export type EventRow = {
 /** A place as the mock stores it (events-api PROJ-187): no zone of its own means the Event's. */
 export type ItemPlaceRow = { name: string | null; address: string | null; timezone: string | null }
 
-/** A Field of an Event item (events-api PROJ-198): for now only text, with its Highlight. */
-export type ItemFieldRow = {
+/** A text Field of an Event item (events-api PROJ-198), with its Highlight (PROJ-200). */
+export type TextFieldRow = {
   id: number
   type: 'TEXT'
   name: string
   value: string
   highlight: boolean
 }
+
+/**
+ * One person of a Field of people: a User by id (their name read from the User), or a loose name
+ * (`userId: null`), with a Personal note or none (events-api PROJ-201, PROJ-203, PROJ-204, planned).
+ */
+export type FieldPersonRow =
+  | { userId: number; name: null; personalNote: string | null }
+  | { userId: null; name: string; personalNote: string | null }
+
+/** A Field of people (carros, quartos), with who sees its Personal notes. */
+export type PeopleFieldRow = {
+  id: number
+  type: 'PEOPLE'
+  name: string
+  highlight: boolean
+  personalNotesVisibility: 'PRIVATE' | 'ALL'
+  people: FieldPersonRow[]
+}
+
+/** A Field of an Event item: text or people. */
+export type ItemFieldRow = TextFieldRow | PeopleFieldRow
 
 /**
  * An Event item as the mock stores it: local date and time, never converted (ADR-0016), in the
@@ -168,7 +189,14 @@ export function createDataset() {
     ]),
     item(7, 'Almoço', ['2026-11-21', null]),
     // The transfer after Saturday's show is Sunday's: its date is the calendar's.
-    item(8, 'Translado de volta', ['2026-11-22', '00:40']),
+    item(8, 'Translado de volta', ['2026-11-22', '00:40'], null, [
+      peopleField(3, 'Carro 1 - EC', [
+        { userId: 3, name: null, personalNote: 'dirigindo' },
+        { userId: DEMO_VIEWER_ID, name: null, personalNote: null },
+        // The local driver, with no login.
+        { userId: null, name: 'Seu Raimundo', personalNote: null },
+      ]),
+    ]),
     item(9, 'Check-out', ['2026-11-22', '11:00']),
     item(10, 'Voo MAO → VIX', ['2026-11-22', '14:05']),
     // The eve, outside the period.
@@ -199,8 +227,12 @@ export function createDataset() {
     }
   }
 
-  function textField(id: number, name: string, value: string, highlight = false): ItemFieldRow {
+  function textField(id: number, name: string, value: string, highlight = false): TextFieldRow {
     return { id, type: 'TEXT', name, value, highlight }
+  }
+
+  function peopleField(id: number, name: string, people: FieldPersonRow[]): PeopleFieldRow {
+    return { id, type: 'PEOPLE', name, highlight: true, personalNotesVisibility: 'PRIVATE', people }
   }
 
   function team(id: number, name: string, memberIds: number[]): TeamRow {

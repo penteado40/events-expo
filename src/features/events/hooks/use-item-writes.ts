@@ -11,6 +11,9 @@ import { scheduleQueryKey } from './use-schedule'
  */
 export type ItemSave<Input> = { input: Input; fields: FieldWrites; publish?: boolean }
 
+/** Whether the editor offers Fields of people: not over the events-api yet (PROJ-201). */
+export const peopleFieldsAvailable = () => itemsRepository.peopleFieldsAvailable()
+
 /** After a write the schedule is read again (no optimistic update in this slice). */
 function useInvalidateSchedule(eventId: number) {
   const client = useQueryClient()

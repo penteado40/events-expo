@@ -2,7 +2,14 @@ import type { GroupMember } from '@/shared/domain/group-member'
 import type { Team } from '@/shared/domain/team'
 import type { LocalDate, LocalTime, Period } from '@/shared/domain/local-dates'
 
-import type { Event, EventItem, ItemField, Participant, Schedule } from './schemas'
+import type {
+  Event,
+  EventItem,
+  ItemField,
+  Participant,
+  PersonalNotesVisibility,
+  Schedule,
+} from './schemas'
 
 /** A new Event's Participants as a copy of who is in these Teams (events-api PROJ-189). */
 export type ParticipantsFrom = { teamIds: number[] }
@@ -99,13 +106,40 @@ export type EventItemInput = {
 export type EventItemChanges = Partial<EventItemInput>
 
 /** A text Field as the Owner writes it (events-api PROJ-198): the Highlight is off unless asked. */
-export type ItemFieldInput = { type: 'TEXT'; name: string; value: string; highlight?: boolean }
+export type TextFieldInput = { type: 'TEXT'; name: string; value: string; highlight?: boolean }
 
-/** An edit of a Field: what is left out stays; its type never changes. */
-export type ItemFieldChanges = Partial<Omit<ItemFieldInput, 'type'>>
+/**
+ * One person as a Field of people is written: a Participant by `userId`, or a loose name, each
+ * with an optional Personal note (`null` or left out: none).
+ */
+export type FieldPersonInput =
+  { userId: number; personalNote?: string | null } | { name: string; personalNote?: string | null }
+
+/**
+ * A Field of people as the Owner writes it (events-api PROJ-201, PROJ-203, PROJ-204, not built
+ * there yet): its people in order, and who sees the Personal notes (`PRIVATE` unless asked).
+ */
+export type PeopleFieldInput = {
+  type: 'PEOPLE'
+  name: string
+  highlight?: boolean
+  personalNotesVisibility?: PersonalNotesVisibility
+  people: FieldPersonInput[]
+}
+
+export type ItemFieldInput = TextFieldInput | PeopleFieldInput
+
+/** An edit of a Field: what is left out stays, the people go whole; its type never changes. */
+export type ItemFieldChanges =
+  Partial<Omit<TextFieldInput, 'type'>> | Partial<Omit<PeopleFieldInput, 'type'>>
 
 /** Mirrors the events-api's Event item writes (`/events/:id/items`). */
 export interface EventItemsRepository {
+  /**
+   * Whether Fields of people can be written here. False over HTTP until the events-api has them
+   * (PROJ-201): the editor then offers only text Fields.
+   */
+  peopleFieldsAvailable(): boolean
   /**
    * `POST /events/:id/items`: an Owner (or the Super admin) creates the item, born published in a
    * Draft Event and in Draft in a published one (PROJ-194). `EVENT_ITEM_TIME_WITHOUT_DATE` for a
@@ -138,12 +172,15 @@ export interface EventItemsRepository {
   uncancel(eventId: number, itemId: number): Promise<EventItem>
   /**
    * `POST /events/:id/items/:itemId/fields` (PROJ-198): adds a Field at the end of the item's.
-   * `VALIDATION_ERROR` names a blank or long name, a long value or another type; `FORBIDDEN` for
-   * a Viewer; `NOT_FOUND` for an item of another Event.
+   * `VALIDATION_ERROR` names a blank or long name, a long value or another type, and, in a Field
+   * of people, a blank or long loose name, a long Personal note or someone twice (PROJ-203);
+   * `NOT_A_PARTICIPANT` for a User not going who was not in the Field already (PROJ-201);
+   * `FORBIDDEN` for a Viewer; `NOT_FOUND` for an item of another Event.
    */
   addField(eventId: number, itemId: number, input: ItemFieldInput): Promise<ItemField>
   /**
-   * `PATCH …/fields/:fieldId`: name, value or Highlight (PROJ-200). Errors as `addField`; a Field
+   * `PATCH …/fields/:fieldId`: name, value or Highlight (PROJ-200); of a Field of people, its
+   * people (whole) and who sees the Personal notes, never a value. Errors as `addField`; a Field
    * of another item is `NOT_FOUND`.
    */
   updateField(

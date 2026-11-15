@@ -37,8 +37,11 @@ export type {
   EventItemsRepository,
   EventsRepository,
   GroupPeopleRepository,
+  FieldPersonInput,
   ItemFieldChanges,
   ItemFieldInput,
+  PeopleFieldInput,
+  TextFieldInput,
   ItemPlaceInput,
   ParticipantsFrom,
   ParticipantsRepository,
@@ -47,7 +50,11 @@ export type {
 export type {
   Event,
   EventItem,
+  FieldPerson,
   ItemField,
+  PeopleField,
+  PersonalNotesVisibility,
+  TextField,
   ItemPlace,
   ItemWhen,
   Participant,
@@ -76,6 +83,8 @@ export const eventsRepository = selectRepository<EventsRepository>('events', {
 
 export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepository {
   return {
+    // PROJ-201 is not built in the events-api yet: a Field of people is refused there.
+    peopleFieldsAvailable: () => false,
     create: (eventId, input) =>
       http.post(`/events/${eventId}/items`, { body: input, schema: eventItemSchema }),
     update: (eventId, itemId, changes) =>

@@ -35,6 +35,7 @@ const STATUS_BY_CODE: Record<string, number> = {
   EVENT_ITEM_NOT_PUBLISHED: 409,
   EVENT_ITEM_CANCELLED: 409,
   EVENT_ITEM_NOT_CANCELLED: 409,
+  NOT_A_PARTICIPANT: 409,
 }
 
 const noContent = () => new Response(null, { status: 204 })

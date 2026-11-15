@@ -1,7 +1,11 @@
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
 import {
+  addLooseName,
+  addParticipants,
+  addPeopleField,
   addTextField,
+  editPersonalNote,
   draftTimezone,
   editField,
   errorsFromApi,
@@ -11,8 +15,11 @@ import {
   itemDraftInput,
   moveField,
   removeField,
+  removePerson,
+  setNotesVisibility,
   toggleHighlight,
   type ItemDraft,
+  type PeopleFieldDraft,
 } from '../item-draft'
 import type { EventItem } from '../schemas'
 
@@ -61,8 +68,22 @@ describe('initialItemDraft', () => {
       placeAddress: 'Largo de São Sebastião, s/n',
       placeTimezone: null,
       fields: [
-        { key: 'field-1', id: 1, name: 'Obs', value: 'Despachar o som às 14h', highlight: false },
-        { key: 'field-2', id: 2, name: 'Contato', value: '(92) 98888-0000', highlight: true },
+        {
+          type: 'TEXT',
+          key: 'field-1',
+          id: 1,
+          name: 'Obs',
+          value: 'Despachar o som às 14h',
+          highlight: false,
+        },
+        {
+          type: 'TEXT',
+          key: 'field-2',
+          id: 2,
+          name: 'Contato',
+          value: '(92) 98888-0000',
+          highlight: true,
+        },
       ],
     })
   })
@@ -233,8 +254,8 @@ describe('the Field actions', () => {
     const added = addTextField(addTextField(opened))
 
     expect(added.fields.slice(2)).toEqual([
-      { key: 'new-1', id: null, name: '', value: '', highlight: false },
-      { key: 'new-2', id: null, name: '', value: '', highlight: false },
+      { type: 'TEXT', key: 'new-1', id: null, name: '', value: '', highlight: false },
+      { type: 'TEXT', key: 'new-2', id: null, name: '', value: '', highlight: false },
     ])
   })
 
@@ -336,5 +357,215 @@ describe('fieldWrites', () => {
     expect(fieldWrites(swapped, passagem).order).toEqual([2, 1])
     expect(fieldWrites(named(newFirst), passagem).order).toEqual(['new-1', 1, 2])
     expect(fieldWrites(named(newLast), passagem).order).toBeNull()
+  })
+})
+
+/**
+ * Translado de volta, Sunday 00:40, with Carro 1 - EC: Matias driving, Jacque (out of the Event
+ * since she was taken out) and Seu Raimundo, the local driver, as a loose name.
+ */
+const translado: EventItem = {
+  id: 8,
+  name: 'Translado de volta',
+  when: { date: '2026-11-22', time: '00:40', timezone: MANAUS_TZ },
+  place: null,
+  state: 'PUBLISHED',
+  fields: [
+    {
+      id: 3,
+      type: 'PEOPLE',
+      name: 'Carro 1 - EC',
+      highlight: true,
+      personalNotesVisibility: 'PRIVATE',
+      people: [
+        { userId: 3, name: 'Matias Costa', personalNote: 'dirigindo', outOfEvent: false },
+        { userId: 4, name: 'Jacque Moreira', personalNote: null, outOfEvent: true },
+        { userId: null, name: 'Seu Raimundo', personalNote: null, outOfEvent: false },
+      ],
+    },
+  ],
+}
+
+const LU = { userId: 5, name: 'Lu Andrade' }
+const MATIAS = { userId: 3, name: 'Matias Costa' }
+
+/** The Field of people at that key. */
+const people = (draft: ItemDraft, key: string) =>
+  draft.fields.find((f): f is PeopleFieldDraft => f.key === key && f.type === 'PEOPLE')!.people
+
+describe('the Field of people actions', () => {
+  const opened = initialItemDraft(translado)
+
+  it('opens with its people in order, each with the note, the loose name and who is out of the Event', () => {
+    expect(opened.fields).toEqual([
+      {
+        type: 'PEOPLE',
+        key: 'field-3',
+        id: 3,
+        name: 'Carro 1 - EC',
+        highlight: true,
+        visibility: 'PRIVATE',
+        people: [
+          { key: 'user-3', userId: 3, name: 'Matias Costa', note: 'dirigindo', outOfEvent: false },
+          { key: 'user-4', userId: 4, name: 'Jacque Moreira', note: '', outOfEvent: true },
+          { key: 'name-1', userId: null, name: 'Seu Raimundo', note: '', outOfEvent: false },
+        ],
+      },
+    ])
+  })
+
+  it('adds an empty Field of people at the end, notes only for each one, out of the Resumo', () => {
+    const added = addPeopleField(addTextField(opened))
+
+    expect(added.fields[2]).toEqual({
+      type: 'PEOPLE',
+      key: 'new-2',
+      id: null,
+      name: '',
+      highlight: false,
+      visibility: 'PRIVATE',
+      people: [],
+    })
+  })
+
+  it('adds Participants at the end, each once', () => {
+    const added = addParticipants(opened, 'field-3', [LU, MATIAS])
+
+    expect(people(added, 'field-3').map((p) => p.key)).toEqual([
+      'user-3',
+      'user-4',
+      'name-1',
+      'user-5',
+    ])
+    expect(people(added, 'field-3')[3]).toEqual({
+      key: 'user-5',
+      userId: 5,
+      name: 'Lu Andrade',
+      note: '',
+      outOfEvent: false,
+    })
+  })
+
+  it('adds a loose name, trimmed, and nothing for a blank one', () => {
+    const added = addLooseName(opened, 'field-3', '  Dona Célia ')
+
+    expect(people(added, 'field-3')[3]).toEqual({
+      key: 'name-2',
+      userId: null,
+      name: 'Dona Célia',
+      note: '',
+      outOfEvent: false,
+    })
+    expect(addLooseName(opened, 'field-3', '   ')).toBe(opened)
+  })
+
+  it('takes someone out of the Field, out of the Event or not', () => {
+    const taken = removePerson(removePerson(opened, 'field-3', 'user-4'), 'field-3', 'name-1')
+
+    expect(people(taken, 'field-3').map((p) => p.name)).toEqual(['Matias Costa'])
+  })
+
+  it('writes the Personal note of one person', () => {
+    const noted = editPersonalNote(opened, 'field-3', 'name-1', 'motorista local')
+
+    expect(people(noted, 'field-3').map((p) => p.note)).toEqual([
+      'dirigindo',
+      '',
+      'motorista local',
+    ])
+  })
+
+  it('shows the notes to everyone in the item, or again only to each one', () => {
+    const all = setNotesVisibility(opened, 'field-3', 'ALL')
+
+    expect(all.fields[0]).toMatchObject({ visibility: 'ALL' })
+    expect(setNotesVisibility(all, 'field-3', 'PRIVATE').fields[0]).toMatchObject({
+      visibility: 'PRIVATE',
+    })
+  })
+})
+
+describe('itemDraftInput, the Fields of people', () => {
+  const draft = addPeopleField({ ...filled, fields: [] })
+
+  it('refuses a Field of people with no name on that Field', () => {
+    expect(itemDraftInput(draft).errors).toEqual({ 'field:new-1': 'Dê um nome ao Field.' })
+  })
+
+  it('refuses a long loose name or Personal note on that Field', () => {
+    const named = editField(draft, 'new-1', { name: 'Carro 2' })
+
+    expect(itemDraftInput(addLooseName(named, 'new-1', 'x'.repeat(101))).errors).toEqual({
+      'field:new-1': 'Use um nome solto de até 100 caracteres.',
+    })
+    const noted = editPersonalNote(
+      addParticipants(named, 'new-1', [LU]),
+      'new-1',
+      'user-5',
+      'x'.repeat(501),
+    )
+    expect(itemDraftInput(noted).errors).toEqual({
+      'field:new-1': 'Use uma nota de até 500 caracteres.',
+    })
+  })
+})
+
+describe('fieldWrites, the Fields of people', () => {
+  const opened = initialItemDraft(translado)
+
+  it('creating, adds the Field with its people in order, the notes trimmed or null, and the visibility', () => {
+    let draft = editField(addPeopleField(filled), 'new-1', { name: ' Quarto 101 ' })
+    draft = addLooseName(addParticipants(draft, 'new-1', [LU]), 'new-1', 'Dona Célia')
+    draft = editPersonalNote(draft, 'new-1', 'user-5', ' LOC4X2 ')
+    draft = setNotesVisibility(draft, 'new-1', 'ALL')
+
+    expect(fieldWrites(draft).add).toEqual([
+      {
+        key: 'new-1',
+        input: {
+          type: 'PEOPLE',
+          name: 'Quarto 101',
+          highlight: false,
+          personalNotesVisibility: 'ALL',
+          people: [
+            { userId: 5, personalNote: 'LOC4X2' },
+            { name: 'Dona Célia', personalNote: null },
+          ],
+        },
+      },
+    ])
+  })
+
+  it('editing, writes nothing when no one changed', () => {
+    expect(fieldWrites(opened, translado)).toEqual({ remove: [], update: [], add: [], order: null })
+  })
+
+  it('sends the people whole when someone came, left or got a note, keeping who is out of the Event', () => {
+    const draft = editPersonalNote(
+      addParticipants(opened, 'field-3', [LU]),
+      'field-3',
+      'user-5',
+      'janela',
+    )
+
+    expect(fieldWrites(draft, translado).update).toEqual([
+      {
+        id: 3,
+        changes: {
+          people: [
+            { userId: 3, personalNote: 'dirigindo' },
+            { userId: 4, personalNote: null },
+            { name: 'Seu Raimundo', personalNote: null },
+            { userId: 5, personalNote: 'janela' },
+          ],
+        },
+      },
+    ])
+  })
+
+  it('sends only the visibility when only it changed', () => {
+    expect(fieldWrites(setNotesVisibility(opened, 'field-3', 'ALL'), translado).update).toEqual([
+      { id: 3, changes: { personalNotesVisibility: 'ALL' } },
+    ])
   })
 })
