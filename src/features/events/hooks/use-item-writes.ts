@@ -6,10 +6,13 @@ import { fieldKey, FieldWriteError, type FieldWrites } from '../item-draft'
 import { scheduleQueryKey } from './use-schedule'
 
 /**
- * A save from the editor: the item's own payload, its Fields' writes and, from "Publicar" on an
- * item in Draft, its publishing after them.
+ * What the editor's button does: "Salvar" (or "Criar item") saves the item as it is; "Publicar",
+ * on an item in Draft, saves it and then publishes it.
  */
-export type ItemSave<Input> = { input: Input; fields: FieldWrites; publish?: boolean }
+export type SaveAction = 'save' | 'saveAndPublish'
+
+/** A save from the editor: the item's own payload, its Fields' writes, and its action. */
+export type ItemSave<Input> = { input: Input; fields: FieldWrites; action: SaveAction }
 
 /** Whether the editor offers Fields of people: not over the events-api yet (PROJ-201). */
 export const peopleFieldsAvailable = () => itemsRepository.peopleFieldsAvailable()
@@ -67,13 +70,13 @@ export function useCreateItem(eventId: number) {
   const invalidateSchedule = useInvalidateSchedule(eventId)
   const created = useRef<{ item: EventItem; added: Map<string, number> } | null>(null)
   return useMutation<EventItem, unknown, ItemSave<EventItemInput>>({
-    mutationFn: async ({ input, fields, publish }) => {
+    mutationFn: async ({ input, fields, action }) => {
       const item = created.current
         ? await itemsRepository.update(eventId, created.current.item.id, input)
         : await itemsRepository.create(eventId, input)
       created.current ??= { item, added: new Map() }
       await writeFields(eventId, item.id, fields, created.current.added)
-      return publish ? itemsRepository.publish(eventId, item.id) : item
+      return action === 'saveAndPublish' ? itemsRepository.publish(eventId, item.id) : item
     },
     onSettled: invalidateSchedule,
   })
@@ -86,10 +89,10 @@ export function useCreateItem(eventId: number) {
 export function useUpdateItem(eventId: number, itemId: number) {
   const invalidateSchedule = useInvalidateSchedule(eventId)
   return useMutation<void, unknown, ItemSave<EventItemChanges | null>>({
-    mutationFn: async ({ input, fields, publish }) => {
+    mutationFn: async ({ input, fields, action }) => {
       if (input) await itemsRepository.update(eventId, itemId, input)
       await writeFields(eventId, itemId, fields)
-      if (publish) await itemsRepository.publish(eventId, itemId)
+      if (action === 'saveAndPublish') await itemsRepository.publish(eventId, itemId)
     },
     onSettled: invalidateSchedule,
   })

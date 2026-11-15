@@ -27,47 +27,16 @@ export function roleIn(user: User, groupId: number): GroupRole {
   return user.memberships.find((m) => m.groupId === groupId)?.role ?? 'VIEWER'
 }
 
+/** Owners and the Super admin write a Group's Events: they create them and edit them while not Cancelled. */
+export const writesEvents = (role: GroupRole) => role !== 'VIEWER'
+
 /** Owners and the Super admin create Events in a Group. */
-export const canCreateEvent = (role: GroupRole) => role !== 'VIEWER'
+export const canCreateEvent = writesEvents
 
 /**
- * Owners and the Super admin edit an Event's name, place and dates, a Finished event too; a
- * Cancelled one stays frozen until it is un-cancelled.
+ * Owners and the Super admin edit an Event: its name, place and dates, and its items, in Draft or
+ * published (where an item is born in Draft, with "RASCUNHO" and Publicar), a Finished event too;
+ * a Cancelled one stays frozen, items and all, until it is un-cancelled.
  */
 export const canEditEvent = (role: GroupRole, event: { cancelled: boolean }) =>
-  role !== 'VIEWER' && !event.cancelled
-
-/**
- * Who edits the Event writes its items, in Draft or published (where an item is born in Draft,
- * with "RASCUNHO" and Publicar); a Cancelled Event's stay frozen until it is un-cancelled.
- */
-export const canWriteItems = (role: GroupRole, event: { cancelled: boolean }) =>
-  canEditEvent(role, event)
-
-/** An Event item's state (events-api PROJ-194, PROJ-195). */
-export type ItemState = 'DRAFT' | 'PUBLISHED' | 'CANCELLED'
-
-/** What the item's actions offer, by its state, to who writes the Event's items. */
-export type ItemActions = {
-  edit: boolean
-  publish: boolean
-  cancel: boolean
-  uncancel: boolean
-  delete: boolean
-}
-
-/**
- * In Draft, an item is edited, published or deleted; published, edited or cancelled; Cancelled,
- * frozen, only uncancelled. Deleting is for an item in Draft, and for any item of an Event in
- * Draft, which nobody sees yet (there items are born published); a published item the Group sees
- * is cancelled instead, kept visible with its badge. The API also deletes a published item.
- */
-export function itemActions(item: ItemState, event: 'DRAFT' | 'PUBLISHED'): ItemActions {
-  return {
-    edit: item !== 'CANCELLED',
-    publish: item === 'DRAFT',
-    cancel: item === 'PUBLISHED',
-    uncancel: item === 'CANCELLED',
-    delete: item === 'DRAFT' || (item === 'PUBLISHED' && event === 'DRAFT'),
-  }
-}
+  writesEvents(role) && !event.cancelled
