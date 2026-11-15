@@ -2,6 +2,7 @@ import { isEmail } from '@/shared/domain/email'
 import { isLocalDate, isLocalTime, type Period } from '@/shared/domain/local-dates'
 import { isTimezone } from '@/shared/domain/timezones'
 import { normalizePhone } from '@/shared/domain/phone'
+import { uniqueAscending } from '@/shared/domain/user-ids'
 import { ApiError, validationError } from '@/shared/lib/api-error'
 
 import {
@@ -249,7 +250,7 @@ function checkAudience(audience: EventItemBody['audience'], details: Detail[]): 
     details.push({ path: 'audience.userIds', message: 'Envie uma lista de ids.' })
     return { kind, userIds: [] }
   }
-  return { kind, userIds: [...new Set(userIds as number[])].sort((a, b) => a - b) }
+  return { kind, userIds: uniqueAscending(userIds as number[]) }
 }
 
 /** One person of a Field of people as sent: a Participant by `userId`, or a loose `name`. */

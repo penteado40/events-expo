@@ -1,5 +1,6 @@
 import { dateFromTyping, timeFromTyping, typedDate } from '@/shared/domain/local-dates'
 import type { Team } from '@/shared/domain/team'
+import { uniqueAscending } from '@/shared/domain/user-ids'
 import { ApiError } from '@/shared/lib/api-error'
 
 import type {
@@ -138,10 +139,8 @@ export function initialItemDraft(item?: EventItem): ItemDraft {
 function audienceDraft(audience: Audience = { kind: 'ALL' }): AudienceDraft {
   return audience.kind === 'ALL'
     ? { kind: 'ALL', userIds: [] }
-    : { kind: 'SELECTED', userIds: ascending(audience.userIds) }
+    : { kind: 'SELECTED', userIds: uniqueAscending(audience.userIds) }
 }
-
-const ascending = (ids: Iterable<number>) => [...new Set(ids)].sort((a, b) => a - b)
 
 function fieldDraft(field: ItemField): FieldDraft {
   const { id, name, highlight } = field
@@ -361,7 +360,7 @@ export function copyTeam(
 ): AudienceDraft {
   return {
     kind: 'SELECTED',
-    userIds: ascending([...audience.userIds, ...teamParticipants(team, participantIds)]),
+    userIds: uniqueAscending([...audience.userIds, ...teamParticipants(team, participantIds)]),
   }
 }
 
@@ -369,7 +368,7 @@ export function copyTeam(
 export function togglePerson(audience: AudienceDraft, userId: number): AudienceDraft {
   const userIds = audience.userIds.includes(userId)
     ? audience.userIds.filter((id) => id !== userId)
-    : ascending([...audience.userIds, userId])
+    : uniqueAscending([...audience.userIds, userId])
   return { kind: 'SELECTED', userIds }
 }
 
