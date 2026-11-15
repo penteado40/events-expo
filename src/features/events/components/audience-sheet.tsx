@@ -21,13 +21,13 @@ import {
 } from '../item-draft'
 import { CheckRow } from './check-row'
 import { ChoiceOption } from './choice-option'
+import { TeamChip } from './team-chip'
 
 /** "Quem vê"'s two choices, named alike in the sheet and in the editor's row (D-QuemVe). */
 export const AUDIENCE_KIND_LABELS: Record<AudienceDraft['kind'], string> = {
   ALL: 'Todos que vão',
   SELECTED: 'Escolher pessoas',
 }
-import { TeamChip } from './team-chip'
 
 type Props = {
   visible: boolean

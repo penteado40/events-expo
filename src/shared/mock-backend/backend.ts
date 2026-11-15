@@ -16,6 +16,7 @@ import {
   type TeamRow,
   type UserRow,
 } from './data'
+import { itemReaches } from './item-reach'
 
 /** What the API's AuthVerifier reads from a valid Clerk token (events-api ADR-0020). */
 export type VerifiedIdentity = { email: string }
@@ -1231,8 +1232,11 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
      */
     async schedule(identity: VerifiedIdentity | null, eventId: number) {
       await delay()
-      const event = reachEvent(requester(identity), eventId, { write: true })
-      const items = data.items.filter((i) => i.eventId === eventId)
+      const asker = requester(identity)
+      // Only the production reads it for now: a Viewer is refused before any Audience applies.
+      const event = reachEvent(asker, eventId, { write: true })
+      const reader = { userId: asker.id, production: true }
+      const items = data.items.filter((i) => i.eventId === eventId && itemReaches(i, event, reader))
       const dates = [...new Set(items.flatMap((i) => (i.date === null ? [] : [i.date])))].sort()
       return {
         generalInfo: items.filter((i) => i.date === null).map((i) => scheduleItemJson(i, event)),
