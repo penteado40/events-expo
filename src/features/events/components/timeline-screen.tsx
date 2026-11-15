@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, itemActions, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
 import { weekday } from '@/shared/domain/local-dates'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -21,6 +21,7 @@ import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import { useDeleteItem, useMoveItem, type ItemMove } from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
+import { ITEM_STATE_MARKS, itemActions } from '../item-state'
 import {
   assembleSchedule,
   type DayLines,
@@ -237,7 +238,8 @@ function ItemRow({
   const untimed = line.time === null
   const cancelled = line.state === 'CANCELLED'
   const when = general ? '' : (line.time ?? 'a definir')
-  const label = [when, line.name, line.detail, STATE_LABELS[line.state]].filter(Boolean).join(', ')
+  const mark = ITEM_STATE_MARKS[line.state]
+  const label = [when, line.name, line.detail, mark?.spoken].filter(Boolean).join(', ')
   return (
     <Pressable
       onPress={onPress && (() => onPress(line))}
@@ -290,8 +292,7 @@ function ItemRow({
           >
             {line.name}
           </Text>
-          {line.state === 'DRAFT' && <Badge label="RASCUNHO" tone="gold" />}
-          {cancelled && <Badge label="CANCELADO" tone="red" />}
+          {mark && <Badge label={mark.badge} tone={mark.tone} />}
         </View>
         {(line.detail || (untimed && !general)) && (
           <Text style={[styles.detail, { color: colors.textMuted }]}>
@@ -301,13 +302,6 @@ function ItemRow({
       </View>
     </Pressable>
   )
-}
-
-/** Read out after the item, as its badge shows it: a published item has none. */
-const STATE_LABELS: Record<ItemLine['state'], string | null> = {
-  DRAFT: 'rascunho',
-  PUBLISHED: null,
-  CANCELLED: 'cancelado',
 }
 
 /**

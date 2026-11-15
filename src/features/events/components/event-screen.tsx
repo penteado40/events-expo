@@ -15,6 +15,7 @@ import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import { participantsAvailable, useGroupMembers, useParticipants } from '../hooks/use-participants'
 import { useSchedule } from '../hooks/use-schedule'
+import { ITEM_STATE_MARKS } from '../item-state'
 import { assembleSchedule, type ItemLine } from '../schedule-lines'
 
 /**
@@ -271,28 +272,27 @@ function ScheduleSummary({ event, editable }: { event: Event; editable: boolean 
 /** An item's name in the summary as the Timeline marks it: Draft "RASCUNHO", Cancelled struck. */
 function SummaryName({ line }: { line: ItemLine }) {
   const theme = useTheme()
-  if (line.state === 'PUBLISHED') return <Text>{line.name}</Text>
+  const mark = ITEM_STATE_MARKS[line.state]
+  if (!mark) return <Text>{line.name}</Text>
   const cancelled = line.state === 'CANCELLED'
-  const badge = theme.badge(cancelled ? 'red' : 'gold')
+  const badge = theme.badge(mark.tone)
   return (
     <>
       <Text style={cancelled && [styles.struck, { color: theme.colors.textMuted }]}>
         {line.name}
       </Text>{' '}
       <Text style={[textStyles.badge, { color: badge.text, backgroundColor: badge.bg }]}>
-        {cancelled ? 'CANCELADO' : 'RASCUNHO'}
+        {mark.badge}
       </Text>
     </>
   )
 }
 
 /** The name read out, its state after it: "Show (cancelado)". */
-const spokenName = (line: ItemLine) =>
-  line.state === 'DRAFT'
-    ? `${line.name} (rascunho)`
-    : line.state === 'CANCELLED'
-      ? `${line.name} (cancelado)`
-      : line.name
+const spokenName = (line: ItemLine) => {
+  const mark = ITEM_STATE_MARKS[line.state]
+  return mark ? `${line.name} (${mark.spoken})` : line.name
+}
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
