@@ -4,23 +4,54 @@ import { ApiError } from '@/shared/lib/api-error'
 import type {
   EventItemChanges,
   EventItemInput,
+  FieldPersonInput,
   ItemFieldChanges,
   ItemFieldInput,
   ItemPlaceInput,
 } from './repository'
-import type { EventItem } from './schemas'
+import type { EventItem, ItemField, PersonalNotesVisibility } from './schemas'
 
 /**
  * A text Field as the editor holds it: `key` names it on screen (`field-<id>` for one the item
  * has, `new-<n>` for one added here), `id` is the API's, `null` until it is saved.
  */
-export type FieldDraft = {
+export type TextFieldDraft = {
+  type: 'TEXT'
   key: string
   id: number | null
   name: string
   value: string
   highlight: boolean
 }
+
+/**
+ * One person of a Field of people in the editor: `key` names them in the Field (`user-<id>` for a
+ * Participant, `name-<n>` for a loose name, `userId: null`), with their Personal note as typed.
+ */
+export type PersonDraft = {
+  key: string
+  userId: number | null
+  name: string
+  note: string
+  /** A User no longer a Participant, kept in the Field until taken out ("fora do Event"). */
+  outOfEvent: boolean
+}
+
+/** A Field of people (carros, quartos) in the editor: its people in order and who sees the notes. */
+export type PeopleFieldDraft = {
+  type: 'PEOPLE'
+  key: string
+  id: number | null
+  name: string
+  highlight: boolean
+  visibility: PersonalNotesVisibility
+  people: PersonDraft[]
+}
+
+export type FieldDraft = TextFieldDraft | PeopleFieldDraft
+
+/** A Participant as a Field of people takes them: who and their name. */
+export type PersonChoice = { userId: number; name: string }
 
 /**
  * The item draft (PRD, pure modules): the editor's state of an Event item, its name, date, time,
@@ -49,14 +80,16 @@ export type ItemDraftErrors = Partial<
 /** Where the editor shows what is wrong with one Field. */
 export const fieldErrorKey = (key: string) => `field:${key}` as const
 
-/** Typing in a Field: its name or its value. */
-export type FieldTextChanges = Partial<Pick<FieldDraft, 'name' | 'value'>>
+/** Typing in a Field: its name or, of a text Field, its value. */
+export type FieldTextChanges = Partial<Pick<TextFieldDraft, 'name' | 'value'>>
 
 const NAME_MAX = 200
 const PLACE_NAME_MAX = 200
 const PLACE_ADDRESS_MAX = 500
 const FIELD_NAME_MAX = 100
 const FIELD_VALUE_MAX = 2000
+const LOOSE_NAME_MAX = 100
+const PERSONAL_NOTE_MAX = 500
 
 const MESSAGES = {
   nameMissing: 'Informe o nome do item.',
@@ -69,7 +102,11 @@ const MESSAGES = {
   fieldNameMissing: 'Dê um nome ao Field.',
   fieldNameLong: `Use um nome de até ${FIELD_NAME_MAX} caracteres.`,
   fieldValueLong: `Use um valor de até ${FIELD_VALUE_MAX} caracteres.`,
+  looseNameLong: `Use um nome solto de até ${LOOSE_NAME_MAX} caracteres.`,
+  personalNoteLong: `Use uma nota de até ${PERSONAL_NOTE_MAX} caracteres.`,
   fieldRefused: 'Confira o nome e o valor do Field.',
+  notAParticipant:
+    'Alguém deste Field não vai mais ao Event. Abra o item de novo para ver quem e tire a pessoa.',
   saveFailed: 'Não foi possível salvar. Tente de novo.',
 }
 
@@ -82,32 +119,170 @@ export function initialItemDraft(item?: EventItem): ItemDraft {
     placeName: item?.place?.name ?? '',
     placeAddress: item?.place?.address ?? '',
     placeTimezone: item?.place?.timezone ?? null,
-    fields: (item?.fields ?? []).map(({ id, name, value, highlight }) => ({
-      key: fieldKey(id),
-      id,
-      name,
-      value,
-      highlight,
+    fields: (item?.fields ?? []).map(fieldDraft),
+  }
+}
+
+function fieldDraft(field: ItemField): FieldDraft {
+  const { id, name, highlight } = field
+  if (field.type === 'TEXT') {
+    return { type: 'TEXT', key: fieldKey(id), id, name, value: field.value, highlight }
+  }
+  let loose = 0
+  return {
+    type: 'PEOPLE',
+    key: fieldKey(id),
+    id,
+    name,
+    highlight,
+    visibility: field.personalNotesVisibility,
+    people: field.people.map((person) => ({
+      key: person.userId === null ? `name-${++loose}` : personKey(person.userId),
+      userId: person.userId,
+      name: person.name,
+      note: person.personalNote ?? '',
+      outOfEvent: person.outOfEvent,
     })),
   }
 }
 
+const personKey = (userId: number) => `user-${userId}`
+
 /** The key of a Field the item has. */
 export const fieldKey = (id: number) => `field-${id}`
 
+/** The next `<prefix>-<n>` key among these. */
+function nextKey(prefix: string, keys: string[]) {
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`)
+  const taken = keys.map((key) => Number(key.match(pattern)?.[1] ?? 0))
+  return `${prefix}-${Math.max(0, ...taken) + 1}`
+}
+
+const newFieldKey = (draft: ItemDraft) =>
+  nextKey(
+    'new',
+    draft.fields.map((f) => f.key),
+  )
+
 /** "+ Field de texto": an empty text Field at the end, out of the Resumo. */
 export function addTextField(draft: ItemDraft): ItemDraft {
-  const added = draft.fields.map((f) => Number(f.key.match(/^new-(\d+)$/)?.[1] ?? 0))
-  const key = `new-${Math.max(0, ...added) + 1}`
+  const field: TextFieldDraft = {
+    type: 'TEXT',
+    key: newFieldKey(draft),
+    id: null,
+    name: '',
+    value: '',
+    highlight: false,
+  }
+  return { ...draft, fields: [...draft.fields, field] }
+}
+
+/** "+ Field de pessoas": an empty one at the end, each note only for its person, out of the Resumo. */
+export function addPeopleField(draft: ItemDraft): ItemDraft {
+  const field: PeopleFieldDraft = {
+    type: 'PEOPLE',
+    key: newFieldKey(draft),
+    id: null,
+    name: '',
+    highlight: false,
+    visibility: 'PRIVATE',
+    people: [],
+  }
+  return { ...draft, fields: [...draft.fields, field] }
+}
+
+/** Typing in a Field's name or, of a text Field, its value. */
+export function editField(draft: ItemDraft, key: string, changes: FieldTextChanges): ItemDraft {
   return {
     ...draft,
-    fields: [...draft.fields, { key, id: null, name: '', value: '', highlight: false }],
+    fields: draft.fields.map((f) =>
+      f.key !== key
+        ? f
+        : f.type === 'TEXT'
+          ? { ...f, ...changes }
+          : { ...f, name: changes.name ?? f.name },
+    ),
   }
 }
 
-/** Typing in a Field's name or value. */
-export function editField(draft: ItemDraft, key: string, changes: FieldTextChanges): ItemDraft {
-  return { ...draft, fields: draft.fields.map((f) => (f.key === key ? { ...f, ...changes } : f)) }
+/** A change to the Field of people at that key; any other Field stays as it is. */
+function editPeopleField(
+  draft: ItemDraft,
+  key: string,
+  change: (field: PeopleFieldDraft) => PeopleFieldDraft,
+): ItemDraft {
+  return {
+    ...draft,
+    fields: draft.fields.map((f) => (f.key === key && f.type === 'PEOPLE' ? change(f) : f)),
+  }
+}
+
+/** "+ Participant": at the end of the Field; someone already in it stays where they are. */
+export function addParticipant(
+  draft: ItemDraft,
+  key: string,
+  { userId, name }: PersonChoice,
+): ItemDraft {
+  return editPeopleField(draft, key, (field) =>
+    field.people.some((p) => p.userId === userId)
+      ? field
+      : {
+          ...field,
+          people: [
+            ...field.people,
+            { key: personKey(userId), userId, name, note: '', outOfEvent: false },
+          ],
+        },
+  )
+}
+
+/** "+ Nome solto": someone with no login, at the end; a blank name adds no one. */
+export function addLooseName(draft: ItemDraft, key: string, name: string): ItemDraft {
+  const trimmed = name.trim()
+  if (!trimmed) return draft
+  return editPeopleField(draft, key, (field) => {
+    const person: PersonDraft = {
+      key: nextKey(
+        'name',
+        field.people.map((p) => p.key),
+      ),
+      userId: null,
+      name: trimmed,
+      note: '',
+      outOfEvent: false,
+    }
+    return { ...field, people: [...field.people, person] }
+  })
+}
+
+/** "Tirar": takes someone out of the Field, out of the Event or not. */
+export function removePerson(draft: ItemDraft, key: string, personKey: string): ItemDraft {
+  return editPeopleField(draft, key, (field) => ({
+    ...field,
+    people: field.people.filter((p) => p.key !== personKey),
+  }))
+}
+
+/** Typing someone's Personal note ("dirigindo", the localizador). */
+export function editPersonalNote(
+  draft: ItemDraft,
+  key: string,
+  personKey: string,
+  note: string,
+): ItemDraft {
+  return editPeopleField(draft, key, (field) => ({
+    ...field,
+    people: field.people.map((p) => (p.key === personKey ? { ...p, note } : p)),
+  }))
+}
+
+/** "Quem vê as notas": each their own (`PRIVATE`) or everyone in the item (`ALL`). */
+export function setNotesVisibility(
+  draft: ItemDraft,
+  key: string,
+  visibility: PersonalNotesVisibility,
+): ItemDraft {
+  return editPeopleField(draft, key, (field) => ({ ...field, visibility }))
 }
 
 /** "no Resumo": the Highlight on or off. */
@@ -152,18 +327,13 @@ export function fieldWrites(draft: ItemDraft, item?: EventItem): FieldWrites {
   const update: FieldWrites['update'] = []
   const add: FieldWrites['add'] = []
   for (const field of draft.fields) {
-    const name = field.name.trim()
-    const value = field.value.trim()
+    const input = fieldInput(field)
     const was = field.id === null ? undefined : before.find((f) => f.id === field.id)
     if (!was) {
-      add.push({ key: field.key, input: { type: 'TEXT', name, value, highlight: field.highlight } })
+      add.push({ key: field.key, input })
       continue
     }
-    const changes: ItemFieldChanges = {
-      ...(name !== was.name && { name }),
-      ...(value !== was.value && { value }),
-      ...(field.highlight !== was.highlight && { highlight: field.highlight }),
-    }
+    const changes = fieldChanges(input, was)
     if (Object.keys(changes).length > 0) update.push({ id: was.id, changes })
   }
   const remove = before.filter((f) => !kept.has(f.id)).map((f) => f.id)
@@ -175,6 +345,48 @@ export function fieldWrites(draft: ItemDraft, item?: EventItem): FieldWrites {
   const inOrder = saved.every((key, i) => key === wanted[i])
   const order = inOrder ? null : draft.fields.map((f) => f.id ?? f.key)
   return { remove, update, add, order }
+}
+
+/** A Field as the API takes it, trimmed. */
+function fieldInput(field: FieldDraft): ItemFieldInput {
+  const name = field.name.trim()
+  const { highlight } = field
+  if (field.type === 'TEXT') return { type: 'TEXT', name, value: field.value.trim(), highlight }
+  return {
+    type: 'PEOPLE',
+    name,
+    highlight,
+    personalNotesVisibility: field.visibility,
+    people: field.people.map((p) => personInput(p.userId, p.name, p.note)),
+  }
+}
+
+/** One person as the API takes them: by `userId`, or by name if loose; a blank note is none. */
+function personInput(userId: number | null, name: string, note: string | null): FieldPersonInput {
+  const personalNote = note?.trim() || null
+  return userId === null ? { name, personalNote } : { userId, personalNote }
+}
+
+/** What changed of a saved Field: each part on its own, the people whole. */
+function fieldChanges(input: ItemFieldInput, was: ItemField): ItemFieldChanges {
+  const common = {
+    ...(input.name !== was.name && { name: input.name }),
+    ...(input.highlight !== was.highlight && { highlight: input.highlight }),
+  }
+  if (input.type === 'TEXT') {
+    const value = was.type === 'TEXT' ? was.value : undefined
+    return { ...common, ...(input.value !== value && { value: input.value }) }
+  }
+  if (was.type !== 'PEOPLE') return common
+  const before = was.people.map((p) => personInput(p.userId, p.name, p.personalNote))
+  const samePeople = JSON.stringify(input.people) === JSON.stringify(before)
+  return {
+    ...common,
+    ...(input.personalNotesVisibility !== was.personalNotesVisibility && {
+      personalNotesVisibility: input.personalNotesVisibility,
+    }),
+    ...(!samePeople && { people: input.people }),
+  }
 }
 
 export function hasFieldWrites({ remove, update, add, order }: FieldWrites): boolean {
@@ -232,14 +444,7 @@ export function itemDraftInput(
     errors.placeAddress = MESSAGES.placeAddressLong
   }
   for (const field of draft.fields) {
-    const fieldName = field.name.trim()
-    const message = !fieldName
-      ? MESSAGES.fieldNameMissing
-      : fieldName.length > FIELD_NAME_MAX
-        ? MESSAGES.fieldNameLong
-        : field.value.trim().length > FIELD_VALUE_MAX
-          ? MESSAGES.fieldValueLong
-          : null
+    const message = fieldError(field)
     if (message) errors[fieldErrorKey(field.key)] = message
   }
 
@@ -264,6 +469,23 @@ export function itemDraftInput(
   return { errors, input: Object.keys(changes).length > 0 ? changes : null }
 }
 
+/** What is wrong with one Field, or `null`. */
+function fieldError(field: FieldDraft): string | null {
+  const name = field.name.trim()
+  if (!name) return MESSAGES.fieldNameMissing
+  if (name.length > FIELD_NAME_MAX) return MESSAGES.fieldNameLong
+  if (field.type === 'TEXT') {
+    return field.value.trim().length > FIELD_VALUE_MAX ? MESSAGES.fieldValueLong : null
+  }
+  if (field.people.some((p) => p.userId === null && p.name.trim().length > LOOSE_NAME_MAX)) {
+    return MESSAGES.looseNameLong
+  }
+  if (field.people.some((p) => p.note.trim().length > PERSONAL_NOTE_MAX)) {
+    return MESSAGES.personalNoteLong
+  }
+  return null
+}
+
 const FIELD_BY_PATH: Record<string, [Exclude<keyof ItemDraft, 'fields'>, string]> = {
   name: ['name', 'Confira o nome do item.'],
   date: ['date', 'Confira o dia.'],
@@ -282,9 +504,13 @@ const FIELD_BY_PATH: Record<string, [Exclude<keyof ItemDraft, 'fields'>, string]
 export function errorsFromApi(error: unknown): ItemDraftErrors {
   if (error instanceof FieldWriteError) {
     const { cause, key } = error
-    return cause instanceof ApiError && cause.code === 'VALIDATION_ERROR'
-      ? { [fieldErrorKey(key)]: MESSAGES.fieldRefused }
-      : errorsFromApi(cause)
+    if (cause instanceof ApiError && cause.code === 'VALIDATION_ERROR') {
+      return { [fieldErrorKey(key)]: MESSAGES.fieldRefused }
+    }
+    if (cause instanceof ApiError && cause.code === 'NOT_A_PARTICIPANT') {
+      return { [fieldErrorKey(key)]: MESSAGES.notAParticipant }
+    }
+    return errorsFromApi(cause)
   }
   if (!(error instanceof ApiError)) return { form: MESSAGES.saveFailed }
   if (error.code === 'EVENT_ITEM_TIME_WITHOUT_DATE') return { time: MESSAGES.timeWithoutDate }

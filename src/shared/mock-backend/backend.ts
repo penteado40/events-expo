@@ -8,6 +8,7 @@ import {
   createDataset,
   type EventItemRow,
   type EventRow,
+  type FieldPersonRow,
   type ItemFieldRow,
   type ItemPlaceRow,
   type TeamRow,
@@ -70,6 +71,8 @@ const ITEM_MOVES = {
   }
 >
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
+const notAParticipant = () =>
+  new ApiError('NOT_A_PARTICIPANT', 'Só Participants do Event entram num Field de pessoas.')
 const teamNameTaken = () =>
   new ApiError('TEAM_NAME_TAKEN', 'Já existe um Team com este nome neste Group.')
 
@@ -218,44 +221,141 @@ function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
   return { name: name?.trim(), date, time, place: checkedPlace }
 }
 
-/** The body of `POST …/items/:itemId/fields`, and of `PATCH` with no type (PROJ-198, PROJ-200). */
-export type ItemFieldBody = { type?: string; name?: string; value?: string; highlight?: boolean }
+/** One person of a Field of people as sent: a Participant by `userId`, or a loose `name`. */
+export type FieldPersonBody = { userId?: number; name?: string; personalNote?: string | null }
+
+/**
+ * The body of `POST …/items/:itemId/fields`, and of `PATCH` with no type (PROJ-198, PROJ-200): a
+ * text Field's value, or a Field of people's people and who sees the Personal notes (PROJ-201,
+ * PROJ-203, PROJ-204, planned in the events-api).
+ */
+export type ItemFieldBody = {
+  type?: string
+  name?: string
+  value?: string
+  highlight?: boolean
+  personalNotesVisibility?: string
+  people?: FieldPersonBody[]
+}
 
 /** The body of `PUT …/items/:itemId/fields/order`. */
 export type FieldOrderBody = { fieldIds?: number[] }
 
 const FIELD_NAME_MAX = 100
 const FIELD_VALUE_MAX = 2000
+const LOOSE_NAME_MAX = 100
+const PERSONAL_NOTE_MAX = 500
+
+/** What each type of Field takes besides its name and Highlight. */
+const FIELD_KEYS = { TEXT: ['value'], PEOPLE: ['personalNotesVisibility', 'people'] } as const
 
 /**
- * Checks a Field's body as the API's DTO would: for now only `TEXT`, a name of 1 to 100 characters
- * trimmed, a value (empty too) of up to 2000, and the Highlight. An edit never changes the type.
+ * Checks a Field's body as the API's DTO would: `TEXT` or `PEOPLE` (an edit never changes the
+ * type, `type` being the Field's), a name of 1 to 100 characters trimmed and the Highlight; a text
+ * Field's value (empty too) of up to 2000; a Field of people's people (`checkPeople`) and who sees
+ * the notes, `PRIVATE` or `ALL`. What the other type takes is unknown here.
  */
-function checkFieldBody(body: ItemFieldBody, { partial }: { partial: boolean }) {
-  const { type, name, value, highlight, ...rest } = body
-  const details: Detail[] = Object.keys(rest).map((key) => ({
-    path: key,
-    message: 'Campo desconhecido.',
-  }))
-  if (partial ? type !== undefined : type !== 'TEXT') {
-    details.push({ path: 'type', message: 'Use TEXT.' })
+function checkFieldBody(
+  body: ItemFieldBody,
+  { partial, type: was }: { partial: boolean; type?: ItemFieldRow['type'] },
+) {
+  const { type: sent, name, highlight, ...rest } = body
+  const details: Detail[] = []
+  const type = partial ? was : sent === 'TEXT' || sent === 'PEOPLE' ? sent : undefined
+  if (partial ? sent !== undefined : type === undefined) {
+    details.push({ path: 'type', message: 'Use TEXT ou PEOPLE.' })
+  }
+  // With no type known, what else the body has cannot be told apart.
+  const known: readonly string[] = type ? FIELD_KEYS[type] : Object.keys(rest)
+  for (const key of Object.keys(rest)) {
+    if (!known.includes(key)) details.push({ path: key, message: 'Campo desconhecido.' })
   }
   if (name === undefined && !partial) details.push({ path: 'name', message: 'Obrigatório.' })
   if (name !== undefined && (name.trim().length < 1 || name.trim().length > FIELD_NAME_MAX)) {
     details.push({ path: 'name', message: `Use de 1 a ${FIELD_NAME_MAX} caracteres.` })
   }
-  if (value === undefined && !partial) details.push({ path: 'value', message: 'Obrigatório.' })
-  if (value !== undefined && value.trim().length > FIELD_VALUE_MAX) {
-    details.push({ path: 'value', message: `Use até ${FIELD_VALUE_MAX} caracteres.` })
-  }
   if (highlight !== undefined && typeof highlight !== 'boolean') {
     details.push({ path: 'highlight', message: 'Use true ou false.' })
+  }
+  const { value, personalNotesVisibility, people } = rest
+  if (type === 'TEXT') {
+    if (value === undefined && !partial) details.push({ path: 'value', message: 'Obrigatório.' })
+    if (value !== undefined && value.trim().length > FIELD_VALUE_MAX) {
+      details.push({ path: 'value', message: `Use até ${FIELD_VALUE_MAX} caracteres.` })
+    }
+  }
+  let checkedPeople: FieldPersonRow[] | undefined
+  if (type === 'PEOPLE') {
+    if (
+      personalNotesVisibility !== undefined &&
+      personalNotesVisibility !== 'PRIVATE' &&
+      personalNotesVisibility !== 'ALL'
+    ) {
+      details.push({ path: 'personalNotesVisibility', message: 'Use PRIVATE ou ALL.' })
+    }
+    if (people === undefined && !partial) details.push({ path: 'people', message: 'Obrigatório.' })
+    if (people !== undefined) checkedPeople = checkPeople(people, details)
   }
   if (partial && Object.keys(body).length === 0) {
     details.push({ path: '', message: 'Envie ao menos um campo.' })
   }
   if (details.length > 0) throw validationError(details)
-  return { name: name?.trim(), value: value?.trim(), highlight }
+  return {
+    type: type!,
+    name: name?.trim(),
+    value: value?.trim(),
+    highlight,
+    personalNotesVisibility: personalNotesVisibility as 'PRIVATE' | 'ALL' | undefined,
+    people: checkedPeople,
+  }
+}
+
+/**
+ * The people of a Field of people, in order: each a `userId` or a loose `name` (1 to 100
+ * characters trimmed), once each, with a Personal note of up to 500 (blank: none).
+ */
+function checkPeople(people: unknown, details: Detail[]): FieldPersonRow[] {
+  if (!Array.isArray(people)) {
+    details.push({ path: 'people', message: 'Envie uma lista.' })
+    return []
+  }
+  const seen = new Set<number>()
+  return people.map((entry: unknown, i): FieldPersonRow => {
+    const path = (key: string) => `people.${i}.${key}`
+    if (typeof entry !== 'object' || entry === null) {
+      details.push({ path: `people.${i}`, message: 'Envie userId ou name.' })
+      return { userId: null, name: '', personalNote: null }
+    }
+    const { userId, name, personalNote, ...rest } = entry as FieldPersonBody
+    for (const key of Object.keys(rest))
+      details.push({ path: path(key), message: 'Campo desconhecido.' })
+    if (
+      personalNote != null &&
+      (typeof personalNote !== 'string' || personalNote.trim().length > PERSONAL_NOTE_MAX)
+    ) {
+      details.push({
+        path: path('personalNote'),
+        message: `Use até ${PERSONAL_NOTE_MAX} caracteres.`,
+      })
+    }
+    const note = typeof personalNote === 'string' ? personalNote.trim() || null : null
+    if ((userId === undefined) === (name === undefined)) {
+      details.push({ path: path('userId'), message: 'Envie userId ou name.' })
+    } else if (userId !== undefined) {
+      if (!Number.isInteger(userId)) details.push({ path: path('userId'), message: 'Use um id.' })
+      else if (seen.has(userId))
+        details.push({ path: path('userId'), message: 'Já está no Field.' })
+      seen.add(userId)
+      return { userId, name: null, personalNote: note }
+    } else if (
+      typeof name !== 'string' ||
+      name.trim().length < 1 ||
+      name.trim().length > LOOSE_NAME_MAX
+    ) {
+      details.push({ path: path('name'), message: `Use de 1 a ${LOOSE_NAME_MAX} caracteres.` })
+    }
+    return { userId: null, name: typeof name === 'string' ? name.trim() : '', personalNote: note }
+  })
 }
 
 /** A place with no part is the domain's refusal (after who may write), with no details. */
@@ -460,17 +560,48 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
   function scheduleItemJson(row: EventItemRow, event: EventRow) {
     const { id, name, date, time, place, state, fields } = row
     const when = date === null ? null : { date, time, timezone: place?.timezone ?? event.timezone }
-    return { id, name, when, place: place && { ...place }, state, fields: fields.map(fieldJson) }
+    const fieldsJson = fields.map((field) => fieldJson(field, event))
+    return { id, name, when, place: place && { ...place }, state, fields: fieldsJson }
   }
 
-  const fieldJson = (field: ItemFieldRow) => ({ ...field })
+  /**
+   * A Field as the API sends it: of people, each with a name (a User's own) and, for a User no
+   * longer a Participant, `outOfEvent`, worked out on reading (PROJ-205). The schedule is the
+   * production's for now, so every Personal note goes.
+   */
+  function fieldJson(field: ItemFieldRow, event: EventRow) {
+    if (field.type === 'TEXT') return { ...field }
+    return {
+      ...field,
+      people: field.people.map(({ userId, name, personalNote }) =>
+        userId === null
+          ? { userId, name, personalNote, outOfEvent: false }
+          : {
+              userId,
+              name: data.users.find((u) => u.id === userId)!.name,
+              personalNote,
+              outOfEvent: !event.participantIds.includes(userId),
+            },
+      ),
+    }
+  }
+
+  /**
+   * Only Participants enter a Field of people (PROJ-201): `NOT_A_PARTICIPANT` for a User not
+   * going, unless they were in that Field already (out of the Event since, PROJ-205).
+   */
+  function assertParticipants(event: EventRow, people: FieldPersonRow[], kept: FieldPersonRow[]) {
+    const ok = (userId: number) =>
+      event.participantIds.includes(userId) || kept.some((p) => p.userId === userId)
+    if (people.some((p) => p.userId !== null && !ok(p.userId))) throw notAParticipant()
+  }
 
   /** The Field of that item: `NOT_FOUND` when it is another item's. */
   function reachField(asker: UserRow, eventId: number, itemId: number, fieldId: number) {
-    const { row } = reachItem(asker, eventId, itemId)
+    const { event, row } = reachItem(asker, eventId, itemId)
     const field = row.fields.find((f) => f.id === fieldId)
     if (!field) throw notFound()
-    return { row, field }
+    return { event, row, field }
   }
 
   /** An Event item as a write returns it. */
@@ -940,16 +1071,26 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       await delay()
       const asker = requester(identity)
       const checked = checkFieldBody(body, { partial: false })
-      const { row } = reachItem(asker, eventId, itemId)
-      const field: ItemFieldRow = {
-        id: Math.max(0, ...data.items.flatMap((i) => i.fields.map((f) => f.id))) + 1,
-        type: 'TEXT',
-        name: checked.name!,
-        value: checked.value!,
-        highlight: checked.highlight ?? false,
+      const { event, row } = reachItem(asker, eventId, itemId)
+      const id = Math.max(0, ...data.items.flatMap((i) => i.fields.map((f) => f.id))) + 1
+      const name = checked.name!
+      const highlight = checked.highlight ?? false
+      let field: ItemFieldRow
+      if (checked.type === 'TEXT') {
+        field = { id, type: 'TEXT', name, value: checked.value!, highlight }
+      } else {
+        assertParticipants(event, checked.people!, [])
+        field = {
+          id,
+          type: 'PEOPLE',
+          name,
+          highlight,
+          personalNotesVisibility: checked.personalNotesVisibility ?? 'PRIVATE',
+          people: checked.people!,
+        }
       }
       row.fields.push(field)
-      return fieldJson(field)
+      return fieldJson(field, event)
     },
 
     /** `PATCH …/fields/:fieldId` (PROJ-198, PROJ-200): name, value or Highlight; the rest stays. */
@@ -962,12 +1103,23 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     ) {
       await delay()
       const asker = requester(identity)
-      const { name, value, highlight } = checkFieldBody(body, { partial: true })
-      const { field } = reachField(asker, eventId, itemId, fieldId)
-      if (name !== undefined) field.name = name
-      if (value !== undefined) field.value = value
-      if (highlight !== undefined) field.highlight = highlight
-      return fieldJson(field)
+      // The type is the Field's own, so its body is checked after finding it (the API's DTO
+      // takes either shape; the domain refuses what the Field's type does not have).
+      const { event, field } = reachField(asker, eventId, itemId, fieldId)
+      const checked = checkFieldBody(body, { partial: true, type: field.type })
+      if (checked.name !== undefined) field.name = checked.name
+      if (checked.highlight !== undefined) field.highlight = checked.highlight
+      if (field.type === 'TEXT' && checked.value !== undefined) field.value = checked.value
+      if (field.type === 'PEOPLE') {
+        if (checked.personalNotesVisibility !== undefined) {
+          field.personalNotesVisibility = checked.personalNotesVisibility
+        }
+        if (checked.people !== undefined) {
+          assertParticipants(event, checked.people, field.people)
+          field.people = checked.people
+        }
+      }
+      return fieldJson(field, event)
     },
 
     /** `DELETE …/fields/:fieldId` (PROJ-198). */

@@ -4,6 +4,7 @@ import {
   createHttpEventItemsRepository,
   createHttpEventsRepository,
   createHttpScheduleRepository,
+  type ItemFieldInput,
 } from '../api'
 
 /** An Event exactly as the events-api answers it today (PROJ-182). */
@@ -156,6 +157,54 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       ['PATCH', 'https://api.test/events/7/items/9/fields/4', { highlight: false }],
       ['PUT', 'https://api.test/events/7/items/9/fields/order', { fieldIds: [4, 3] }],
     ])
+  })
+
+  it('writes a Field of people with its people and notes, and reads it back', async () => {
+    const field = {
+      id: 5,
+      type: 'PEOPLE',
+      name: 'Carro 1 - EC',
+      highlight: true,
+      personalNotesVisibility: 'ALL',
+      people: [
+        { userId: 3, name: 'Matias Costa', personalNote: 'dirigindo', outOfEvent: false },
+        { userId: 4, name: 'Jacque Moreira', personalNote: null, outOfEvent: true },
+        { userId: null, name: 'Seu Raimundo', personalNote: null, outOfEvent: false },
+      ],
+    }
+    const { http, fetch } = clientAnswering({ data: field }, 201)
+    const items = createHttpEventItemsRepository(http)
+    const input = {
+      type: 'PEOPLE',
+      name: 'Carro 1 - EC',
+      highlight: true,
+      personalNotesVisibility: 'ALL',
+      people: [
+        { userId: 3, personalNote: 'dirigindo' },
+        { userId: 4, personalNote: null },
+        { name: 'Seu Raimundo', personalNote: null },
+      ],
+    } satisfies ItemFieldInput
+
+    await expect(items.addField(7, 9, input)).resolves.toEqual(field)
+    await items.updateField(7, 9, 5, { personalNotesVisibility: 'PRIVATE' })
+
+    expect(
+      fetch.mock.calls.map(([url, init]) => [init?.method, url, JSON.parse(String(init?.body))]),
+    ).toEqual([
+      ['POST', 'https://api.test/events/7/items/9/fields', input],
+      [
+        'PATCH',
+        'https://api.test/events/7/items/9/fields/5',
+        { personalNotesVisibility: 'PRIVATE' },
+      ],
+    ])
+  })
+
+  it('offers no Fields of people until the events-api has them', () => {
+    const { http } = clientAnswering({ data: null })
+
+    expect(createHttpEventItemsRepository(http).peopleFieldsAvailable()).toBe(false)
   })
 
   it('publishes, cancels and uncancels an item on its own routes, with no body', async () => {

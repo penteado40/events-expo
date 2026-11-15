@@ -17,10 +17,11 @@ export const participantsQueryKey = (eventId: number) =>
 export const participantsAvailable = () => participantsRepository.available()
 
 /** Who goes to the Event (`GET /events/:id/participants`), for any Group member. */
-export function useParticipants(eventId: number) {
+export function useParticipants(eventId: number, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: participantsQueryKey(eventId),
     queryFn: () => participantsRepository.list(eventId),
+    enabled,
   })
 }
 

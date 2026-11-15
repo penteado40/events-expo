@@ -31,16 +31,22 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 import type { Event, EventItem, EventItemChanges, EventItemInput } from '../api'
 import { useEvent } from '../hooks/use-event'
 import {
+  peopleFieldsAvailable,
   useCreateItem,
   useUpdateItem,
   type ItemSave,
   type SaveAction,
 } from '../hooks/use-item-writes'
+import { participantsAvailable, useParticipants } from '../hooks/use-participants'
 import { useSchedule } from '../hooks/use-schedule'
 import {
+  addLooseName,
+  addParticipant,
+  addPeopleField,
   addTextField,
   draftTimezone,
   editField,
+  editPersonalNote,
   errorsFromApi,
   fieldErrorKey,
   fieldWrites,
@@ -49,6 +55,8 @@ import {
   itemDraftInput,
   moveField,
   removeField,
+  removePerson,
+  setNotesVisibility,
   toggleHighlight,
   type FieldTextChanges,
   type ItemDraft,
@@ -199,8 +207,9 @@ type ItemEditorViewProps<Input> = {
 /**
  * The fields of D-Editar: the name on the cover in the Event's color, then when (the day and the
  * local time, both optional, the time only with a day) and where (name, address and the place's
- * own timezone, or the Event's), then the text Fields (PROJ-223). An item in Draft is saved as
- * it is or published with what changed (PROJ-226). "Quem vê" comes with its own ticket.
+ * own timezone, or the Event's), then the text Fields (PROJ-223) and the Fields of people
+ * (PROJ-225). An item in Draft is saved as it is or published with what changed (PROJ-226).
+ * "Quem vê" comes with its own ticket.
  */
 function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   event,
@@ -221,6 +230,9 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   const [errors, setErrors] = useState<ItemDraftErrors>({})
   const [picking, setPicking] = useState(false)
   const [action, setAction] = useState<SaveAction>('save')
+  const canAddPeopleFields = peopleFieldsAvailable()
+  const canChooseParticipants = canAddPeopleFields && participantsAvailable()
+  const participants = useParticipants(event.id, { enabled: canChooseParticipants })
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
@@ -383,13 +395,31 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
           <ItemFields
             fields={draft.fields}
             errors={errors}
+            canAddPeopleFields={canAddPeopleFields}
+            participants={
+              canChooseParticipants
+                ? participants.data?.map(({ userId, name }) => ({ userId, name }))
+                : null
+            }
             onAdd={() => editFields(addTextField)}
+            onAddPeople={() => editFields(addPeopleField)}
             onEdit={(key, changes: FieldTextChanges) =>
               editFields((d) => editField(d, key, changes), key)
             }
             onToggleHighlight={(key) => editFields((d) => toggleHighlight(d, key))}
             onMove={(key, by) => editFields((d) => moveField(d, key, by))}
             onRemove={(key) => editFields((d) => removeField(d, key), key)}
+            peopleActions={{
+              onAddParticipant: (key, person) =>
+                editFields((d) => addParticipant(d, key, person), key),
+              onAddLooseName: (key, name) => editFields((d) => addLooseName(d, key, name), key),
+              onRemovePerson: (key, personKey) =>
+                editFields((d) => removePerson(d, key, personKey), key),
+              onEditNote: (key, personKey, note) =>
+                editFields((d) => editPersonalNote(d, key, personKey, note), key),
+              onVisibility: (key, visibility) =>
+                editFields((d) => setNotesVisibility(d, key, visibility), key),
+            }}
           />
           {errors.form && <Notice message={errors.form} />}
         </View>

@@ -14,6 +14,9 @@ export type SaveAction = 'save' | 'saveAndPublish'
 /** A save from the editor: the item's own payload, its Fields' writes, and its action. */
 export type ItemSave<Input> = { input: Input; fields: FieldWrites; action: SaveAction }
 
+/** Whether the editor offers Fields of people: not over the events-api yet (PROJ-201). */
+export const peopleFieldsAvailable = () => itemsRepository.peopleFieldsAvailable()
+
 /** After a write the schedule is read again (no optimistic update in this slice). */
 function useInvalidateSchedule(eventId: number) {
   const client = useQueryClient()

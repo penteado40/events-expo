@@ -55,17 +55,57 @@ export const itemPlaceSchema = z.object({
 export type ItemPlace = z.infer<typeof itemPlaceSchema>
 
 /**
- * A Field of an Event item (events-api PROJ-198, PROJ-200): a name and a value of one type, for now
- * only text (obs, contatos, voltagem, o que levar; a list, a phone or a link are text too), and the
- * Highlight that takes it to the Summary ("no Resumo").
+ * A text Field of an Event item (events-api PROJ-198, PROJ-200): a name and a value (obs,
+ * contatos, voltagem, o que levar; a list, a phone or a link are text too), and the Highlight that
+ * takes it to the Summary ("no Resumo").
  */
-export const itemFieldSchema = z.object({
+export const textFieldSchema = z.object({
   id: z.number().int(),
   type: z.literal('TEXT'),
   name: z.string(),
   value: z.string(),
   highlight: z.boolean(),
 })
+
+export type TextField = z.infer<typeof textFieldSchema>
+
+/** Who sees the Personal notes of a Field of people: each their own, or everyone the item reaches. */
+export const personalNotesVisibilitySchema = z.enum(['PRIVATE', 'ALL'])
+
+export type PersonalNotesVisibility = z.infer<typeof personalNotesVisibilitySchema>
+
+/**
+ * One person in a Field of people (events-api PROJ-201, PROJ-203, PROJ-204, PROJ-205, not built
+ * there yet; shape assumed): a Participant (`userId`), or a loose name of someone with no login
+ * (`userId: null`), which only shows there. `outOfEvent` marks a User who stopped being a
+ * Participant and stays in the Field until the production takes them out.
+ */
+export const fieldPersonSchema = z.object({
+  userId: z.number().int().nullable(),
+  name: z.string(),
+  personalNote: z.string().nullable().default(null),
+  outOfEvent: z.boolean().default(false),
+})
+
+export type FieldPerson = z.infer<typeof fieldPersonSchema>
+
+/**
+ * A Field of people (carros, quartos): its people in the production's order, each with a Personal
+ * note, seen only by that person and the production unless the Field shows them to everyone.
+ */
+export const peopleFieldSchema = z.object({
+  id: z.number().int(),
+  type: z.literal('PEOPLE'),
+  name: z.string(),
+  highlight: z.boolean(),
+  personalNotesVisibility: personalNotesVisibilitySchema.default('PRIVATE'),
+  people: z.array(fieldPersonSchema),
+})
+
+export type PeopleField = z.infer<typeof peopleFieldSchema>
+
+/** A Field of an Event item: of one type, text or people. */
+export const itemFieldSchema = z.discriminatedUnion('type', [textFieldSchema, peopleFieldSchema])
 
 export type ItemField = z.infer<typeof itemFieldSchema>
 
