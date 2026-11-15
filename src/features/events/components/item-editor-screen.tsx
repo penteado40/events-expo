@@ -24,6 +24,7 @@ import {
 import { autoTone } from '@/shared/domain/auto-tone'
 import { canEditEvent, roleIn, writesEvents } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
+import { plural } from '@/shared/domain/plural'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -31,19 +32,21 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 import type { Event, EventItem, EventItemChanges, EventItemInput } from '../api'
 import { useEvent } from '../hooks/use-event'
 import {
+  audienceAvailable,
   peopleFieldsAvailable,
   useCreateItem,
   useUpdateItem,
   type ItemSave,
   type SaveAction,
 } from '../hooks/use-item-writes'
-import { participantsAvailable, useParticipants } from '../hooks/use-participants'
+import { participantsAvailable, useGroupTeams, useParticipants } from '../hooks/use-participants'
 import { useSchedule } from '../hooks/use-schedule'
 import {
   addLooseName,
   addParticipant,
   addPeopleField,
   addTextField,
+  audienceReach,
   draftTimezone,
   editField,
   editPersonalNote,
@@ -58,12 +61,14 @@ import {
   removePerson,
   setNotesVisibility,
   toggleHighlight,
+  type AudienceDraft,
   type FieldTextChanges,
   type ItemDraft,
   type ItemDraftErrors,
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
 import { DRAFT_BADGE } from '../item-state'
+import { AUDIENCE_KIND_LABELS, AudienceSheet } from './audience-sheet'
 import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
 import { TimezoneSheet } from './timezone-sheet'
@@ -208,8 +213,8 @@ type ItemEditorViewProps<Input> = {
  * The fields of D-Editar: the name on the cover in the Event's color, then when (the day and the
  * local time, both optional, the time only with a day) and where (name, address and the place's
  * own timezone, or the Event's), then the text Fields (PROJ-223) and the Fields of people
- * (PROJ-225). An item in Draft is saved as it is or published with what changed (PROJ-226).
- * "Quem vê" comes with its own ticket.
+ * (PROJ-225), and "Quem vê", the Audience (PROJ-233). An item in Draft is saved as it is or
+ * published with what changed (PROJ-226).
  */
 function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   event,
@@ -229,10 +234,16 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   const [draft, setDraft] = useState<ItemDraft>(() => initialItemDraft(item))
   const [errors, setErrors] = useState<ItemDraftErrors>({})
   const [picking, setPicking] = useState(false)
+  const [choosingAudience, setChoosingAudience] = useState(false)
   const [action, setAction] = useState<SaveAction>('save')
   const canAddPeopleFields = peopleFieldsAvailable()
   const canChooseParticipants = canAddPeopleFields && participantsAvailable()
-  const participants = useParticipants(event.id, { enabled: canChooseParticipants })
+  const canChooseAudience = audienceAvailable() && participantsAvailable()
+  const participants = useParticipants(event.id, {
+    enabled: canChooseParticipants || canChooseAudience,
+  })
+  const teams = useGroupTeams(event.groupId, { enabled: canChooseAudience })
+  const participantChoices = participants.data?.map(({ userId, name }) => ({ userId, name }))
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
@@ -392,15 +403,27 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             A hora é sempre a do lugar, nunca convertida.
           </Text>
 
+          {canChooseAudience && (
+            <AudienceRow
+              audience={draft.audience}
+              reach={
+                participantChoices &&
+                audienceReach(
+                  draft.audience,
+                  draft.fields,
+                  participantChoices.map((p) => p.userId),
+                )
+              }
+              error={errors.audience}
+              onPress={() => setChoosingAudience(true)}
+            />
+          )}
+
           <ItemFields
             fields={draft.fields}
             errors={errors}
             canAddPeopleFields={canAddPeopleFields}
-            participants={
-              canChooseParticipants
-                ? participants.data?.map(({ userId, name }) => ({ userId, name }))
-                : null
-            }
+            participants={canChooseParticipants ? participantChoices : null}
             onAdd={() => editFields(addTextField)}
             onAddPeople={() => editFields(addPeopleField)}
             onEdit={(key, changes: FieldTextChanges) =>
@@ -454,7 +477,69 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
         onChoose={edit('placeTimezone')}
         onClose={() => setPicking(false)}
       />
+      {canChooseAudience && participantChoices && (
+        <AudienceSheet
+          visible={choosingAudience}
+          itemName={draft.name}
+          audience={draft.audience}
+          fields={draft.fields}
+          participants={participantChoices}
+          teams={teams.data ?? []}
+          onApply={(audience) => {
+            edit('audience')(audience)
+            setChoosingAudience(false)
+          }}
+          onClose={() => setChoosingAudience(false)}
+        />
+      )}
     </KeyboardAvoidingView>
+  )
+}
+
+/**
+ * "Quem vê" in the editor: "Todos que vão" or "Escolher pessoas" and how many it reaches (once the
+ * Participants are read), opening the sheet where it is chosen.
+ */
+function AudienceRow({
+  audience,
+  reach,
+  error,
+  onPress,
+}: {
+  audience: AudienceDraft
+  reach: number | undefined
+  error?: string
+  onPress: () => void
+}) {
+  const theme = useTheme()
+  const { colors } = theme
+  const danger = theme.badge('red').text
+  const kind = AUDIENCE_KIND_LABELS[audience.kind]
+  const count = reach === undefined ? null : plural(reach, 'pessoa', 'pessoas')
+  return (
+    <>
+      <Text style={[styles.section, styles.where, { color: colors.text }]}>Quem vê</Text>
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={['Quem vê', [kind, count].filter(Boolean).join(', ')].join(': ')}
+        style={[
+          styles.picker,
+          { backgroundColor: colors.surface, borderColor: error ? danger : colors.border },
+        ]}
+      >
+        <View style={styles.pickerText}>
+          <Text style={[styles.pickerValue, { color: colors.text }]}>{kind}</Text>
+          {count && <Text style={[styles.pickerLabel, { color: colors.textMuted }]}>{count}</Text>}
+        </View>
+        <Icon name="chevronDown" color={colors.textMuted} size={18} strokeWidth={2} />
+      </Pressable>
+      {error && (
+        <Text accessibilityLiveRegion="polite" style={[styles.error, { color: danger }]}>
+          {error}
+        </Text>
+      )}
+    </>
   )
 }
 

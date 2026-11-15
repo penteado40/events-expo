@@ -39,6 +39,8 @@ const MANAUS_TZ = 'America/Manaus'
 const MINAS = 2
 /** Festival de Verão: Cancelled. */
 const FESTIVAL = 5
+/** "Todos que vão", every item's unless chosen. */
+const ALL = { kind: 'ALL' } as const
 
 describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRepository) => {
   it('gives the General info: the items with no date, in creation order', async () => {
@@ -47,8 +49,24 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
     const { generalInfo } = await schedule.get(MANAUS)
 
     expect(generalInfo).toEqual([
-      { id: 1, name: 'O que levar', when: null, place: null, state: 'PUBLISHED', fields: [] },
-      { id: 12, name: 'Contatos', when: null, place: null, state: 'PUBLISHED', fields: [] },
+      {
+        id: 1,
+        name: 'O que levar',
+        when: null,
+        place: null,
+        state: 'PUBLISHED',
+        fields: [],
+        audience: ALL,
+      },
+      {
+        id: 12,
+        name: 'Contatos',
+        when: null,
+        place: null,
+        state: 'PUBLISHED',
+        fields: [],
+        audience: ALL,
+      },
     ])
   })
 
@@ -89,6 +107,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
       place: { name: 'Vitória', address: null, timezone: 'America/Sao_Paulo' },
       state: 'PUBLISHED',
       fields: [],
+      audience: ALL,
     })
     expect(named('Show')?.when).toEqual({ date: '2026-11-21', time: '19:00', timezone: MANAUS_TZ })
     expect(named('Almoço')?.when).toEqual({ date: '2026-11-21', time: null, timezone: MANAUS_TZ })
@@ -134,6 +153,7 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       place: { name: 'Hotel Taj Mahal', address: null, timezone: null },
       state: 'DRAFT',
       fields: [],
+      audience: ALL,
     })
   })
 
@@ -248,6 +268,7 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       place: { name: 'Teatro Amazonas', address: null, timezone: 'America/Sao_Paulo' },
       state: 'PUBLISHED',
       fields: expect.any(Array),
+      audience: ALL,
     })
   })
 
@@ -713,5 +734,107 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
 
     await participants.add(MANAUS, LU_ID)
     expect(await lu()).toMatchObject({ outOfEvent: false })
+  })
+})
+
+describe.each(implementations)('Audience contract (%s)', (_, createRepository) => {
+  /** Passagem de som, Saturday at the Teatro Amazonas. */
+  const PASSAGEM = 6
+  const MATIAS = 3
+  const LU_ID = 5
+  /** Tiago Souza: in Vocal Livre, but not going to Saída Manaus. */
+  const TIAGO = 9
+
+  const audienceOf = async (
+    schedule: ReturnType<typeof createRepository>['schedule'],
+    itemId: number,
+  ) => {
+    const { generalInfo, timeline } = await schedule.get(MANAUS)
+    return [...generalInfo, ...timeline.flatMap((d) => d.items)].find((i) => i.id === itemId)!
+      .audience
+  }
+
+  it('gives every item "Todos que vão" unless chosen', async () => {
+    const { schedule } = createRepository(BRUNO)
+
+    expect(await audienceOf(schedule, PASSAGEM)).toEqual({ kind: 'ALL' })
+  })
+
+  it('chooses a list of Participants, each once, and goes back to "Todos"', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+
+    const edited = await items.update(MANAUS, PASSAGEM, {
+      audience: { kind: 'SELECTED', userIds: [LU_ID, MATIAS, LU_ID] },
+    })
+    expect(edited.audience).toEqual({ kind: 'SELECTED', userIds: [MATIAS, LU_ID] })
+    expect(await audienceOf(schedule, PASSAGEM)).toEqual({
+      kind: 'SELECTED',
+      userIds: [MATIAS, LU_ID],
+    })
+
+    await items.update(MANAUS, PASSAGEM, { audience: { kind: 'ALL' } })
+    expect(await audienceOf(schedule, PASSAGEM)).toEqual({ kind: 'ALL' })
+  })
+
+  it('creates an item with a chosen list, and with "Todos" when left out', async () => {
+    const { items } = createRepository(BRUNO)
+
+    const chosen = await items.create(MANAUS, {
+      name: 'Ensaio no hotel',
+      audience: { kind: 'SELECTED', userIds: [LU_ID] },
+    })
+    const everyone = await items.create(MANAUS, { name: 'Jantar' })
+
+    expect(chosen.audience).toEqual({ kind: 'SELECTED', userIds: [LU_ID] })
+    expect(everyone.audience).toEqual({ kind: 'ALL' })
+  })
+
+  it('refuses choosing someone not going with NOT_A_PARTICIPANT', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(
+      items.update(MANAUS, PASSAGEM, { audience: { kind: 'SELECTED', userIds: [TIAGO] } }),
+    ).rejects.toMatchObject({ code: 'NOT_A_PARTICIPANT' })
+  })
+
+  it('refuses an Audience of another kind, or a list that is not of ids, with VALIDATION_ERROR', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(
+      items.update(MANAUS, PASSAGEM, { audience: { kind: 'TEAMS' } as never }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: [expect.objectContaining({ path: 'audience.kind' })],
+    })
+    await expect(
+      items.update(MANAUS, PASSAGEM, {
+        audience: { kind: 'SELECTED', userIds: ['5'] } as never,
+      }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: [expect.objectContaining({ path: 'audience.userIds' })],
+    })
+  })
+
+  it('refuses a chosen list with nobody in it with VALIDATION_ERROR', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(
+      items.update(MANAUS, PASSAGEM, { audience: { kind: 'SELECTED', userIds: [] } }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: [expect.objectContaining({ path: 'audience.userIds' })],
+    })
+  })
+
+  it('takes whoever leaves the Event out of the chosen lists', async () => {
+    const { items, schedule, participants } = createRepository(BRUNO)
+    await items.update(MANAUS, PASSAGEM, {
+      audience: { kind: 'SELECTED', userIds: [MATIAS, LU_ID] },
+    })
+
+    await participants.remove(MANAUS, LU_ID)
+
+    expect(await audienceOf(schedule, PASSAGEM)).toEqual({ kind: 'SELECTED', userIds: [MATIAS] })
   })
 })

@@ -18,7 +18,15 @@ function item(
   place: ItemPlace | null = null,
 ): EventItem {
   const when = date === null ? null : { date, time, timezone: place?.timezone ?? MANAUS_TZ }
-  return { id: nextId++, name, when, place, state: 'PUBLISHED', fields: [] }
+  return {
+    id: nextId++,
+    name,
+    when,
+    place,
+    state: 'PUBLISHED',
+    fields: [],
+    audience: { kind: 'ALL' },
+  }
 }
 
 const vitoria: ItemPlace = { name: 'Vitória', address: null, timezone: SAO_PAULO_TZ }

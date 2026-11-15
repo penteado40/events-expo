@@ -33,11 +33,12 @@ export function useGroupMembers(groupId: number) {
   })
 }
 
-/** The Group's Teams, the shortcuts to Participants (the groups feature's cache). */
-export function useGroupTeams(groupId: number) {
+/** The Group's Teams, the shortcuts to Participants and Audiences (the groups feature's cache). */
+export function useGroupTeams(groupId: number, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: groupTeamsQueryKey(groupId),
     queryFn: () => groupPeopleRepository.listTeams(groupId),
+    enabled,
   })
 }
 

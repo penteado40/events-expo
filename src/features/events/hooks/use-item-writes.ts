@@ -17,6 +17,9 @@ export type ItemSave<Input> = { input: Input; fields: FieldWrites; action: SaveA
 /** Whether the editor offers Fields of people: not over the events-api yet (PROJ-201). */
 export const peopleFieldsAvailable = () => itemsRepository.peopleFieldsAvailable()
 
+/** Whether the editor offers "Quem vê": not over the events-api yet (PROJ-197). */
+export const audienceAvailable = () => itemsRepository.audienceAvailable()
+
 /** After a write the schedule is read again (no optimistic update in this slice). */
 function useInvalidateSchedule(eventId: number) {
   const client = useQueryClient()

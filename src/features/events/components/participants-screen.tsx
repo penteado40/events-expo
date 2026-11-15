@@ -21,6 +21,8 @@ import {
   useParticipantWrites,
 } from '../hooks/use-participants'
 import { participantsList, type ParticipantRow, type TeamShortcut } from '../participants-list'
+import { CheckRow } from './check-row'
+import { TeamChip } from './team-chip'
 
 /**
  * "Quem vai" (D-Participants, PROJ-222): an Event's Participants, for any Group member. Who edits
@@ -126,8 +128,17 @@ function Participants({ event }: { event: Event }) {
               {list.shortcuts.map((shortcut) => (
                 <TeamChip
                   key={shortcut.id}
-                  shortcut={shortcut}
-                  disabled={writing}
+                  teamId={shortcut.id}
+                  label={shortcut.name}
+                  kind="button"
+                  // Once all of its people go, a check and nothing to do.
+                  checked={shortcut.missing.length === 0}
+                  accessibilityLabel={
+                    shortcut.missing.length === 0
+                      ? `${shortcut.name}, todos vão`
+                      : `Marcar Team ${shortcut.name}`
+                  }
+                  disabled={shortcut.missing.length === 0 || writing}
                   onPress={() => markTeam(shortcut)}
                 />
               ))}
@@ -184,34 +195,6 @@ function Participants({ event }: { event: Event }) {
   )
 }
 
-/** A Team's shortcut in its chip colors; once all of its people go, a check and nothing to do. */
-function TeamChip({
-  shortcut,
-  disabled,
-  onPress,
-}: {
-  shortcut: TeamShortcut
-  disabled: boolean
-  onPress: () => void
-}) {
-  const { teamChip } = useTheme()
-  const chip = teamChip(autoTone(shortcut.id))
-  const done = shortcut.missing.length === 0
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={done || disabled}
-      accessibilityRole="button"
-      accessibilityLabel={done ? `${shortcut.name}, todos vão` : `Marcar Team ${shortcut.name}`}
-      accessibilityState={{ disabled: done || disabled }}
-      style={[styles.chip, { backgroundColor: chip.bg }]}
-    >
-      {done && <Icon name="check" color={chip.text} size={14} strokeWidth={2.4} />}
-      <Text style={[styles.chipLabel, { color: chip.text }]}>{shortcut.name}</Text>
-    </Pressable>
-  )
-}
-
 /** A person: the avatar ringed in their first Team's color, name and detail; a box to mark. */
 function PersonRow({
   row,
@@ -247,34 +230,24 @@ function PersonRow({
       </View>
     </>
   )
-  const rowStyle = [
-    styles.row,
-    !first && { borderTopWidth: 1, borderTopColor: colors.divider },
-    editable && !row.going && styles.notGoing,
-  ]
-
-  if (!editable) return <View style={rowStyle}>{content}</View>
+  if (!editable) {
+    return (
+      <View style={[styles.row, !first && { borderTopWidth: 1, borderTopColor: colors.divider }]}>
+        {content}
+      </View>
+    )
+  }
   return (
-    <Pressable
-      onPress={onPress}
+    <CheckRow
+      label={row.name}
+      checked={row.going}
       disabled={disabled}
-      accessibilityRole="checkbox"
-      accessibilityLabel={row.name}
-      accessibilityState={{ checked: row.going, disabled }}
-      style={rowStyle}
+      first={first}
+      onPress={onPress}
+      style={[styles.row, !row.going && styles.notGoing]}
     >
       {content}
-      <View
-        style={[
-          styles.box,
-          row.going
-            ? { backgroundColor: colors.action, borderColor: colors.action }
-            : { borderColor: colors.border },
-        ]}
-      >
-        {row.going && <Icon name="check" color={colors.onAction} size={16} strokeWidth={2.6} />}
-      </View>
-    </Pressable>
+    </CheckRow>
   )
 }
 
@@ -303,15 +276,6 @@ const styles = StyleSheet.create({
   count: { fontFamily: fonts.sans600, fontSize: 16, color: '#FFFFFF' },
   shortcuts: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   shortcutsLabel: { fontFamily: fonts.sans400, fontSize: 13 },
-  chip: {
-    minHeight: 34,
-    paddingHorizontal: 12,
-    borderRadius: 17,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  chipLabel: { fontFamily: fonts.sans600, fontSize: 13 },
   body: { paddingTop: 14, paddingHorizontal: 20, gap: 8 },
   card: { borderRadius: 20, paddingVertical: 4, paddingHorizontal: 14 },
   row: { minHeight: 60, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -326,14 +290,6 @@ const styles = StyleSheet.create({
   initials: { fontFamily: fonts.sans700, fontSize: 13 },
   names: { flex: 1 },
   name: { fontFamily: fonts.sans600, fontSize: 15 },
-  box: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   empty: { paddingVertical: 24, textAlign: 'center' },
   footnote: { textAlign: 'center' },
 })

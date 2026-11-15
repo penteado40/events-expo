@@ -49,3 +49,29 @@ describe('mock backend, Participants born of Teams', () => {
     expect(participants.map((p) => p.userId).sort()).toEqual([4, 5])
   })
 })
+
+describe('mock backend, the schedule by Audience', () => {
+  const BRUNO = { email: 'bruno.reis@example.com' }
+  const LU = { email: 'lu.andrade@example.com' }
+  const MANAUS = 3
+  const PASSAGEM = 6
+  const items = async (backend: ReturnType<typeof createMockBackend>) => {
+    const { generalInfo, timeline } = await backend.schedule(BRUNO, MANAUS)
+    return [...generalInfo, ...timeline.flatMap((d) => d.items)].map((i) => i.id)
+  }
+
+  it('gives the Owner every item, even one whose chosen list leaves him out', async () => {
+    const backend = createMockBackend()
+    await backend.updateItem(BRUNO, MANAUS, PASSAGEM, {
+      audience: { kind: 'SELECTED', userIds: [5] },
+    })
+
+    expect(await items(backend)).toContain(PASSAGEM)
+  })
+
+  it('still refuses a Viewer the whole schedule with FORBIDDEN', async () => {
+    await expect(createMockBackend().schedule(LU, MANAUS)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+  })
+})

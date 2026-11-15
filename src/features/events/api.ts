@@ -48,6 +48,7 @@ export type {
   ScheduleRepository,
 } from './repository'
 export type {
+  Audience,
   Event,
   EventItem,
   FieldPerson,
@@ -85,6 +86,8 @@ export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepo
   return {
     // PROJ-201 is not built in the events-api yet: a Field of people is refused there.
     peopleFieldsAvailable: () => false,
+    // PROJ-197 is not built in the events-api yet: an `audience` is refused there.
+    audienceAvailable: () => false,
     create: (eventId, input) =>
       http.post(`/events/${eventId}/items`, { body: input, schema: eventItemSchema }),
     update: (eventId, itemId, changes) =>

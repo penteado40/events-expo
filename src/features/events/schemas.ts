@@ -110,6 +110,19 @@ export const itemFieldSchema = z.discriminatedUnion('type', [textFieldSchema, pe
 export type ItemField = z.infer<typeof itemFieldSchema>
 
 /**
+ * Who an Event item reaches (events-api PROJ-197, PROJ-199, not built there yet; shape assumed):
+ * `ALL`, "Todos que vão", follows the Participants; `SELECTED` is a list of people that does not
+ * change on its own (only leaving the Event takes someone out). Teams are copied into it, never
+ * kept. Whoever is in a Field of people of the item is reached too, on top of it.
+ */
+export const audienceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('ALL') }),
+  z.object({ kind: z.literal('SELECTED'), userIds: z.array(z.number().int()) }),
+])
+
+export type Audience = z.infer<typeof audienceSchema>
+
+/**
  * An Event item as the schedule shows it and a write returns it (PROJ-187). `when` is `null` for an
  * item of the General info (no date). The API also sends `eventId`, `createdAt` and `updatedAt` on
  * a write; the app drops them.
@@ -126,6 +139,8 @@ export const eventItemSchema = z.object({
   state: z.enum(['DRAFT', 'PUBLISHED', 'CANCELLED']),
   /** In the production's order; none while the API does not send them (PROJ-198). */
   fields: z.array(itemFieldSchema).default([]),
+  /** "Todos que vão" while the API does not send it (PROJ-197). */
+  audience: audienceSchema.default({ kind: 'ALL' }),
 })
 
 export type EventItem = z.infer<typeof eventItemSchema>

@@ -3,6 +3,7 @@ import type { Team } from '@/shared/domain/team'
 import type { LocalDate, LocalTime, Period } from '@/shared/domain/local-dates'
 
 import type {
+  Audience,
   Event,
   EventItem,
   ItemField,
@@ -100,6 +101,11 @@ export type EventItemInput = {
   date?: LocalDate | null
   time?: LocalTime | null
   place?: ItemPlaceInput | null
+  /**
+   * Who sees it (PROJ-197, not built in the events-api yet): left out, "Todos que vão" when
+   * creating and as it was when editing. A chosen list goes whole, only with Participants.
+   */
+  audience?: Audience
 }
 
 /** An edit: what is left out stays, `null` clears it; the place goes whole. */
@@ -141,9 +147,15 @@ export interface EventItemsRepository {
    */
   peopleFieldsAvailable(): boolean
   /**
+   * Whether the Audience can be chosen here. False over HTTP until the events-api has it
+   * (PROJ-197): the editor then shows no "Quem vê" and every item reaches everyone going.
+   */
+  audienceAvailable(): boolean
+  /**
    * `POST /events/:id/items`: an Owner (or the Super admin) creates the item, born published in a
    * Draft Event and in Draft in a published one (PROJ-194). `EVENT_ITEM_TIME_WITHOUT_DATE` for a
-   * time with no date; `VALIDATION_ERROR` for a blank name or an empty place; `EVENT_CANCELLED`
+   * time with no date; `VALIDATION_ERROR` for a blank name or an empty place;
+   * `NOT_A_PARTICIPANT` for someone chosen in the Audience who is not going; `EVENT_CANCELLED`
    * while the Event is Cancelled; `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
    */
   create(eventId: number, input: EventItemInput): Promise<EventItem>
