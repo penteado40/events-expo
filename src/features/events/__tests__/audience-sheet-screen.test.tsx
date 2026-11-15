@@ -56,16 +56,19 @@ describe('"Quem vê" in the item editor', () => {
 
     await fireEvent.press(screen.getByRole('radio', { name: /^Escolher pessoas/ }))
     expect(screen.getByText('0 pessoas veem')).toBeOnTheScreen()
+    // A chosen list with nobody in it cannot be applied.
+    expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
     await fireEvent.press(screen.getByRole('button', { name: 'Copiar Cantores · 2' }))
     expect(screen.getByRole('button', { name: 'Copiar Cantores · 2' })).toBeDisabled()
     expect(screen.getByRole('checkbox', { name: 'Jacque Moreira' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Lu Andrade' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Aplicar' })).toBeEnabled()
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Matias Costa' }))
     expect(screen.getByText('3 pessoas veem')).toBeOnTheScreen()
     await press('Aplicar')
 
     expect(
-      screen.getByRole('button', { name: 'Quem vê: Lista escolhida, 3 pessoas' }),
+      screen.getByRole('button', { name: 'Quem vê: Escolher pessoas, 3 pessoas' }),
     ).toBeOnTheScreen()
     await press('Salvar')
 

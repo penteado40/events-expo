@@ -816,6 +816,17 @@ describe.each(implementations)('Audience contract (%s)', (_, createRepository) =
     })
   })
 
+  it('refuses a chosen list with nobody in it with VALIDATION_ERROR', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(
+      items.update(MANAUS, PASSAGEM, { audience: { kind: 'SELECTED', userIds: [] } }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: [expect.objectContaining({ path: 'audience.userIds' })],
+    })
+  })
+
   it('takes whoever leaves the Event out of the chosen lists', async () => {
     const { items, schedule, participants } = createRepository(BRUNO)
     await items.update(MANAUS, PASSAGEM, {

@@ -68,7 +68,7 @@ import {
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
 import { DRAFT_BADGE } from '../item-state'
-import { AudienceSheet } from './audience-sheet'
+import { AUDIENCE_KIND_LABELS, AudienceSheet } from './audience-sheet'
 import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
 import { TimezoneSheet } from './timezone-sheet'
@@ -497,7 +497,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
 }
 
 /**
- * "Quem vê" in the editor: "Todos que vão" or "Lista escolhida" and how many it reaches (once the
+ * "Quem vê" in the editor: "Todos que vão" or "Escolher pessoas" and how many it reaches (once the
  * Participants are read), opening the sheet where it is chosen.
  */
 function AudienceRow({
@@ -514,7 +514,7 @@ function AudienceRow({
   const theme = useTheme()
   const { colors } = theme
   const danger = theme.badge('red').text
-  const kind = audience.kind === 'ALL' ? 'Todos que vão' : 'Lista escolhida'
+  const kind = AUDIENCE_KIND_LABELS[audience.kind]
   const count = reach === undefined ? null : plural(reach, 'pessoa', 'pessoas')
   return (
     <>

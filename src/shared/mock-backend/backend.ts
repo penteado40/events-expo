@@ -229,8 +229,8 @@ function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
 }
 
 /**
- * An Audience as sent (PROJ-197): `{ kind: 'ALL' }`, or `{ kind: 'SELECTED', userIds }` with whole
- * numbers, kept once each in ascending order. Who of them goes is the caller's check.
+ * An Audience as sent (PROJ-197): `{ kind: 'ALL' }`, or `{ kind: 'SELECTED', userIds }` with at
+ * least one whole number, kept once each in ascending order. Who of them goes is the caller's check.
  */
 function checkAudience(audience: EventItemBody['audience'], details: Detail[]): AudienceRow {
   const { kind, userIds, ...rest } = audience ?? {}
@@ -249,6 +249,9 @@ function checkAudience(audience: EventItemBody['audience'], details: Detail[]): 
   if (!Array.isArray(userIds) || !userIds.every((id) => Number.isInteger(id))) {
     details.push({ path: 'audience.userIds', message: 'Envie uma lista de ids.' })
     return { kind, userIds: [] }
+  }
+  if (userIds.length === 0) {
+    details.push({ path: 'audience.userIds', message: 'Escolha ao menos uma pessoa.' })
   }
   return { kind, userIds: uniqueAscending(userIds as number[]) }
 }

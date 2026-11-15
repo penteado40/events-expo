@@ -21,6 +21,12 @@ import {
 } from '../item-draft'
 import { CheckRow } from './check-row'
 import { ChoiceOption } from './choice-option'
+
+/** "Quem vê"'s two choices, named alike in the sheet and in the editor's row (D-QuemVe). */
+export const AUDIENCE_KIND_LABELS: Record<AudienceDraft['kind'], string> = {
+  ALL: 'Todos que vão',
+  SELECTED: 'Escolher pessoas',
+}
 import { TeamChip } from './team-chip'
 
 type Props = {
@@ -67,13 +73,13 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
       )}
       <ScrollView style={styles.scroll} contentContainerStyle={styles.list}>
         <ChoiceOption
-          label="Todos que vão"
+          label={AUDIENCE_KIND_LABELS.ALL}
           hint="Acompanha os Participants: quem entrar depois também vê"
           selected={!chosen}
           onPress={() => setChoice((c) => setAudienceKind(c, 'ALL'))}
         />
         <ChoiceOption
-          label="Escolher pessoas"
+          label={AUDIENCE_KIND_LABELS.SELECTED}
           hint="Uma lista fixa, montada com Teams e avulsos"
           selected={chosen}
           onPress={() => setChoice((c) => setAudienceKind(c, 'SELECTED'))}
@@ -144,7 +150,12 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
         <Text style={[textStyles.caption, styles.notice, { color: colors.textMuted }]}>
           Quem estiver num Field de pessoas do item também vê, e já está na conta.
         </Text>
-        <Button label="Aplicar" onPress={() => onApply(choice)} />
+        <Button
+          label="Aplicar"
+          // A chosen list with nobody in it is no choice yet.
+          disabled={chosen && choice.userIds.length === 0}
+          onPress={() => onApply(choice)}
+        />
       </View>
     </View>
   )
