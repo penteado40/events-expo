@@ -70,7 +70,10 @@ export function EditItemScreen({ eventId, itemId }: { eventId: number; itemId: n
     <EditableEvent eventId={eventId}>
       {(event) =>
         item?.state === 'CANCELLED' ? (
-          <Waiting refused="Este item está cancelado. Descancele para editar." onRetry={() => {}} />
+          <Waiting
+            refused="Este item está cancelado. Descancele para editar."
+            onRetry={() => schedule.refetch()}
+          />
         ) : item ? (
           <EditItem event={event} item={item} />
         ) : (
@@ -102,7 +105,7 @@ function EditableEvent({
   if (event.data && role && canWriteItems(role, event.data)) return children(event.data)
   const refused = !event.data
     ? null
-    : role && role !== 'VIEWER' && event.data.cancelled
+    : role && event.data.cancelled && canWriteItems(role, { cancelled: false })
       ? 'O Event está cancelado. Descancele para editar os itens.'
       : 'Você não pode editar os itens deste Event.'
   return <Waiting error={event.error} refused={refused} onRetry={() => event.refetch()} />

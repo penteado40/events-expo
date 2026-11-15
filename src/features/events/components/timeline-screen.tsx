@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canWriteItems, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canWriteItems, itemActions, roleIn, seesDrafts } from '@/shared/domain/group-role'
 import { weekday } from '@/shared/domain/local-dates'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -311,10 +311,8 @@ const STATE_LABELS: Record<ItemLine['state'], string | null> = {
 }
 
 /**
- * D-AcoesItem by the item's state: in Draft, "Editar", "Publicar" and "Apagar"; published,
- * "Editar" and "Cancelar item"; Cancelled, frozen, only "Descancelar". "Apagar" (with a
- * confirmation) is for an item in Draft, and for any item of an Event in Draft, which nobody sees
- * yet; a published item seen by the Group is cancelled instead, kept visible with its badge.
+ * D-AcoesItem by the item's state (`itemActions`): in Draft, "Editar", "Publicar" and "Apagar"
+ * (with a confirmation); published, "Editar" and "Cancelar item"; Cancelled, only "Descancelar".
  */
 function ItemActions({
   event,
@@ -331,8 +329,7 @@ function ItemActions({
   const move = useMoveItem(event.id)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const deletable =
-    line.state === 'DRAFT' || (line.state === 'PUBLISHED' && event.state === 'DRAFT')
+  const can = itemActions(line.state, event.state)
 
   const run = async (write: () => Promise<unknown>, fallback: string) => {
     setError(null)
@@ -375,7 +372,7 @@ function ItemActions({
       {line.state === 'DRAFT' && <Badge label="RASCUNHO · só Owners veem" tone="gold" />}
       {line.state === 'CANCELLED' && <Badge label="CANCELADO" tone="red" />}
       {errorText}
-      {line.state !== 'CANCELLED' && (
+      {can.edit && (
         <Button
           label="Editar"
           variant="secondary"
@@ -385,10 +382,10 @@ function ItemActions({
           }}
         />
       )}
-      {line.state === 'DRAFT' && (
+      {can.publish && (
         <Button label="Publicar" loading={pending('publish')} onPress={() => moveTo('publish')} />
       )}
-      {line.state === 'PUBLISHED' && (
+      {can.cancel && (
         <Button
           label="Cancelar item"
           variant="danger"
@@ -396,14 +393,14 @@ function ItemActions({
           onPress={() => moveTo('cancel')}
         />
       )}
-      {line.state === 'CANCELLED' && (
+      {can.uncancel && (
         <Button
           label="Descancelar"
           loading={pending('uncancel')}
           onPress={() => moveTo('uncancel')}
         />
       )}
-      {deletable && <Button label="Apagar" variant="danger" onPress={() => setConfirming(true)} />}
+      {can.delete && <Button label="Apagar" variant="danger" onPress={() => setConfirming(true)} />}
       <Text style={[textStyles.caption, { color: colors.textMuted }]}>
         {line.state === 'DRAFT'
           ? 'Em rascunho, só os Owners veem o item até publicar.'
