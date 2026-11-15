@@ -72,6 +72,12 @@ export type PeopleFieldRow = {
 export type ItemFieldRow = TextFieldRow | PeopleFieldRow
 
 /**
+ * Who an Event item reaches (PROJ-197): "Todos" (the Participants), or a list of User ids that only
+ * leaving the Event changes.
+ */
+export type AudienceRow = { kind: 'ALL' } | { kind: 'SELECTED'; userIds: number[] }
+
+/**
  * An Event item as the mock stores it: local date and time, never converted (ADR-0016), in the
  * production's order (for now, creation's), with its Fields in the order the production gave, and
  * its state (events-api PROJ-194, PROJ-195): Draft, published, or Cancelled until uncancelled.
@@ -85,6 +91,7 @@ export type EventItemRow = {
   place: ItemPlaceRow | null
   state: 'DRAFT' | 'PUBLISHED' | 'CANCELLED'
   fields: ItemFieldRow[]
+  audience: AudienceRow
   createdAt: string
   updatedAt: string
 }
@@ -222,6 +229,7 @@ export function createDataset() {
       place,
       state: 'PUBLISHED',
       fields,
+      audience: { kind: 'ALL' },
       createdAt: at,
       updatedAt: at,
     }

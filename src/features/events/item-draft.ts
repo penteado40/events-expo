@@ -1,4 +1,5 @@
 import { dateFromTyping, timeFromTyping, typedDate } from '@/shared/domain/local-dates'
+import type { Team } from '@/shared/domain/team'
 import { ApiError } from '@/shared/lib/api-error'
 
 import type {
@@ -9,7 +10,7 @@ import type {
   ItemFieldInput,
   ItemPlaceInput,
 } from './repository'
-import type { EventItem, ItemField, PersonalNotesVisibility } from './schemas'
+import type { Audience, EventItem, ItemField, PersonalNotesVisibility } from './schemas'
 
 /**
  * A text Field as the editor holds it: `key` names it on screen (`field-<id>` for one the item
@@ -54,9 +55,16 @@ export type FieldDraft = TextFieldDraft | PeopleFieldDraft
 export type PersonChoice = { userId: number; name: string }
 
 /**
+ * "Quem vê" as the editor holds it: "Todos que vão" (`ALL`) or the chosen list (`SELECTED`). The
+ * list (User ids, ascending) is kept while "Todos" is on, so switching back finds it as it was;
+ * only `SELECTED` sends it.
+ */
+export type AudienceDraft = { kind: Audience['kind']; userIds: number[] }
+
+/**
  * The item draft (PRD, pure modules): the editor's state of an Event item, its name, date, time,
- * place and text Fields in the editor's order (Audience comes after). The date is typed
- * `DD/MM/AAAA` and the time `HH:mm`, both local to the place, never converted.
+ * place, Fields in the editor's order and Audience. The date is typed `DD/MM/AAAA` and the time
+ * `HH:mm`, both local to the place, never converted.
  */
 export type ItemDraft = {
   name: string
@@ -67,6 +75,7 @@ export type ItemDraft = {
   /** The place's own IANA zone; `null` means the Event's. */
   placeTimezone: string | null
   fields: FieldDraft[]
+  audience: AudienceDraft
 }
 
 /**
@@ -107,6 +116,8 @@ const MESSAGES = {
   fieldRefused: 'Confira o nome e o valor do Field.',
   notAParticipant:
     'Alguém deste Field não vai mais ao Event. Abra o item de novo para ver quem e tire a pessoa.',
+  audienceNotAParticipant:
+    'Alguém escolhido em Quem vê não vai mais ao Event. Abra Quem vê e confira.',
   saveFailed: 'Não foi possível salvar. Tente de novo.',
 }
 
@@ -120,8 +131,17 @@ export function initialItemDraft(item?: EventItem): ItemDraft {
     placeAddress: item?.place?.address ?? '',
     placeTimezone: item?.place?.timezone ?? null,
     fields: (item?.fields ?? []).map(fieldDraft),
+    audience: audienceDraft(item?.audience),
   }
 }
+
+function audienceDraft(audience: Audience = { kind: 'ALL' }): AudienceDraft {
+  return audience.kind === 'ALL'
+    ? { kind: 'ALL', userIds: [] }
+    : { kind: 'SELECTED', userIds: ascending(audience.userIds) }
+}
+
+const ascending = (ids: Iterable<number>) => [...new Set(ids)].sort((a, b) => a - b)
 
 function fieldDraft(field: ItemField): FieldDraft {
   const { id, name, highlight } = field
@@ -307,6 +327,85 @@ export function removeField(draft: ItemDraft, key: string): ItemDraft {
   return { ...draft, fields: draft.fields.filter((f) => f.key !== key) }
 }
 
+/** A Team as an Audience takes it: who of it goes to the Event, at that moment (PROJ-199). */
+export function teamParticipants(team: Team, participantIds: readonly number[]): number[] {
+  return team.memberIds.filter((id) => participantIds.includes(id))
+}
+
+/** Whether everyone of the Team who goes is in the chosen list already (a Team with no one, never). */
+export function teamCopied(
+  audience: AudienceDraft,
+  team: Team,
+  participantIds: readonly number[],
+): boolean {
+  const people = teamParticipants(team, participantIds)
+  return people.length > 0 && people.every((id) => audience.userIds.includes(id))
+}
+
+/** "Todos que vão" or "Escolher pessoas", the chosen list kept either way. */
+export function setAudienceKind(
+  audience: AudienceDraft,
+  kind: AudienceDraft['kind'],
+): AudienceDraft {
+  return { ...audience, kind }
+}
+
+/**
+ * A Team in the chosen list: copies who of it goes, each once, or, when they all are in already,
+ * takes them back out. The Team is never kept, only its people; it chooses the list from "Todos".
+ */
+export function toggleTeam(
+  audience: AudienceDraft,
+  team: Team,
+  participantIds: readonly number[],
+): AudienceDraft {
+  const people = teamParticipants(team, participantIds)
+  const userIds = teamCopied(audience, team, participantIds)
+    ? audience.userIds.filter((id) => !people.includes(id))
+    : ascending([...audience.userIds, ...people])
+  return { kind: 'SELECTED', userIds }
+}
+
+/** One Participant ("avulso") in or out of the chosen list. */
+export function togglePerson(audience: AudienceDraft, userId: number): AudienceDraft {
+  const userIds = audience.userIds.includes(userId)
+    ? audience.userIds.filter((id) => id !== userId)
+    : ascending([...audience.userIds, userId])
+  return { kind: 'SELECTED', userIds }
+}
+
+/**
+ * How many people the Audience reaches: everyone going for "Todos"; otherwise the chosen and,
+ * each once, the Participants in a Field of people of the item (never a loose name, nor someone
+ * out of the Event).
+ */
+export function audienceReach(
+  audience: AudienceDraft,
+  fields: readonly FieldDraft[],
+  participantIds: readonly number[],
+): number {
+  if (audience.kind === 'ALL') return participantIds.length
+  const inFields = fields.flatMap((f) =>
+    f.type === 'PEOPLE'
+      ? f.people.flatMap((p) => (p.userId !== null && !p.outOfEvent ? [p.userId] : []))
+      : [],
+  )
+  const reached = new Set([...audience.userIds, ...inFields])
+  return participantIds.filter((id) => reached.has(id)).length
+}
+
+/** The Audience as the API takes it. */
+function audienceInput({ kind, userIds }: AudienceDraft): Audience {
+  return kind === 'ALL' ? { kind } : { kind, userIds }
+}
+
+/** Whether the Audience is the item's (`"Todos"` for a new item). */
+function sameAudience(draft: AudienceDraft, item?: EventItem): boolean {
+  const was = audienceDraft(item?.audience)
+  if (draft.kind !== was.kind) return false
+  return draft.kind === 'ALL' || JSON.stringify(draft.userIds) === JSON.stringify(was.userIds)
+}
+
 /** The Field writes of a save, one route each (PROJ-198), made after the item's own. */
 export type FieldWrites = {
   remove: number[]
@@ -453,7 +552,10 @@ export function itemDraftInput(
     placeName || placeAddress || draft.placeTimezone
       ? { name: placeName, address: placeAddress, timezone: draft.placeTimezone }
       : null
-  if (!item) return { errors, input: { name, date, time, place } }
+  const audience = sameAudience(draft.audience, item)
+    ? {}
+    : { audience: audienceInput(draft.audience) }
+  if (!item) return { errors, input: { name, date, time, place, ...audience } }
 
   const before = item.place
   const placeChanged =
@@ -465,6 +567,7 @@ export function itemDraftInput(
     ...(date !== (item.when?.date ?? null) && { date }),
     ...(time !== (item.when?.time ?? null) && { time }),
     ...(placeChanged && { place }),
+    ...audience,
   }
   return { errors, input: Object.keys(changes).length > 0 ? changes : null }
 }
@@ -494,6 +597,8 @@ const FIELD_BY_PATH: Record<string, [Exclude<keyof ItemDraft, 'fields'>, string]
   'place.name': ['placeName', 'Confira o nome do lugar.'],
   'place.address': ['placeAddress', 'Confira o endereço.'],
   'place.timezone': ['placeTimezone', 'Escolha o fuso de novo.'],
+  audience: ['audience', 'Confira quem vê.'],
+  'audience.userIds': ['audience', 'Confira quem vê.'],
 }
 
 /**
@@ -514,6 +619,7 @@ export function errorsFromApi(error: unknown): ItemDraftErrors {
   }
   if (!(error instanceof ApiError)) return { form: MESSAGES.saveFailed }
   if (error.code === 'EVENT_ITEM_TIME_WITHOUT_DATE') return { time: MESSAGES.timeWithoutDate }
+  if (error.code === 'NOT_A_PARTICIPANT') return { audience: MESSAGES.audienceNotAParticipant }
   if (error.code !== 'VALIDATION_ERROR') return { form: error.message }
   const details = Array.isArray(error.details) ? (error.details as { path?: unknown }[]) : []
   const errors: ItemDraftErrors = {}

@@ -6,6 +6,7 @@ import { ApiError, validationError } from '@/shared/lib/api-error'
 
 import {
   createDataset,
+  type AudienceRow,
   type EventItemRow,
   type EventRow,
   type FieldPersonRow,
@@ -73,6 +74,8 @@ const ITEM_MOVES = {
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
 const notAParticipant = () =>
   new ApiError('NOT_A_PARTICIPANT', 'Só Participants do Event entram num Field de pessoas.')
+const audienceNotAParticipant = () =>
+  new ApiError('NOT_A_PARTICIPANT', 'Só Participants do Event entram no Audience.')
 const teamNameTaken = () =>
   new ApiError('TEAM_NAME_TAKEN', 'Já existe um Team com este nome neste Group.')
 
@@ -174,6 +177,8 @@ export type EventItemBody = {
   date?: string | null
   time?: string | null
   place?: Partial<ItemPlaceRow> | null
+  /** Who sees it (PROJ-197, planned in the events-api): `ALL`, or `SELECTED` with `userIds`. */
+  audience?: { kind?: string; userIds?: unknown }
 }
 
 const ITEM_NAME_MAX = 200
@@ -186,7 +191,7 @@ const PLACE_ADDRESS_MAX = 500
  * with a date are the domain's, checked by the caller after who may write.
  */
 function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
-  const { name, date, time, place, ...rest } = body
+  const { name, date, time, place, audience, ...rest } = body
   const details: Detail[] = Object.keys(rest).map((key) => ({
     path: key,
     message: 'Campo desconhecido.',
@@ -214,11 +219,37 @@ function checkItemBody(body: EventItemBody, { partial }: { partial: boolean }) {
       timezone: placeTimezone,
     }
   }
+  const checkedAudience = audience === undefined ? undefined : checkAudience(audience, details)
   if (partial && Object.keys(body).length === 0) {
     details.push({ path: '', message: 'Envie ao menos um campo.' })
   }
   if (details.length > 0) throw validationError(details)
-  return { name: name?.trim(), date, time, place: checkedPlace }
+  return { name: name?.trim(), date, time, place: checkedPlace, audience: checkedAudience }
+}
+
+/**
+ * An Audience as sent (PROJ-197): `{ kind: 'ALL' }`, or `{ kind: 'SELECTED', userIds }` with whole
+ * numbers, kept once each in ascending order. Who of them goes is the caller's check.
+ */
+function checkAudience(audience: EventItemBody['audience'], details: Detail[]): AudienceRow {
+  const { kind, userIds, ...rest } = audience ?? {}
+  for (const key of Object.keys(rest)) {
+    details.push({ path: `audience.${key}`, message: 'Campo desconhecido.' })
+  }
+  if (kind === 'ALL') {
+    if (userIds !== undefined)
+      details.push({ path: 'audience.userIds', message: 'Só com SELECTED.' })
+    return { kind }
+  }
+  if (kind !== 'SELECTED') {
+    details.push({ path: 'audience.kind', message: 'Use ALL ou SELECTED.' })
+    return { kind: 'ALL' }
+  }
+  if (!Array.isArray(userIds) || !userIds.every((id) => Number.isInteger(id))) {
+    details.push({ path: 'audience.userIds', message: 'Envie uma lista de ids.' })
+    return { kind, userIds: [] }
+  }
+  return { kind, userIds: [...new Set(userIds as number[])].sort((a, b) => a - b) }
 }
 
 /** One person of a Field of people as sent: a Participant by `userId`, or a loose `name`. */
@@ -558,10 +589,22 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
   /** An Event item as the schedule shows it: when it starts, in its place's zone or the Event's. */
   function scheduleItemJson(row: EventItemRow, event: EventRow) {
-    const { id, name, date, time, place, state, fields } = row
+    const { id, name, date, time, place, state, fields, audience } = row
     const when = date === null ? null : { date, time, timezone: place?.timezone ?? event.timezone }
     const fieldsJson = fields.map((field) => fieldJson(field, event))
-    return { id, name, when, place: place && { ...place }, state, fields: fieldsJson }
+    const audienceJson =
+      audience.kind === 'ALL'
+        ? { kind: audience.kind }
+        : { ...audience, userIds: [...audience.userIds] }
+    return {
+      id,
+      name,
+      when,
+      place: place && { ...place },
+      state,
+      fields: fieldsJson,
+      audience: audienceJson,
+    }
   }
 
   /**
@@ -594,6 +637,14 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     const ok = (userId: number) =>
       event.participantIds.includes(userId) || kept.some((p) => p.userId === userId)
     if (people.some((p) => p.userId !== null && !ok(p.userId))) throw notAParticipant()
+  }
+
+  /** A chosen Audience only with Participants (PROJ-197): `NOT_A_PARTICIPANT` otherwise. */
+  function assertAudience(event: EventRow, audience: AudienceRow | undefined) {
+    if (audience?.kind !== 'SELECTED') return
+    if (audience.userIds.some((id) => !event.participantIds.includes(id))) {
+      throw audienceNotAParticipant()
+    }
   }
 
   /** The Field of that item: `NOT_FOUND` when it is another item's. */
@@ -975,6 +1026,12 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const row = reachParticipants(requester(identity), eventId)
       if (!row.participantIds.includes(userId)) throw notFound()
       row.participantIds = row.participantIds.filter((id) => id !== userId)
+      // Leaving the Event takes them out of its chosen Audiences too (PROJ-197).
+      for (const item of data.items) {
+        if (item.eventId === eventId && item.audience.kind === 'SELECTED') {
+          item.audience.userIds = item.audience.userIds.filter((id) => id !== userId)
+        }
+      }
     },
 
     /**
@@ -988,6 +1045,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const checked = checkItemBody(body, { partial: false })
       const event = reachItemsOf(asker, eventId)
       assertPlaceNotEmpty(checked.place)
+      assertAudience(event, checked.audience)
       const date = checked.date ?? null
       const time = checked.time ?? null
       if (time !== null && date === null) throw eventItemTimeWithoutDate()
@@ -1001,6 +1059,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         place: checked.place ?? null,
         state: event.state === 'DRAFT' ? 'PUBLISHED' : 'DRAFT',
         fields: [],
+        audience: checked.audience ?? { kind: 'ALL' },
         createdAt: at,
         updatedAt: at,
       }
@@ -1023,6 +1082,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       const checked = checkItemBody(body, { partial: true })
       const { event, row } = reachItem(asker, eventId, itemId)
       assertPlaceNotEmpty(checked.place)
+      assertAudience(event, checked.audience)
       const date = checked.date === undefined ? row.date : checked.date
       const time = checked.time === undefined ? row.time : checked.time
       if (time !== null && date === null) throw eventItemTimeWithoutDate()
@@ -1031,6 +1091,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         date,
         time,
         place: checked.place === undefined ? row.place : checked.place,
+        audience: checked.audience ?? row.audience,
         updatedAt: new Date().toISOString(),
       })
       return itemJson(row, event)

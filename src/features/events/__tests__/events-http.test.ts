@@ -4,6 +4,7 @@ import {
   createHttpEventItemsRepository,
   createHttpEventsRepository,
   createHttpScheduleRepository,
+  type Audience,
   type ItemFieldInput,
 } from '../api'
 
@@ -88,7 +89,9 @@ describe('HTTP items and schedule over the events-api as it is', () => {
 
     await expect(createHttpScheduleRepository(http).get(7)).resolves.toEqual({
       generalInfo: [],
-      timeline: [{ date: '2026-11-14', items: [{ ...scheduled, fields: [] }] }],
+      timeline: [
+        { date: '2026-11-14', items: [{ ...scheduled, fields: [], audience: { kind: 'ALL' } }] },
+      ],
     })
     expect(fetch.mock.calls[0][0]).toBe('https://api.test/events/7/schedule')
   })
@@ -106,6 +109,7 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       place: { name: 'Teatro Amazonas', address: null, timezone: null },
       state: 'PUBLISHED',
       fields: [],
+      audience: { kind: 'ALL' },
     })
     expect(fetch.mock.calls[0][0]).toBe('https://api.test/events/7/items')
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual(input)
@@ -205,6 +209,23 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     const { http } = clientAnswering({ data: null })
 
     expect(createHttpEventItemsRepository(http).peopleFieldsAvailable()).toBe(false)
+  })
+
+  it('writes a chosen Audience in the item’s PATCH and reads it back as people', async () => {
+    const audience: Audience = { kind: 'SELECTED', userIds: [3, 5] }
+    const { http, fetch } = clientAnswering({ data: { ...API_ITEM, audience } })
+
+    const edited = await createHttpEventItemsRepository(http).update(7, 9, { audience })
+
+    expect(edited.audience).toEqual(audience)
+    expect(fetch.mock.calls[0][1]?.method).toBe('PATCH')
+    expect(JSON.parse(String(fetch.mock.calls[0][1]?.body))).toEqual({ audience })
+  })
+
+  it('offers no choice of Audience until the events-api has it', () => {
+    const { http } = clientAnswering({ data: null })
+
+    expect(createHttpEventItemsRepository(http).audienceAvailable()).toBe(false)
   })
 
   it('publishes, cancels and uncancels an item on its own routes, with no body', async () => {

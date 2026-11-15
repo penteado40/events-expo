@@ -17,11 +17,19 @@ import {
   removeField,
   removePerson,
   setNotesVisibility,
+  setAudienceKind,
+  teamCopied,
+  teamParticipants,
   toggleHighlight,
+  togglePerson,
+  toggleTeam,
+  audienceReach,
+  type AudienceDraft,
   type ItemDraft,
   type PeopleFieldDraft,
 } from '../item-draft'
 import type { EventItem } from '../schemas'
+import type { Team } from '@/shared/domain/team'
 
 const MANAUS_TZ = 'America/Manaus'
 
@@ -32,6 +40,7 @@ const passagem: EventItem = {
   when: { date: '2026-11-21', time: '15:00', timezone: MANAUS_TZ },
   place: { name: 'Teatro Amazonas', address: 'Largo de São Sebastião, s/n', timezone: null },
   state: 'PUBLISHED',
+  audience: { kind: 'ALL' },
   fields: [
     { id: 1, type: 'TEXT', name: 'Obs', value: 'Despachar o som às 14h', highlight: false },
     { id: 2, type: 'TEXT', name: 'Contato', value: '(92) 98888-0000', highlight: true },
@@ -56,6 +65,7 @@ describe('initialItemDraft', () => {
       placeAddress: '',
       placeTimezone: null,
       fields: [],
+      audience: { kind: 'ALL', userIds: [] },
     })
   })
 
@@ -85,6 +95,7 @@ describe('initialItemDraft', () => {
           highlight: true,
         },
       ],
+      audience: { kind: 'ALL', userIds: [] },
     })
   })
 })
@@ -370,6 +381,7 @@ const translado: EventItem = {
   when: { date: '2026-11-22', time: '00:40', timezone: MANAUS_TZ },
   place: null,
   state: 'PUBLISHED',
+  audience: { kind: 'ALL' },
   fields: [
     {
       id: 3,
@@ -567,5 +579,126 @@ describe('fieldWrites, the Fields of people', () => {
     expect(fieldWrites(setNotesVisibility(opened, 'field-3', 'ALL'), translado).update).toEqual([
       { id: 3, changes: { personalNotesVisibility: 'ALL' } },
     ])
+  })
+})
+
+describe('the Audience ("Quem vê")', () => {
+  /** Saída Manaus goes with Bruno, Matias, Jacque and Lu; Tiago (9) stays home. */
+  const going = [2, 3, 4, 5]
+  const cantores: Team = { id: 4, name: 'Cantores', memberIds: [4, 5, 9] }
+  const banda: Team = { id: 5, name: 'Banda', memberIds: [3] }
+  const selected = (userIds: number[]): AudienceDraft => ({ kind: 'SELECTED', userIds })
+
+  it('opens as "Todos que vão" for a new item, and as the item has it otherwise', () => {
+    expect(empty.audience).toEqual({ kind: 'ALL', userIds: [] })
+    expect(
+      initialItemDraft({ ...passagem, audience: { kind: 'SELECTED', userIds: [5, 3] } }).audience,
+    ).toEqual(selected([3, 5]))
+  })
+
+  it('expands a Team into its people who go, at that moment', () => {
+    expect(teamParticipants(cantores, going)).toEqual([4, 5])
+  })
+
+  it('copies a Team into a chosen list, without repeating anyone, switching from "Todos"', () => {
+    const everyone: AudienceDraft = { kind: 'ALL', userIds: [] }
+
+    expect(toggleTeam(everyone, cantores, going)).toEqual(selected([4, 5]))
+    expect(toggleTeam(selected([3, 5]), cantores, going)).toEqual(selected([3, 4, 5]))
+  })
+
+  it('takes a Team copied whole back out, keeping whoever else was chosen', () => {
+    const audience = toggleTeam(selected([3]), cantores, going)
+
+    expect(teamCopied(audience, cantores, going)).toBe(true)
+    expect(teamCopied(audience, banda, going)).toBe(true)
+    expect(toggleTeam(audience, cantores, going)).toEqual(selected([3]))
+    expect(teamCopied(selected([4]), cantores, going)).toBe(false)
+  })
+
+  it('never takes a Team with no one going as copied', () => {
+    expect(teamCopied(selected([]), { id: 7, name: 'Vazio', memberIds: [9] }, going)).toBe(false)
+  })
+
+  it('chooses and unchooses one person', () => {
+    expect(togglePerson(selected([3]), 5)).toEqual(selected([3, 5]))
+    expect(togglePerson(selected([3, 5]), 3)).toEqual(selected([5]))
+  })
+
+  it('keeps the chosen list while switching to "Todos" and back', () => {
+    const everyone = setAudienceKind(selected([3, 5]), 'ALL')
+
+    expect(everyone).toEqual({ kind: 'ALL', userIds: [3, 5] })
+    expect(setAudienceKind(everyone, 'SELECTED')).toEqual(selected([3, 5]))
+  })
+
+  describe('how many it reaches', () => {
+    const withCarro = (people: { userId: number | null; outOfEvent?: boolean }[]) =>
+      initialItemDraft({
+        ...translado,
+        fields: [
+          {
+            id: 3,
+            type: 'PEOPLE',
+            name: 'Carro 1',
+            highlight: false,
+            personalNotesVisibility: 'PRIVATE',
+            people: people.map(({ userId, outOfEvent = false }) => ({
+              userId,
+              name: 'x',
+              personalNote: null,
+              outOfEvent,
+            })),
+          },
+        ],
+      }).fields
+
+    it('is everyone going for "Todos"', () => {
+      expect(audienceReach({ kind: 'ALL', userIds: [3] }, [], going)).toBe(4)
+    })
+
+    it('counts the chosen and those in a Field of people, each once', () => {
+      const fields = withCarro([{ userId: 3 }, { userId: 4 }])
+
+      expect(audienceReach(selected([3, 5]), fields, going)).toBe(3)
+    })
+
+    it('leaves out loose names and whoever is out of the Event', () => {
+      const fields = withCarro([{ userId: null }, { userId: 4, outOfEvent: true }, { userId: 9 }])
+
+      expect(audienceReach(selected([5]), fields, going)).toBe(1)
+    })
+  })
+
+  describe('the payload', () => {
+    it('creating, sends a chosen list, and nothing for "Todos" (the API’s default)', () => {
+      expect(itemDraftInput(filled).input).not.toHaveProperty('audience')
+      expect(
+        itemDraftInput({ ...filled, audience: { kind: 'ALL', userIds: [3] } }).input,
+      ).not.toHaveProperty('audience')
+      expect(itemDraftInput({ ...filled, audience: selected([3, 5]) }).input).toMatchObject({
+        audience: { kind: 'SELECTED', userIds: [3, 5] },
+      })
+    })
+
+    it('editing, sends the Audience only when it changed', () => {
+      const chosen: EventItem = { ...passagem, audience: { kind: 'SELECTED', userIds: [5, 3] } }
+      const opened = initialItemDraft(chosen)
+
+      expect(itemDraftInput(opened, chosen).input).toBeNull()
+      expect(
+        itemDraftInput({ ...opened, audience: setAudienceKind(opened.audience, 'ALL') }, chosen)
+          .input,
+      ).toEqual({ audience: { kind: 'ALL' } })
+      expect(
+        itemDraftInput({ ...opened, audience: togglePerson(opened.audience, 4) }, chosen).input,
+      ).toEqual({ audience: { kind: 'SELECTED', userIds: [3, 4, 5] } })
+    })
+  })
+
+  it('puts a chosen person no longer going on "Quem vê"', () => {
+    expect(errorsFromApi(new ApiError('NOT_A_PARTICIPANT', 'x'))).toEqual({
+      audience: 'Alguém escolhido em Quem vê não vai mais ao Event. Abra Quem vê e confira.',
+    })
   })
 })
