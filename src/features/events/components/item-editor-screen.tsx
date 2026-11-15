@@ -12,9 +12,17 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Button, ErrorState, Icon, ListSkeleton, Notice, TextField } from '@/shared/components/ui'
+import {
+  Badge,
+  Button,
+  ErrorState,
+  Icon,
+  ListSkeleton,
+  Notice,
+  TextField,
+} from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, canWriteItems, roleIn } from '@/shared/domain/group-role'
+import { canWriteItems, roleIn } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
@@ -46,7 +54,10 @@ import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
 import { TimezoneSheet } from './timezone-sheet'
 
-/** "+ Item" (D-Editar, PROJ-220): the Owner creates an Event item, born published in a Draft Event. */
+/**
+ * "+ Item" (D-Editar, PROJ-220, PROJ-226): the Owner creates an Event item, born published in a
+ * Draft Event and in Draft in a published one, where it is saved as is or published at once.
+ */
 export function NewItemScreen({ eventId }: { eventId: number }) {
   return <EditableEvent eventId={eventId}>{(event) => <NewItem event={event} />}</EditableEvent>
 }
@@ -58,7 +69,9 @@ export function EditItemScreen({ eventId, itemId }: { eventId: number; itemId: n
   return (
     <EditableEvent eventId={eventId}>
       {(event) =>
-        item ? (
+        item?.state === 'CANCELLED' ? (
+          <Waiting refused="Este item está cancelado. Descancele para editar." onRetry={() => {}} />
+        ) : item ? (
           <EditItem event={event} item={item} />
         ) : (
           <Waiting
@@ -73,8 +86,8 @@ export function EditItemScreen({ eventId, itemId }: { eventId: number; itemId: n
 }
 
 /**
- * The editor only for someone who writes the Event's items, for now only in an Event in Draft;
- * anyone else is told so, and so is the Owner of a published Event.
+ * The editor only for someone who writes the Event's items; anyone else is told so, and so is the
+ * Owner of a Cancelled Event, frozen.
  */
 function EditableEvent({
   eventId,
@@ -89,8 +102,8 @@ function EditableEvent({
   if (event.data && role && canWriteItems(role, event.data)) return children(event.data)
   const refused = !event.data
     ? null
-    : role && canEditEvent(role, event.data)
-      ? 'Os itens de um Event publicado ainda não podem ser editados.'
+    : role && role !== 'VIEWER' && event.data.cancelled
+      ? 'O Event está cancelado. Descancele para editar os itens.'
       : 'Você não pode editar os itens deste Event.'
   return <Waiting error={event.error} refused={refused} onRetry={() => event.refetch()} />
 }
@@ -101,7 +114,7 @@ function Waiting({
   gone = false,
   onRetry,
 }: {
-  error: Error | null
+  error?: Error | null
   /** Why the editor is not open, when it is not. */
   refused?: string | null
   gone?: boolean
@@ -126,14 +139,16 @@ function Waiting({
 function NewItem({ event }: { event: Event }) {
   const router = useRouter()
   const create = useCreateItem(event.id)
+  const bornInDraft = event.state === 'PUBLISHED'
   return (
     <ItemEditorView
       event={event}
       title={`Novo item · ${event.name}`}
-      saveLabel="Criar item"
+      saveLabel={bornInDraft ? 'Salvar' : 'Criar item'}
+      inDraft={bornInDraft}
       saving={create.isPending}
       check={(draft) => itemDraftInput(draft)}
-      send={({ input, fields }) => (input ? create.mutateAsync({ input, fields }) : null)}
+      send={({ input, ...save }) => (input ? create.mutateAsync({ input, ...save }) : null)}
       onSaved={() => router.back()}
     />
   )
@@ -148,6 +163,7 @@ function EditItem({ event, item }: { event: Event; item: EventItem }) {
       item={item}
       title={`Editar · ${event.name}`}
       saveLabel="Salvar"
+      inDraft={item.state === 'DRAFT'}
       saving={update.isPending}
       check={(draft) => itemDraftInput(draft, item)}
       send={update.mutateAsync}
@@ -162,9 +178,11 @@ type ItemEditorViewProps<Input> = {
   /** Above the name: "Novo item · Saída Manaus". */
   title: string
   saveLabel: string
+  /** An item in Draft (or born in Draft): "RASCUNHO" on the cover, and "Publicar" by "Salvar". */
+  inDraft: boolean
   saving: boolean
   check: (draft: ItemDraft) => { errors: ItemDraftErrors; input: Input | null }
-  /** The item's payload (`null`: nothing of it changed) and its Fields' writes. */
+  /** The item's payload (`null`: nothing of it changed), its Fields' writes, and publishing it. */
   send: (save: ItemSave<Input | null>) => Promise<unknown> | null
   onSaved: () => void
 }
@@ -172,14 +190,15 @@ type ItemEditorViewProps<Input> = {
 /**
  * The fields of D-Editar: the name on the cover in the Event's color, then when (the day and the
  * local time, both optional, the time only with a day) and where (name, address and the place's
- * own timezone, or the Event's), then the text Fields (PROJ-223). "Quem vê" comes with its own
- * ticket.
+ * own timezone, or the Event's), then the text Fields (PROJ-223). An item in Draft is saved as
+ * it is or published with what changed (PROJ-226). "Quem vê" comes with its own ticket.
  */
 function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   event,
   item,
   title,
   saveLabel,
+  inDraft,
   saving,
   check,
   send,
@@ -192,6 +211,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
   const [draft, setDraft] = useState<ItemDraft>(() => initialItemDraft(item))
   const [errors, setErrors] = useState<ItemDraftErrors>({})
   const [picking, setPicking] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
@@ -208,14 +228,15 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
     if (key)
       setErrors((current) => ({ ...current, [fieldErrorKey(key)]: undefined, form: undefined }))
   }
-  const save = async () => {
+  const save = async (publish = false) => {
+    setPublishing(publish)
     const checked = check(draft)
     setErrors(checked.errors)
     if (Object.keys(checked.errors).length > 0) return
     const fields = fieldWrites(draft, item)
-    if (!checked.input && !hasFieldWrites(fields)) return onSaved()
+    if (!checked.input && !hasFieldWrites(fields) && !publish) return onSaved()
     try {
-      await send({ input: checked.input, fields })
+      await send({ input: checked.input, fields, publish })
       onSaved()
     } catch (error) {
       setErrors(errorsFromApi(error))
@@ -253,14 +274,17 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             },
           ]}
         >
-          <Pressable
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            accessibilityLabel="Cancelar"
-            style={styles.cancel}
-          >
-            <Text style={styles.cancelLabel}>Cancelar</Text>
-          </Pressable>
+          <View style={styles.bar}>
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar"
+              style={styles.cancel}
+            >
+              <Text style={styles.cancelLabel}>Cancelar</Text>
+            </Pressable>
+            {inDraft && <Badge label="RASCUNHO · só Owners veem" tone="gold" />}
+          </View>
           <Text style={[styles.headerNote, { color: muted }]}>{title}</Text>
           <TextInput
             value={draft.name}
@@ -363,7 +387,23 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]}>
-        <Button label={saveLabel} loading={saving} onPress={save} />
+        <Button
+          label={saveLabel}
+          variant={inDraft ? 'secondary' : 'primary'}
+          loading={saving && !publishing}
+          disabled={saving}
+          onPress={() => save()}
+          style={styles.footerButton}
+        />
+        {inDraft && (
+          <Button
+            label="Publicar"
+            loading={saving && publishing}
+            disabled={saving}
+            onPress={() => save(true)}
+            style={styles.publish}
+          />
+        )}
       </View>
 
       <TimezoneSheet
@@ -390,8 +430,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
+  bar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cancel: {
-    alignSelf: 'flex-start',
     minWidth: 72,
     height: spacing.touchTarget,
     justifyContent: 'center',
@@ -424,5 +464,7 @@ const styles = StyleSheet.create({
   pickerLabel: { fontFamily: fonts.sans600, fontSize: 12 },
   pickerValue: { fontFamily: fonts.sans400, fontSize: 16 },
   error: { fontFamily: fonts.sans400, fontSize: 13, lineHeight: 18 },
-  footer: { paddingHorizontal: 20, paddingTop: 8 },
+  footer: { paddingHorizontal: 20, paddingTop: 8, flexDirection: 'row', gap: 10 },
+  footerButton: { flex: 1 },
+  publish: { flex: 1.4 },
 })

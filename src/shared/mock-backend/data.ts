@@ -52,7 +52,8 @@ export type ItemFieldRow = {
 
 /**
  * An Event item as the mock stores it: local date and time, never converted (ADR-0016), in the
- * production's order (for now, creation's), with its Fields in the order the production gave.
+ * production's order (for now, creation's), with its Fields in the order the production gave, and
+ * its state (events-api PROJ-194, PROJ-195): Draft, published, or Cancelled until uncancelled.
  */
 export type EventItemRow = {
   id: number
@@ -61,7 +62,7 @@ export type EventItemRow = {
   date: string | null
   time: string | null
   place: ItemPlaceRow | null
-  state: 'PUBLISHED'
+  state: 'DRAFT' | 'PUBLISHED' | 'CANCELLED'
   fields: ItemFieldRow[]
   createdAt: string
   updatedAt: string

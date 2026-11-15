@@ -19,9 +19,9 @@ import { assembleSchedule } from '../schedule-lines'
 /**
  * An Event's screen (D-Rascunho, PROJ-217, PROJ-220): the cover in its automatic color, and the
  * card over it with the name, where and when in its timezone. Owners see the Draft, "Editar" and
- * the schedule in short (the General info and a line per day, with "+ Item" in an Event in Draft),
- * which opens the Timeline; a Viewer only where and when. Every Group member sees how many go,
- * opening the Participants (PROJ-222). Publicar comes with its own ticket.
+ * the schedule in short (the General info and a line per day, with "+ Item" until the Event is
+ * Cancelled), which opens the Timeline; a Viewer only where and when. Every Group member sees how
+ * many go, opening the Participants (PROJ-222). Publicar comes with its own ticket.
  */
 export function EventScreen({ eventId }: { eventId: number }) {
   const theme = useTheme()

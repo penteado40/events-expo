@@ -81,6 +81,12 @@ export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepo
     update: (eventId, itemId, changes) =>
       http.patch(`/events/${eventId}/items/${itemId}`, { body: changes, schema: eventItemSchema }),
     remove: (eventId, itemId) => http.send('DELETE', `/events/${eventId}/items/${itemId}`),
+    publish: (eventId, itemId) =>
+      http.post(`/events/${eventId}/items/${itemId}/publish`, { schema: eventItemSchema }),
+    cancel: (eventId, itemId) =>
+      http.post(`/events/${eventId}/items/${itemId}/cancel`, { schema: eventItemSchema }),
+    uncancel: (eventId, itemId) =>
+      http.post(`/events/${eventId}/items/${itemId}/uncancel`, { schema: eventItemSchema }),
     addField: (eventId, itemId, input) =>
       http.post(`/events/${eventId}/items/${itemId}/fields`, {
         body: input,

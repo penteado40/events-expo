@@ -38,11 +38,8 @@ export const canEditEvent = (role: GroupRole, event: { cancelled: boolean }) =>
   role !== 'VIEWER' && !event.cancelled
 
 /**
- * Who edits the Event writes its items, for now only in an Event in Draft, where they are born
- * published. In a published Event an item is born in Draft, with "RASCUNHO" and Publicar: not built
- * yet, so its schedule is only read. The API does not check the Event's state (it has only Draft).
+ * Who edits the Event writes its items, in Draft or published (where an item is born in Draft,
+ * with "RASCUNHO" and Publicar); a Cancelled Event's stay frozen until it is un-cancelled.
  */
-export const canWriteItems = (
-  role: GroupRole,
-  event: { cancelled: boolean; state: 'DRAFT' | 'PUBLISHED' },
-) => canEditEvent(role, event) && event.state === 'DRAFT'
+export const canWriteItems = (role: GroupRole, event: { cancelled: boolean }) =>
+  canEditEvent(role, event)

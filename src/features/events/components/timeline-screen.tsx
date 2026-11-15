@@ -19,7 +19,7 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
-import { useDeleteItem } from '../hooks/use-item-writes'
+import { useDeleteItem, useMoveItem, type ItemMove } from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
 import {
   assembleSchedule,
@@ -31,8 +31,9 @@ import {
 /**
  * The Owner's Timeline (D-Timeline, PROJ-220): the General info, then day by day, each item at the
  * local time of its place, the untimed ("a definir") first; a day outside the Event's period is
- * marked. A day picker on the cover jumps to its day. In an Event in Draft, an item opens its
- * actions (editar, apagar); a published Event's schedule is only read for now.
+ * marked. A day picker on the cover jumps to its day. An item in Draft has "RASCUNHO"; a
+ * Cancelled one "CANCELADO" and its name struck. Who writes the items opens an item's actions
+ * (editar, publicar, cancelar, descancelar, apagar), until the Event is Cancelled.
  */
 export function TimelineScreen({ eventId }: { eventId: number }) {
   const { colors } = useTheme()
@@ -234,8 +235,9 @@ function ItemRow({
   const theme = useTheme()
   const { colors } = theme
   const untimed = line.time === null
+  const cancelled = line.state === 'CANCELLED'
   const when = general ? '' : (line.time ?? 'a definir')
-  const label = [when, line.name, line.detail].filter(Boolean).join(', ')
+  const label = [when, line.name, line.detail, STATE_LABELS[line.state]].filter(Boolean).join(', ')
   return (
     <Pressable
       onPress={onPress && (() => onPress(line))}
@@ -248,7 +250,7 @@ function ItemRow({
         <Text
           style={[
             untimed ? styles.untimed : styles.time,
-            { color: untimed ? colors.textMuted : colors.text },
+            { color: untimed || cancelled ? colors.textMuted : colors.text },
           ]}
         >
           {when}
@@ -257,24 +259,40 @@ function ItemRow({
       <View
         style={[
           styles.dot,
-          untimed
-            ? {
-                borderStyle: 'dashed',
-                borderColor: palette.purple[500],
-                backgroundColor: colors.bg,
-              }
-            : { borderColor: palette.purple[500], backgroundColor: colors.surface },
+          cancelled
+            ? { borderColor: colors.border, backgroundColor: colors.divider }
+            : untimed
+              ? {
+                  borderStyle: 'dashed',
+                  borderColor: palette.purple[500],
+                  backgroundColor: colors.bg,
+                }
+              : { borderColor: palette.purple[500], backgroundColor: colors.surface },
         ]}
       />
       <View
         style={[
           styles.card,
-          untimed && !general
-            ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border }
-            : { backgroundColor: colors.surface },
+          cancelled
+            ? { backgroundColor: colors.divider }
+            : untimed && !general
+              ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border }
+              : { backgroundColor: colors.surface },
         ]}
       >
-        <Text style={[styles.itemName, { color: colors.text }]}>{line.name}</Text>
+        <View style={styles.cardTop}>
+          <Text
+            style={[
+              styles.itemName,
+              { color: cancelled ? colors.textMuted : colors.text },
+              cancelled && styles.struck,
+            ]}
+          >
+            {line.name}
+          </Text>
+          {line.state === 'DRAFT' && <Badge label="RASCUNHO" tone="gold" />}
+          {cancelled && <Badge label="CANCELADO" tone="red" />}
+        </View>
         {(line.detail || (untimed && !general)) && (
           <Text style={[styles.detail, { color: colors.textMuted }]}>
             {line.detail ?? 'horário a confirmar'}
@@ -285,7 +303,19 @@ function ItemRow({
   )
 }
 
-/** D-AcoesItem, for now with "Editar" and "Apagar" (with a confirmation). */
+/** Read out after the item, as its badge shows it: a published item has none. */
+const STATE_LABELS: Record<ItemLine['state'], string | null> = {
+  DRAFT: 'rascunho',
+  PUBLISHED: null,
+  CANCELLED: 'cancelado',
+}
+
+/**
+ * D-AcoesItem by the item's state: in Draft, "Editar", "Publicar" and "Apagar"; published,
+ * "Editar" and "Cancelar item"; Cancelled, frozen, only "Descancelar". "Apagar" (with a
+ * confirmation) is for an item in Draft, and for any item of an Event in Draft, which nobody sees
+ * yet; a published item seen by the Group is cancelled instead, kept visible with its badge.
+ */
 function ItemActions({
   event,
   line,
@@ -298,18 +328,26 @@ function ItemActions({
   const { colors } = useTheme()
   const router = useRouter()
   const remove = useDeleteItem(event.id)
+  const move = useMoveItem(event.id)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const deletable =
+    line.state === 'DRAFT' || (line.state === 'PUBLISHED' && event.state === 'DRAFT')
 
-  const confirmRemove = async () => {
+  const run = async (write: () => Promise<unknown>, fallback: string) => {
     setError(null)
     try {
-      await remove.mutateAsync(line.id)
+      await write()
       onClose()
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Não foi possível apagar.')
+      setError(failure instanceof Error ? failure.message : fallback)
     }
   }
+  const moveTo = (to: ItemMove) =>
+    run(() => move.mutateAsync({ itemId: line.id, move: to }), 'Não foi possível salvar.')
+  const errorText = error && (
+    <Text style={[textStyles.body, { color: palette.red[700] }]}>{error}</Text>
+  )
 
   if (confirming) {
     return (
@@ -317,31 +355,60 @@ function ItemActions({
         <Text style={[textStyles.body, { color: colors.textMuted }]}>
           O item sai da programação e não dá para desfazer.
         </Text>
-        {error && <Text style={[textStyles.body, { color: palette.red[700] }]}>{error}</Text>}
+        {errorText}
         <Button
           label="Apagar"
           variant="danger"
           loading={remove.isPending}
-          onPress={confirmRemove}
+          onPress={() => run(() => remove.mutateAsync(line.id), 'Não foi possível apagar.')}
         />
         <Button label="Voltar" variant="link" onPress={() => setConfirming(false)} />
       </Sheet>
     )
   }
+  const pending = (to: ItemMove) => move.isPending && move.variables?.move === to
   return (
     <Sheet visible title={line.name} onClose={onClose}>
       {line.detail && (
         <Text style={[textStyles.body, { color: colors.textMuted }]}>{line.detail}</Text>
       )}
-      <Button
-        label="Editar"
-        variant="secondary"
-        onPress={() => {
-          onClose()
-          router.push(`/events/${event.id}/items/${line.id}`)
-        }}
-      />
-      <Button label="Apagar" variant="danger" onPress={() => setConfirming(true)} />
+      {line.state === 'DRAFT' && <Badge label="RASCUNHO · só Owners veem" tone="gold" />}
+      {line.state === 'CANCELLED' && <Badge label="CANCELADO" tone="red" />}
+      {errorText}
+      {line.state !== 'CANCELLED' && (
+        <Button
+          label="Editar"
+          variant="secondary"
+          onPress={() => {
+            onClose()
+            router.push(`/events/${event.id}/items/${line.id}`)
+          }}
+        />
+      )}
+      {line.state === 'DRAFT' && (
+        <Button label="Publicar" loading={pending('publish')} onPress={() => moveTo('publish')} />
+      )}
+      {line.state === 'PUBLISHED' && (
+        <Button
+          label="Cancelar item"
+          variant="danger"
+          loading={pending('cancel')}
+          onPress={() => moveTo('cancel')}
+        />
+      )}
+      {line.state === 'CANCELLED' && (
+        <Button
+          label="Descancelar"
+          loading={pending('uncancel')}
+          onPress={() => moveTo('uncancel')}
+        />
+      )}
+      {deletable && <Button label="Apagar" variant="danger" onPress={() => setConfirming(true)} />}
+      <Text style={[textStyles.caption, { color: colors.textMuted }]}>
+        {line.state === 'DRAFT'
+          ? 'Em rascunho, só os Owners veem o item até publicar.'
+          : 'Cancelado, o item fica visível com o selo e não muda até descancelar.'}
+      </Text>
     </Sheet>
   )
 }
@@ -402,6 +469,8 @@ const styles = StyleSheet.create({
   untimed: { width: 52, fontFamily: fonts.sans600, fontSize: 12 },
   dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2.5 },
   card: { flex: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, gap: 2 },
-  itemName: { fontFamily: fonts.sans600, fontSize: 15 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  itemName: { flexShrink: 1, fontFamily: fonts.sans600, fontSize: 15 },
+  struck: { textDecorationLine: 'line-through' },
   detail: { fontFamily: fonts.sans400, fontSize: 12 },
 })

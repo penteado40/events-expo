@@ -38,6 +38,20 @@ const eventItemTimeWithoutDate = () =>
   new ApiError('EVENT_ITEM_TIME_WITHOUT_DATE', 'O Event item só pode ter hora se tiver data.')
 const eventCancelled = () =>
   new ApiError('EVENT_CANCELLED', 'O Event está cancelado. Descancele para alterar.')
+const eventItemNotDraft = () =>
+  new ApiError('EVENT_ITEM_NOT_DRAFT', 'Só um Event item em Draft pode ser publicado.')
+const eventItemNotPublished = () =>
+  new ApiError(
+    'EVENT_ITEM_NOT_PUBLISHED',
+    'Só um Event item publicado pode ser cancelado; um em Draft é apagado.',
+  )
+const eventItemCancelled = () =>
+  new ApiError(
+    'EVENT_ITEM_CANCELLED',
+    'O Event item está cancelado: nada nele muda até ser descancelado.',
+  )
+const eventItemNotCancelled = () =>
+  new ApiError('EVENT_ITEM_NOT_CANCELLED', 'O Event item não está cancelado.')
 const userAlreadyActive = () => new ApiError('USER_ALREADY_ACTIVE', 'Este usuário já está ativo.')
 const teamNameTaken = () =>
   new ApiError('TEAM_NAME_TAKEN', 'Já existe um Team com este nome neste Group.')
@@ -448,12 +462,35 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     return { ...scheduleItemJson(row, event), eventId, createdAt, updatedAt }
   }
 
-  /** The item of that Event, reached by its editor: `NOT_FOUND` when it is another Event's. */
-  function reachItem(asker: UserRow, eventId: number, itemId: number) {
+  /** The Event an Owner writes items in: `EVENT_CANCELLED` while it is Cancelled, frozen. */
+  function reachItemsOf(asker: UserRow, eventId: number) {
     const event = reachEvent(asker, eventId, { write: true })
+    if (event.cancelled) throw eventCancelled()
+    return event
+  }
+
+  /**
+   * The item of that Event, reached by its editor, as the API does it (PROJ-195): the Event frozen
+   * first, then `NOT_FOUND` when the item is another Event's, then, for a write in the item itself,
+   * `EVENT_ITEM_CANCELLED` while it is Cancelled. Only publishing and uncancelling reach it frozen.
+   */
+  function reachItem(
+    asker: UserRow,
+    eventId: number,
+    itemId: number,
+    { frozenToo = false }: { frozenToo?: boolean } = {},
+  ) {
+    const event = reachItemsOf(asker, eventId)
     const row = data.items.find((i) => i.id === itemId && i.eventId === eventId)
     if (!row) throw notFound()
+    if (!frozenToo && row.state === 'CANCELLED') throw eventItemCancelled()
     return { event, row }
+  }
+
+  /** Moves the item to its new state, a write like any other on it. */
+  function moveItemTo(row: EventItemRow, state: EventItemRow['state']) {
+    row.state = state
+    row.updatedAt = new Date().toISOString()
   }
 
   return {
@@ -780,15 +817,15 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     },
 
     /**
-     * `POST /events/:id/items` (events-api PROJ-187): an Owner or the Super admin creates an Event
-     * item, born published in a Draft Event.
+     * `POST /events/:id/items` (events-api PROJ-187, PROJ-194): an Owner or the Super admin creates
+     * an Event item, born published in a Draft Event and in Draft in a published one.
      */
     async createItem(identity: VerifiedIdentity | null, eventId: number, body: EventItemBody) {
       await delay()
       // Like the API: the guard, then the body's shape, then who may write.
       const asker = requester(identity)
       const checked = checkItemBody(body, { partial: false })
-      const event = reachEvent(asker, eventId, { write: true })
+      const event = reachItemsOf(asker, eventId)
       assertPlaceNotEmpty(checked.place)
       const date = checked.date ?? null
       const time = checked.time ?? null
@@ -801,7 +838,7 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
         date,
         time,
         place: checked.place ?? null,
-        state: 'PUBLISHED',
+        state: event.state === 'DRAFT' ? 'PUBLISHED' : 'DRAFT',
         fields: [],
         createdAt: at,
         updatedAt: at,
@@ -838,11 +875,44 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
       return itemJson(row, event)
     },
 
-    /** `DELETE /events/:id/items/:itemId` (PROJ-187). */
+    /**
+     * `DELETE /events/:id/items/:itemId` (PROJ-187, PROJ-194): in Draft or published; a Cancelled
+     * item is frozen.
+     */
     async deleteItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
       await delay()
       const { row } = reachItem(requester(identity), eventId, itemId)
       data.items.splice(data.items.indexOf(row), 1)
+    },
+
+    /** `POST …/items/:itemId/publish` (PROJ-194): only a Draft is published. */
+    async publishItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
+      await delay()
+      const { event, row } = reachItem(requester(identity), eventId, itemId, { frozenToo: true })
+      if (row.state !== 'DRAFT') throw eventItemNotDraft()
+      moveItemTo(row, 'PUBLISHED')
+      return itemJson(row, event)
+    },
+
+    /**
+     * `POST …/items/:itemId/cancel` (PROJ-195): a published item stays in the schedule, Cancelled
+     * and frozen; a Draft is deleted instead.
+     */
+    async cancelItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
+      await delay()
+      const { event, row } = reachItem(requester(identity), eventId, itemId)
+      if (row.state !== 'PUBLISHED') throw eventItemNotPublished()
+      moveItemTo(row, 'CANCELLED')
+      return itemJson(row, event)
+    },
+
+    /** `POST …/items/:itemId/uncancel` (PROJ-195): back to published, taking writes again. */
+    async uncancelItem(identity: VerifiedIdentity | null, eventId: number, itemId: number) {
+      await delay()
+      const { event, row } = reachItem(requester(identity), eventId, itemId, { frozenToo: true })
+      if (row.state !== 'CANCELLED') throw eventItemNotCancelled()
+      moveItemTo(row, 'PUBLISHED')
+      return itemJson(row, event)
     },
 
     /** `POST /events/:id/items/:itemId/fields` (PROJ-198): a text Field at the end of the item's. */

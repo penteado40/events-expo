@@ -75,9 +75,11 @@ describe('Event permissions', () => {
     ['SUPER_ADMIN', { cancelled: false, state: 'DRAFT' }, true],
     ['VIEWER', { cancelled: false, state: 'DRAFT' }, false],
     ['OWNER', { cancelled: true, state: 'DRAFT' }, false],
-    // In a published Event an item is born in Draft, with Publicar: not built yet.
-    ['OWNER', { cancelled: false, state: 'PUBLISHED' }, false],
-    ['SUPER_ADMIN', { cancelled: false, state: 'PUBLISHED' }, false],
+    // In a published Event an item is born in Draft, with Publicar.
+    ['OWNER', { cancelled: false, state: 'PUBLISHED' }, true],
+    ['SUPER_ADMIN', { cancelled: false, state: 'PUBLISHED' }, true],
+    ['VIEWER', { cancelled: false, state: 'PUBLISHED' }, false],
+    ['OWNER', { cancelled: true, state: 'PUBLISHED' }, false],
   ])('%s writes Event items in an Event %o: %p', (role, event, can) => {
     expect(canWriteItems(role, event)).toBe(can)
   })

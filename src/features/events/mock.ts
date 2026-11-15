@@ -57,6 +57,12 @@ export function createMockEventItemsRepository({
     update: async (eventId, itemId, changes) =>
       eventItemSchema.parse(await backend.updateItem(await identity(), eventId, itemId, changes)),
     remove: async (eventId, itemId) => backend.deleteItem(await identity(), eventId, itemId),
+    publish: async (eventId, itemId) =>
+      eventItemSchema.parse(await backend.publishItem(await identity(), eventId, itemId)),
+    cancel: async (eventId, itemId) =>
+      eventItemSchema.parse(await backend.cancelItem(await identity(), eventId, itemId)),
+    uncancel: async (eventId, itemId) =>
+      eventItemSchema.parse(await backend.uncancelItem(await identity(), eventId, itemId)),
     addField: async (eventId, itemId, input) =>
       itemFieldSchema.parse(await backend.addField(await identity(), eventId, itemId, input)),
     updateField: async (eventId, itemId, fieldId, changes) =>

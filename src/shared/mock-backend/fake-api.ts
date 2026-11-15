@@ -31,6 +31,10 @@ const STATUS_BY_CODE: Record<string, number> = {
   SUPER_ADMIN_NOT_A_GROUP_MEMBER: 409,
   TEAM_NAME_TAKEN: 409,
   EVENT_CANCELLED: 409,
+  EVENT_ITEM_NOT_DRAFT: 409,
+  EVENT_ITEM_NOT_PUBLISHED: 409,
+  EVENT_ITEM_CANCELLED: 409,
+  EVENT_ITEM_NOT_CANCELLED: 409,
 }
 
 const noContent = () => new Response(null, { status: 204 })
@@ -105,6 +109,23 @@ export function createFakeApi({
       if (item?.[1] === 'DELETE') {
         await backend.deleteItem(identity, Number(item[2]), Number(item[3]))
         return noContent()
+      }
+      const lifecycle = route.match(
+        /^POST \/events\/(\d+)\/items\/(\d+)\/(publish|cancel|uncancel)$/,
+      )
+      if (lifecycle) {
+        const [eventId, itemId] = lifecycle.slice(1, 3).map(Number)
+        const move = {
+          publish: 'publishItem',
+          cancel: 'cancelItem',
+          uncancel: 'uncancelItem',
+        } as const
+        const moved = await backend[move[lifecycle[3] as keyof typeof move]](
+          identity,
+          eventId,
+          itemId,
+        )
+        return json(200, { data: moved })
       }
       const fieldBody = () => JSON.parse(String(init?.body ?? '{}')) as ItemFieldBody
       const fields = route.match(/^POST \/events\/(\d+)\/items\/(\d+)\/fields$/)

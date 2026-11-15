@@ -25,6 +25,10 @@ const ADMIN = 'admin@local.test'
 /** Saída Manaus: 20 to 22 Nov 2026, in Manaus' timezone. */
 const MANAUS = 3
 const MANAUS_TZ = 'America/Manaus'
+/** Turnê Minas: in Draft. */
+const MINAS = 2
+/** Festival de Verão: Cancelled. */
+const FESTIVAL = 5
 
 describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRepository) => {
   it('gives the General info: the items with no date, in creation order', async () => {
@@ -103,7 +107,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
 })
 
 describe.each(implementations)('EventItemsRepository contract (%s)', (_, createRepository) => {
-  it('creates an item with date, time and a place in another timezone, born published', async () => {
+  it('creates an item with date, time and a place in another timezone, born in Draft in a published Event', async () => {
     const { items } = createRepository(BRUNO)
 
     const created = await items.create(MANAUS, {
@@ -118,8 +122,16 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       name: 'Ensaio no hotel',
       when: { date: '2026-11-21', time: '11:00', timezone: MANAUS_TZ },
       place: { name: 'Hotel Taj Mahal', address: null, timezone: null },
-      state: 'PUBLISHED',
+      state: 'DRAFT',
       fields: [],
+    })
+  })
+
+  it('creates an item born published in an Event in Draft', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(items.create(MINAS, { name: 'Passagem de som' })).resolves.toMatchObject({
+      state: 'PUBLISHED',
     })
   })
 
@@ -273,6 +285,114 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
 
     await expect(items.create(MANAUS, { name: 'X' })).rejects.toMatchObject({
       code: 'UNAUTHENTICATED',
+    })
+  })
+})
+
+/** Show (Saturday, Teatro Amazonas): published. */
+const SHOW = 5
+
+describe.each(implementations)('Event item lifecycle contract (%s)', (_, createRepository) => {
+  const stateOf = async (
+    schedule: ReturnType<typeof createRepository>['schedule'],
+    itemId: number,
+  ) => {
+    const { generalInfo, timeline } = await schedule.get(MANAUS)
+    return [...generalInfo, ...timeline.flatMap((d) => d.items)].find((i) => i.id === itemId)?.state
+  }
+
+  it('publishes an item in Draft, and refuses one already published with EVENT_ITEM_NOT_DRAFT', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+    const draft = await items.create(MANAUS, { name: 'Ensaio no hotel', date: '2026-11-21' })
+
+    await expect(items.publish(MANAUS, draft.id)).resolves.toMatchObject({
+      id: draft.id,
+      state: 'PUBLISHED',
+    })
+    expect(await stateOf(schedule, draft.id)).toBe('PUBLISHED')
+    await expect(items.publish(MANAUS, draft.id)).rejects.toMatchObject({
+      code: 'EVENT_ITEM_NOT_DRAFT',
+    })
+  })
+
+  it('deletes an item in Draft, gone from the schedule', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+    const draft = await items.create(MANAUS, { name: 'Ensaio no hotel' })
+
+    await items.remove(MANAUS, draft.id)
+
+    expect(await stateOf(schedule, draft.id)).toBeUndefined()
+  })
+
+  it('cancels a published item, kept in the schedule as CANCELLED, and uncancels it back to published', async () => {
+    const { items, schedule } = createRepository(BRUNO)
+
+    await expect(items.cancel(MANAUS, SHOW)).resolves.toMatchObject({
+      id: SHOW,
+      name: 'Show',
+      state: 'CANCELLED',
+    })
+    expect(await stateOf(schedule, SHOW)).toBe('CANCELLED')
+    await expect(items.uncancel(MANAUS, SHOW)).resolves.toMatchObject({ state: 'PUBLISHED' })
+    expect(await stateOf(schedule, SHOW)).toBe('PUBLISHED')
+  })
+
+  it('refuses cancelling an item in Draft with EVENT_ITEM_NOT_PUBLISHED: it is deleted instead', async () => {
+    const { items } = createRepository(BRUNO)
+    const draft = await items.create(MANAUS, { name: 'Ensaio no hotel' })
+
+    await expect(items.cancel(MANAUS, draft.id)).rejects.toMatchObject({
+      code: 'EVENT_ITEM_NOT_PUBLISHED',
+    })
+  })
+
+  it('freezes a cancelled item: editing, deleting or cancelling it again is EVENT_ITEM_CANCELLED', async () => {
+    const { items } = createRepository(BRUNO)
+    await items.cancel(MANAUS, SHOW)
+
+    for (const write of [
+      () => items.update(MANAUS, SHOW, { name: 'Show de gala' }),
+      () => items.remove(MANAUS, SHOW),
+      () => items.cancel(MANAUS, SHOW),
+      () => items.addField(MANAUS, SHOW, { type: 'TEXT', name: 'Obs', value: 'Figurino' }),
+    ]) {
+      await expect(write()).rejects.toMatchObject({ code: 'EVENT_ITEM_CANCELLED' })
+    }
+  })
+
+  it('refuses uncancelling an item that is not cancelled with EVENT_ITEM_NOT_CANCELLED', async () => {
+    const { items } = createRepository(BRUNO)
+
+    await expect(items.uncancel(MANAUS, SHOW)).rejects.toMatchObject({
+      code: 'EVENT_ITEM_NOT_CANCELLED',
+    })
+  })
+
+  it('refuses any of it in a Cancelled Event with EVENT_CANCELLED', async () => {
+    const { items } = createRepository(BRUNO)
+
+    for (const write of [
+      () => items.create(FESTIVAL, { name: 'Show' }),
+      () => items.publish(FESTIVAL, SHOW),
+      () => items.cancel(FESTIVAL, SHOW),
+      () => items.uncancel(FESTIVAL, SHOW),
+    ]) {
+      await expect(write()).rejects.toMatchObject({ code: 'EVENT_CANCELLED' })
+    }
+  })
+
+  it('refuses a Viewer with FORBIDDEN, someone outside the Group with NOT_FOUND, and an item of another Event with NOT_FOUND', async () => {
+    await expect(createRepository(LU).items.cancel(MANAUS, SHOW)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+    await expect(createRepository(LU).items.publish(MANAUS, SHOW)).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+    await expect(createRepository(ANA).items.uncancel(MANAUS, SHOW)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+    await expect(createRepository(BRUNO).items.cancel(MINAS, SHOW)).rejects.toMatchObject({
+      code: 'NOT_FOUND',
     })
   })
 })

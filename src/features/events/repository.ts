@@ -108,14 +108,34 @@ export type ItemFieldChanges = Partial<Omit<ItemFieldInput, 'type'>>
 export interface EventItemsRepository {
   /**
    * `POST /events/:id/items`: an Owner (or the Super admin) creates the item, born published in a
-   * Draft Event. `EVENT_ITEM_TIME_WITHOUT_DATE` for a time with no date; `VALIDATION_ERROR` for a
-   * blank name or an empty place; `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
+   * Draft Event and in Draft in a published one (PROJ-194). `EVENT_ITEM_TIME_WITHOUT_DATE` for a
+   * time with no date; `VALIDATION_ERROR` for a blank name or an empty place; `EVENT_CANCELLED`
+   * while the Event is Cancelled; `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
    */
   create(eventId: number, input: EventItemInput): Promise<EventItem>
-  /** `PATCH /events/:id/items/:itemId`. Errors as `create`; an item of another Event is `NOT_FOUND`. */
+  /**
+   * `PATCH /events/:id/items/:itemId`. Errors as `create`; an item of another Event is
+   * `NOT_FOUND`; a Cancelled item, frozen, `EVENT_ITEM_CANCELLED`.
+   */
   update(eventId: number, itemId: number, changes: EventItemChanges): Promise<EventItem>
-  /** `DELETE /events/:id/items/:itemId`. `FORBIDDEN` for a Viewer, `NOT_FOUND` as `update`. */
+  /** `DELETE /events/:id/items/:itemId`, in Draft or published. Errors as `update`. */
   remove(eventId: number, itemId: number): Promise<void>
+  /**
+   * `POST …/items/:itemId/publish` (PROJ-194): an item in Draft starts to reach whom it reaches.
+   * Any other is `EVENT_ITEM_NOT_DRAFT`; otherwise errors as `update`.
+   */
+  publish(eventId: number, itemId: number): Promise<EventItem>
+  /**
+   * `POST …/items/:itemId/cancel` (PROJ-195): a published item stays in the schedule as
+   * `CANCELLED`, frozen. A Draft is `EVENT_ITEM_NOT_PUBLISHED` (it is deleted instead); otherwise
+   * errors as `update`.
+   */
+  cancel(eventId: number, itemId: number): Promise<EventItem>
+  /**
+   * `POST …/items/:itemId/uncancel` (PROJ-195): back to published. One not Cancelled is
+   * `EVENT_ITEM_NOT_CANCELLED`; otherwise errors as `update`.
+   */
+  uncancel(eventId: number, itemId: number): Promise<EventItem>
   /**
    * `POST /events/:id/items/:itemId/fields` (PROJ-198): adds a Field at the end of the item's.
    * `VALIDATION_ERROR` names a blank or long name, a long value or another type; `FORBIDDEN` for

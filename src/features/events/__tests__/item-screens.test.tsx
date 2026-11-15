@@ -23,6 +23,10 @@ const BRUNO = { email: 'bruno.reis@example.com' }
 const MANAUS = 3
 /** Turnê Minas: in Draft, 12 to 14 Mar 2027, in São Paulo's timezone. */
 const MINAS = 2
+/** Festival de Verão: Cancelled. */
+const FESTIVAL = 5
+/** Saída Manaus' Show, Saturday 19:00 at Teatro Amazonas: published. */
+const SHOW = 5
 
 /** A Demo mode Session of a sample User: everything answers from the shared mock backend. */
 async function renderAs(userId: number, ui: React.ReactElement) {
@@ -41,7 +45,7 @@ const allItems = async (eventId: number) => {
   return [...generalInfo, ...timeline.flatMap((d) => d.items)]
 }
 
-/** The items written in Turnê Minas (the Owner writes items only in an Event in Draft). */
+/** The items written in Turnê Minas, in Draft: born published. */
 const minas = { passagem: 0, show: 0, fields: { obs: 0, contato: 0 } }
 beforeAll(async () => {
   const palacio = { name: 'Palácio das Artes', address: 'Av. Afonso Pena, 1537' }
@@ -100,11 +104,16 @@ describe('EventScreen, the schedule in short', () => {
     expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MINAS}/items/new`)
   })
 
-  it('has no "+ Item" in a published Event: its items are not written yet', async () => {
+  it('has "+ Item" in a published Event too', async () => {
     await renderAs(OWNER, <EventScreen eventId={MANAUS} />)
 
     expect(await screen.findByText('O que levar · Contatos')).toBeOnTheScreen()
-    expect(screen.getByRole('button', { name: 'Abrir a Timeline' })).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: '+ Item' })).toBeOnTheScreen()
+  })
+
+  it('has no "+ Item" in a Cancelled Event, frozen', async () => {
+    await renderAs(OWNER, <EventScreen eventId={FESTIVAL} />)
+    expect(await screen.findByText('Programação')).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: '+ Item' })).toBeNull()
   })
 
@@ -151,13 +160,61 @@ describe('TimelineScreen', () => {
     )
   })
 
-  it('leaves the items of a published Event as they are: no "+ Item", no Editar or Apagar', async () => {
+  it('cancels a published item of a published Event: CANCELADO and its name struck, until uncancelled', async () => {
     await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
 
-    expect(await screen.findByLabelText('19:00, Show, Teatro Amazonas')).toBeOnTheScreen()
-    expect(screen.queryByRole('button', { name: '+ Item' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '19:00, Show, Teatro Amazonas' })).toBeNull()
-    expect(screen.queryByText('Nenhum item ainda. Toque em + Item para começar.')).toBeNull()
+    await press(await screen.findByText('Show').then(() => '19:00, Show, Teatro Amazonas'))
+    expect(screen.queryByRole('button', { name: 'Apagar' })).toBeNull()
+    await press('Cancelar item')
+
+    const cancelled = await screen.findByRole('button', {
+      name: '19:00, Show, Teatro Amazonas, cancelado',
+    })
+    expect(within(cancelled).getByText('CANCELADO')).toBeOnTheScreen()
+    expect(within(cancelled).getByText('Show')).toHaveStyle({ textDecorationLine: 'line-through' })
+    expect((await allItems(MANAUS)).find((i) => i.id === SHOW)?.state).toBe('CANCELLED')
+
+    await fireEvent.press(cancelled)
+    expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Apagar' })).toBeNull()
+    await press('Descancelar')
+
+    expect(
+      await screen.findByRole('button', { name: '19:00, Show, Teatro Amazonas' }),
+    ).toBeOnTheScreen()
+    expect(screen.queryByText('CANCELADO')).toBeNull()
+    expect((await allItems(MANAUS)).find((i) => i.id === SHOW)?.state).toBe('PUBLISHED')
+  })
+
+  it('publishes an item in Draft of a published Event from its actions, taking off RASCUNHO', async () => {
+    const { id } = await mockBackend.createItem(BRUNO, MANAUS, {
+      name: 'Ensaio no hotel',
+      date: '2026-11-21',
+      time: '11:00',
+    })
+    await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+
+    const draft = await screen.findByRole('button', { name: '11:00, Ensaio no hotel, rascunho' })
+    expect(within(draft).getByText('RASCUNHO')).toBeOnTheScreen()
+    await fireEvent.press(draft)
+    expect(screen.queryByRole('button', { name: 'Cancelar item' })).toBeNull()
+    await press('Publicar')
+
+    expect(await screen.findByRole('button', { name: '11:00, Ensaio no hotel' })).toBeOnTheScreen()
+    expect(screen.queryByText('RASCUNHO')).toBeNull()
+    await mockBackend.deleteItem(BRUNO, MANAUS, id)
+  })
+
+  it('deletes an item in Draft of a published Event after the confirmation', async () => {
+    await mockBackend.createItem(BRUNO, MANAUS, { name: 'Ensaio extra', date: '2026-11-21' })
+    await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+
+    await press(await screen.findByText('Ensaio extra').then(() => /^a definir, Ensaio extra/))
+    await press('Apagar')
+    await press('Apagar')
+
+    await waitFor(() => expect(screen.queryByText('Ensaio extra')).toBeNull())
+    expect((await allItems(MANAUS)).map((i) => i.name)).not.toContain('Ensaio extra')
   })
 
   it('deletes an item after the confirmation', async () => {
@@ -305,11 +362,44 @@ describe('NewItemScreen', () => {
     createItem.mockRestore()
   })
 
-  it('is not open in a published Event', async () => {
+  it('saves an item of a published Event in Draft, with RASCUNHO', async () => {
     await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
 
+    expect(await screen.findByText('RASCUNHO · só Owners veem')).toBeOnTheScreen()
+    await fireEvent.changeText(field('Nome do item'), 'Ensaio de voz')
+    await press('Salvar')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    const created = (await allItems(MANAUS)).find((i) => i.name === 'Ensaio de voz')
+    expect(created?.state).toBe('DRAFT')
+    await mockBackend.deleteItem(BRUNO, MANAUS, created!.id)
+  })
+
+  it('publishes an item of a published Event at once with Publicar', async () => {
+    await renderAs(OWNER, <NewItemScreen eventId={MANAUS} />)
+
+    await fireEvent.changeText(await screen.findByLabelText('Nome do item'), 'Ensaio de dança')
+    await press('Publicar')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    const created = (await allItems(MANAUS)).find((i) => i.name === 'Ensaio de dança')
+    expect(created?.state).toBe('PUBLISHED')
+    await mockBackend.deleteItem(BRUNO, MANAUS, created!.id)
+  })
+
+  it('creates an item of an Event in Draft published, with no RASCUNHO nor Publicar', async () => {
+    await renderAs(OWNER, <NewItemScreen eventId={MINAS} />)
+
+    expect(await screen.findByRole('button', { name: 'Criar item' })).toBeOnTheScreen()
+    expect(screen.queryByText('RASCUNHO · só Owners veem')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Publicar' })).toBeNull()
+  })
+
+  it('is not open in a Cancelled Event', async () => {
+    await renderAs(OWNER, <NewItemScreen eventId={FESTIVAL} />)
+
     expect(
-      await screen.findByText('Os itens de um Event publicado ainda não podem ser editados.'),
+      await screen.findByText('O Event está cancelado. Descancele para editar os itens.'),
     ).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Criar item' })).toBeNull()
   })
@@ -355,13 +445,40 @@ describe('EditItemScreen', () => {
     ])
   })
 
-  it('is not open for an item of a published Event', async () => {
+  it('edits a published item of a published Event, with no Publicar', async () => {
     await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={6} />)
 
+    expect(await screen.findByDisplayValue('Passagem de som')).toBeOnTheScreen()
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeOnTheScreen()
+    expect(screen.queryByRole('button', { name: 'Publicar' })).toBeNull()
+    expect(screen.queryByText('RASCUNHO · só Owners veem')).toBeNull()
+  })
+
+  it('saves what changed of an item in Draft, then publishes it', async () => {
+    const { id } = await mockBackend.createItem(BRUNO, MANAUS, { name: 'Ensaio no hall' })
+    await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={id} />)
+
+    expect(await screen.findByText('RASCUNHO · só Owners veem')).toBeOnTheScreen()
+    await fireEvent.changeText(field('Nome do item'), 'Ensaio no saguão')
+    await press('Publicar')
+
+    await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
+    expect((await allItems(MANAUS)).find((i) => i.id === id)).toMatchObject({
+      name: 'Ensaio no saguão',
+      state: 'PUBLISHED',
+    })
+    await mockBackend.deleteItem(BRUNO, MANAUS, id)
+  })
+
+  it('is not open for a Cancelled item', async () => {
+    await mockBackend.cancelItem(BRUNO, MANAUS, 9)
+    await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={9} />)
+
     expect(
-      await screen.findByText('Os itens de um Event publicado ainda não podem ser editados.'),
+      await screen.findByText('Este item está cancelado. Descancele para editar.'),
     ).toBeOnTheScreen()
     expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull()
+    await mockBackend.uncancelItem(BRUNO, MANAUS, 9)
   })
 
   it('tells a Viewer they cannot edit the items', async () => {
