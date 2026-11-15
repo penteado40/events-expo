@@ -27,8 +27,11 @@ export function roleIn(user: User, groupId: number): GroupRole {
   return user.memberships.find((m) => m.groupId === groupId)?.role ?? 'VIEWER'
 }
 
+/** Owners and the Super admin write a Group's Events: they create them and edit them while not Cancelled. */
+export const writesEvents = (role: GroupRole) => role !== 'VIEWER'
+
 /** Owners and the Super admin create Events in a Group. */
-export const canCreateEvent = (role: GroupRole) => role !== 'VIEWER'
+export const canCreateEvent = writesEvents
 
 /**
  * Owners and the Super admin edit an Event: its name, place and dates, and its items, in Draft or
@@ -36,4 +39,4 @@ export const canCreateEvent = (role: GroupRole) => role !== 'VIEWER'
  * a Cancelled one stays frozen, items and all, until it is un-cancelled.
  */
 export const canEditEvent = (role: GroupRole, event: { cancelled: boolean }) =>
-  role !== 'VIEWER' && !event.cancelled
+  writesEvents(role) && !event.cancelled

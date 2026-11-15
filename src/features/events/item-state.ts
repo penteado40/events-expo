@@ -10,6 +10,9 @@ export type ItemState = EventItem['state']
  * schedule in short): its badge, the badge's tone and the word read out after its name. A
  * published item has none; a Cancelled one also has its name struck.
  */
+/** The Draft badge where the item itself is open (editor, actions sheet): it says who sees it. */
+export const DRAFT_BADGE = 'RASCUNHO · só Owners veem'
+
 export const ITEM_STATE_MARKS: Record<
   ItemState,
   { badge: string; tone: Tone; spoken: string } | null

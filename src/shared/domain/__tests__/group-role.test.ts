@@ -3,6 +3,7 @@ import type { User } from '@/shared/session'
 import {
   canCreateEvent,
   canEditEvent,
+  writesEvents,
   isGroupMember,
   roleIn,
   seesDrafts,
@@ -69,5 +70,15 @@ describe('Event permissions', () => {
     ['OWNER', { cancelled: true, state: 'PUBLISHED' }, false],
   ])('%s edits an Event %o and its items: %p', (role, event, can) => {
     expect(canEditEvent(role, event)).toBe(can)
+  })
+})
+
+describe('writesEvents', () => {
+  it.each([
+    ['OWNER', true],
+    ['SUPER_ADMIN', true],
+    ['VIEWER', false],
+  ] as const)('%s writes Events: %s', (role, writes) => {
+    expect(writesEvents(role)).toBe(writes)
   })
 })

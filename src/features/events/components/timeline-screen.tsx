@@ -21,7 +21,7 @@ import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import { useDeleteItem, useMoveItem, type ItemMove } from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
-import { ITEM_STATE_MARKS, itemActions } from '../item-state'
+import { DRAFT_BADGE, ITEM_STATE_MARKS, itemActions } from '../item-state'
 import {
   assembleSchedule,
   type DayLines,
@@ -363,7 +363,7 @@ function ItemActions({
       {line.detail && (
         <Text style={[textStyles.body, { color: colors.textMuted }]}>{line.detail}</Text>
       )}
-      {line.state === 'DRAFT' && <Badge label="RASCUNHO · só Owners veem" tone="gold" />}
+      {line.state === 'DRAFT' && <Badge label={DRAFT_BADGE} tone="gold" />}
       {line.state === 'CANCELLED' && <Badge label="CANCELADO" tone="red" />}
       {errorText}
       {can.edit && (

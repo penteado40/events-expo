@@ -22,7 +22,7 @@ import {
   TextField,
 } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn } from '@/shared/domain/group-role'
+import { canEditEvent, roleIn, writesEvents } from '@/shared/domain/group-role'
 import { dateFromTyping, typingTime } from '@/shared/domain/local-dates'
 import { TIMEZONE_CHOICES, timezoneCity, timezoneLabel } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
@@ -55,6 +55,7 @@ import {
   type ItemDraftErrors,
 } from '../item-draft'
 import { scheduleItems } from '../schedule-lines'
+import { DRAFT_BADGE } from '../item-state'
 import { DateField } from './date-field'
 import { ItemFields } from './item-fields'
 import { TimezoneSheet } from './timezone-sheet'
@@ -110,7 +111,7 @@ function EditableEvent({
   if (event.data && role && canEditEvent(role, event.data)) return children(event.data)
   const refused = !event.data
     ? null
-    : role && event.data.cancelled && canEditEvent(role, { cancelled: false })
+    : role && event.data.cancelled && writesEvents(role)
       ? 'O Event está cancelado. Descancele para editar os itens.'
       : 'Você não pode editar os itens deste Event.'
   return <Waiting error={event.error} refused={refused} onRetry={() => event.refetch()} />
@@ -291,7 +292,7 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             >
               <Text style={styles.cancelLabel}>Cancelar</Text>
             </Pressable>
-            {inDraft && <Badge label="RASCUNHO · só Owners veem" tone="gold" />}
+            {inDraft && <Badge label={DRAFT_BADGE} tone="gold" />}
           </View>
           <Text style={[styles.headerNote, { color: muted }]}>{title}</Text>
           <TextInput
