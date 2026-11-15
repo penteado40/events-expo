@@ -105,7 +105,8 @@ const MESSAGES = {
   looseNameLong: `Use um nome solto de até ${LOOSE_NAME_MAX} caracteres.`,
   personalNoteLong: `Use uma nota de até ${PERSONAL_NOTE_MAX} caracteres.`,
   fieldRefused: 'Confira o nome e o valor do Field.',
-  notAParticipant: 'Alguém deste Field não vai mais ao Event. Tire a pessoa e salve de novo.',
+  notAParticipant:
+    'Alguém deste Field não vai mais ao Event. Abra o item de novo para ver quem e tire a pessoa.',
   saveFailed: 'Não foi possível salvar. Tente de novo.',
 }
 
@@ -216,16 +217,23 @@ function editPeopleField(
   }
 }
 
-/** "+ Participant": these at the end of the Field, each once. */
-export function addParticipants(draft: ItemDraft, key: string, chosen: PersonChoice[]): ItemDraft {
-  return editPeopleField(draft, key, (field) => {
-    const people = [...field.people]
-    for (const { userId, name } of chosen) {
-      if (people.some((p) => p.userId === userId)) continue
-      people.push({ key: personKey(userId), userId, name, note: '', outOfEvent: false })
-    }
-    return { ...field, people }
-  })
+/** "+ Participant": at the end of the Field; someone already in it stays where they are. */
+export function addParticipant(
+  draft: ItemDraft,
+  key: string,
+  { userId, name }: PersonChoice,
+): ItemDraft {
+  return editPeopleField(draft, key, (field) =>
+    field.people.some((p) => p.userId === userId)
+      ? field
+      : {
+          ...field,
+          people: [
+            ...field.people,
+            { key: personKey(userId), userId, name, note: '', outOfEvent: false },
+          ],
+        },
+  )
 }
 
 /** "+ Nome solto": someone with no login, at the end; a blank name adds no one. */

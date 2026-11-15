@@ -2,7 +2,7 @@ import { ApiError, validationError } from '@/shared/lib/api-error'
 
 import {
   addLooseName,
-  addParticipants,
+  addParticipant,
   addPeopleField,
   addTextField,
   editPersonalNote,
@@ -428,8 +428,8 @@ describe('the Field of people actions', () => {
     })
   })
 
-  it('adds Participants at the end, each once', () => {
-    const added = addParticipants(opened, 'field-3', [LU, MATIAS])
+  it('adds a Participant at the end, and nothing for someone already in it', () => {
+    const added = addParticipant(addParticipant(opened, 'field-3', LU), 'field-3', MATIAS)
 
     expect(people(added, 'field-3').map((p) => p.key)).toEqual([
       'user-3',
@@ -499,7 +499,7 @@ describe('itemDraftInput, the Fields of people', () => {
       'field:new-1': 'Use um nome solto de até 100 caracteres.',
     })
     const noted = editPersonalNote(
-      addParticipants(named, 'new-1', [LU]),
+      addParticipant(named, 'new-1', LU),
       'new-1',
       'user-5',
       'x'.repeat(501),
@@ -515,7 +515,7 @@ describe('fieldWrites, the Fields of people', () => {
 
   it('creating, adds the Field with its people in order, the notes trimmed or null, and the visibility', () => {
     let draft = editField(addPeopleField(filled), 'new-1', { name: ' Quarto 101 ' })
-    draft = addLooseName(addParticipants(draft, 'new-1', [LU]), 'new-1', 'Dona Célia')
+    draft = addLooseName(addParticipant(draft, 'new-1', LU), 'new-1', 'Dona Célia')
     draft = editPersonalNote(draft, 'new-1', 'user-5', ' LOC4X2 ')
     draft = setNotesVisibility(draft, 'new-1', 'ALL')
 
@@ -542,7 +542,7 @@ describe('fieldWrites, the Fields of people', () => {
 
   it('sends the people whole when someone came, left or got a note, keeping who is out of the Event', () => {
     const draft = editPersonalNote(
-      addParticipants(opened, 'field-3', [LU]),
+      addParticipant(opened, 'field-3', LU),
       'field-3',
       'user-5',
       'janela',

@@ -303,9 +303,13 @@ function checkPeople(people: unknown, details: Detail[]): FieldPersonRow[] {
     return []
   }
   const seen = new Set<number>()
-  return people.map((person: FieldPersonBody, i): FieldPersonRow => {
-    const { userId, name, personalNote, ...rest } = person ?? {}
+  return people.map((entry: unknown, i): FieldPersonRow => {
     const path = (key: string) => `people.${i}.${key}`
+    if (typeof entry !== 'object' || entry === null) {
+      details.push({ path: `people.${i}`, message: 'Envie userId ou name.' })
+      return { userId: null, name: '', personalNote: null }
+    }
+    const { userId, name, personalNote, ...rest } = entry as FieldPersonBody
     for (const key of Object.keys(rest))
       details.push({ path: path(key), message: 'Campo desconhecido.' })
     if (

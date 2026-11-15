@@ -12,10 +12,10 @@ import type { PeopleFieldDraft, PersonChoice, PersonDraft } from '../item-draft'
 type Props = {
   field: PeopleFieldDraft
   /**
-   * The Event's Participants to choose from, or `null` where there are none to read (over the
-   * events-api for now): then only loose names are added.
+   * The Event's Participants to choose from: `undefined` while they load, `null` where there are
+   * none to read (over the events-api for now), when only loose names are added.
    */
-  participants: PersonChoice[] | null
+  participants: PersonChoice[] | null | undefined
   onRename: (name: string) => void
   onAddParticipant: (person: PersonChoice) => void
   onAddLooseName: (name: string) => void
@@ -108,6 +108,7 @@ export function PeopleField({
           <AddButton
             label="+ Participant"
             accessibilityLabel={`Adicionar Participant a ${label}`}
+            disabled={participants === undefined}
             onPress={() => setChoosing(true)}
           />
         )}
@@ -248,19 +249,27 @@ function Avatar({ person }: { person: Pick<PersonDraft, 'userId' | 'name'> }) {
 function AddButton({
   label,
   accessibilityLabel,
+  disabled = false,
   onPress,
 }: {
   label: string
   accessibilityLabel: string
+  disabled?: boolean
   onPress: () => void
 }) {
   const { colors } = useTheme()
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={[styles.add, { borderColor: colors.border, backgroundColor: colors.surface }]}
+      accessibilityState={{ disabled }}
+      style={[
+        styles.add,
+        { borderColor: colors.border, backgroundColor: colors.surface },
+        disabled && styles.disabled,
+      ]}
     >
       <Text style={[styles.addLabel, { color: colors.link }]}>{label}</Text>
     </Pressable>
@@ -319,6 +328,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addLabel: { fontFamily: fonts.sans600, fontSize: 14 },
+  disabled: { opacity: 0.35 },
   visibility: { borderRadius: 16, padding: 12, gap: 8 },
   visibilityTitle: { fontFamily: fonts.sans700, fontSize: 14 },
   radios: { flexDirection: 'row', gap: 4 },

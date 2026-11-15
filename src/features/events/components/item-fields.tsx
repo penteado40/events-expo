@@ -26,16 +26,19 @@ type Props = {
   fields: FieldDraft[]
   errors: ItemDraftErrors
   /** Whether Fields of people can be added here (not over the events-api yet). */
-  peopleFields: boolean
-  /** The Event's Participants for "+ Participant", or `null` where there are none to read. */
-  participants: PersonChoice[] | null
+  canAddPeopleFields: boolean
+  /**
+   * The Event's Participants for "+ Participant": `undefined` while they load, `null` where there
+   * are none to read.
+   */
+  participants: PersonChoice[] | null | undefined
   onAdd: () => void
   onAddPeople: () => void
   onEdit: (key: string, changes: FieldTextChanges) => void
   onToggleHighlight: (key: string) => void
   onMove: (key: string, by: -1 | 1) => void
   onRemove: (key: string) => void
-  people: PeopleFieldActions
+  peopleActions: PeopleFieldActions
 }
 
 /**
@@ -46,7 +49,7 @@ type Props = {
 export function ItemFields({
   fields,
   errors,
-  peopleFields,
+  canAddPeopleFields,
   participants,
   onAdd,
   onAddPeople,
@@ -54,7 +57,7 @@ export function ItemFields({
   onToggleHighlight,
   onMove,
   onRemove,
-  people,
+  peopleActions,
 }: Props) {
   const { colors, badge } = useTheme()
   const danger = badge('red').text
@@ -93,11 +96,13 @@ export function ItemFields({
                 field={field}
                 participants={participants}
                 onRename={(name) => onEdit(field.key, { name })}
-                onAddParticipant={(person) => people.onAddParticipant(field.key, person)}
-                onAddLooseName={(name) => people.onAddLooseName(field.key, name)}
-                onRemovePerson={(personKey) => people.onRemovePerson(field.key, personKey)}
-                onEditNote={(personKey, note) => people.onEditNote(field.key, personKey, note)}
-                onVisibility={(visibility) => people.onVisibility(field.key, visibility)}
+                onAddParticipant={(person) => peopleActions.onAddParticipant(field.key, person)}
+                onAddLooseName={(name) => peopleActions.onAddLooseName(field.key, name)}
+                onRemovePerson={(personKey) => peopleActions.onRemovePerson(field.key, personKey)}
+                onEditNote={(personKey, note) =>
+                  peopleActions.onEditNote(field.key, personKey, note)
+                }
+                onVisibility={(visibility) => peopleActions.onVisibility(field.key, visibility)}
               />
             )}
             {error && (
@@ -156,7 +161,7 @@ export function ItemFields({
         <Pressable onPress={onAdd} accessibilityRole="button" style={styles.add}>
           <Text style={[styles.addLabel, { color: colors.link }]}>+ Field de texto</Text>
         </Pressable>
-        {peopleFields && (
+        {canAddPeopleFields && (
           <Pressable onPress={onAddPeople} accessibilityRole="button" style={styles.add}>
             <Text style={[styles.addLabel, { color: colors.link }]}>+ Field de pessoas</Text>
           </Pressable>
