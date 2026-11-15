@@ -19,6 +19,8 @@ export type ItemLine = {
   timezoneLabel: string | null
   /** Under the name: the place and the zone's label, "Vitória · horário de São Paulo". */
   detail: string | null
+  /** Draft ("RASCUNHO", only Owners see it), published, or Cancelled ("CANCELADO", struck). */
+  state: EventItem['state']
   /** The item as the API sent it, for its editor. */
   item: EventItem
 }
@@ -87,5 +89,5 @@ function lineOf(item: EventItem, eventTimezone: string): ItemLine {
       : null
   const where = item.place?.name ?? item.place?.address ?? null
   const detail = [where, timezoneLabel].filter(Boolean).join(' · ') || null
-  return { id: item.id, name: item.name, time, timezoneLabel, detail, item }
+  return { id: item.id, name: item.name, time, timezoneLabel, detail, state: item.state, item }
 }

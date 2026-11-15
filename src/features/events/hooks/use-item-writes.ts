@@ -5,8 +5,11 @@ import { itemsRepository, type EventItem, type EventItemChanges, type EventItemI
 import { fieldKey, FieldWriteError, type FieldWrites } from '../item-draft'
 import { scheduleQueryKey } from './use-schedule'
 
-/** A save from the editor: the item's own payload and its Fields' writes. */
-export type ItemSave<Input> = { input: Input; fields: FieldWrites }
+/**
+ * A save from the editor: the item's own payload, its Fields' writes and, from "Publicar" on an
+ * item in Draft, its publishing after them.
+ */
+export type ItemSave<Input> = { input: Input; fields: FieldWrites; publish?: boolean }
 
 /** After a write the schedule is read again (no optimistic update in this slice). */
 function useInvalidateSchedule(eventId: number) {
@@ -52,21 +55,22 @@ async function writeFields(
 }
 
 /**
- * "Criar item": born published in a Draft Event, then its Fields. When a Field write fails after
- * the item was created, saving again edits that item and the Fields already added, never creating
- * them twice; the schedule is read again either way.
+ * "Criar item": born published in a Draft Event and in Draft in a published one, then its Fields,
+ * then, from "Publicar", its publishing. When a write fails after the item was created, saving
+ * again edits that item and the Fields already added, never creating them twice; the schedule is
+ * read again either way.
  */
 export function useCreateItem(eventId: number) {
   const invalidateSchedule = useInvalidateSchedule(eventId)
   const created = useRef<{ item: EventItem; added: Map<string, number> } | null>(null)
   return useMutation<EventItem, unknown, ItemSave<EventItemInput>>({
-    mutationFn: async ({ input, fields }) => {
+    mutationFn: async ({ input, fields, publish }) => {
       const item = created.current
         ? await itemsRepository.update(eventId, created.current.item.id, input)
         : await itemsRepository.create(eventId, input)
       created.current ??= { item, added: new Map() }
       await writeFields(eventId, item.id, fields, created.current.added)
-      return item
+      return publish ? itemsRepository.publish(eventId, item.id) : item
     },
     onSettled: invalidateSchedule,
   })
@@ -74,14 +78,15 @@ export function useCreateItem(eventId: number) {
 
 /**
  * "Salvar" on the item's editor: sends what changed of the item (`null`: nothing), then of its
- * Fields.
+ * Fields; "Publicar" on an item in Draft publishes it after them.
  */
 export function useUpdateItem(eventId: number, itemId: number) {
   const invalidateSchedule = useInvalidateSchedule(eventId)
   return useMutation<void, unknown, ItemSave<EventItemChanges | null>>({
-    mutationFn: async ({ input, fields }) => {
+    mutationFn: async ({ input, fields, publish }) => {
       if (input) await itemsRepository.update(eventId, itemId, input)
       await writeFields(eventId, itemId, fields)
+      if (publish) await itemsRepository.publish(eventId, itemId)
     },
     onSettled: invalidateSchedule,
   })
@@ -92,6 +97,18 @@ export function useDeleteItem(eventId: number) {
   const invalidateSchedule = useInvalidateSchedule(eventId)
   return useMutation<void, unknown, number>({
     mutationFn: (itemId) => itemsRepository.remove(eventId, itemId),
+    onSuccess: invalidateSchedule,
+  })
+}
+
+/** A move of the item's state from its actions (PROJ-194, PROJ-195). */
+export type ItemMove = 'publish' | 'cancel' | 'uncancel'
+
+/** "Publicar", "Cancelar item" or "Descancelar", then the schedule read again. */
+export function useMoveItem(eventId: number) {
+  const invalidateSchedule = useInvalidateSchedule(eventId)
+  return useMutation<EventItem, unknown, { itemId: number; move: ItemMove }>({
+    mutationFn: ({ itemId, move }) => itemsRepository[move](eventId, itemId),
     onSuccess: invalidateSchedule,
   })
 }

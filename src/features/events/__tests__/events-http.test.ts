@@ -157,4 +157,31 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       ['PUT', 'https://api.test/events/7/items/9/fields/order', { fieldIds: [4, 3] }],
     ])
   })
+
+  it('publishes, cancels and uncancels an item on its own routes, with no body', async () => {
+    const { http, fetch } = clientAnswering({ data: { ...API_ITEM, state: 'CANCELLED' } })
+    const items = createHttpEventItemsRepository(http)
+
+    await expect(items.cancel(7, 9)).resolves.toMatchObject({ id: 9, state: 'CANCELLED' })
+    await items.publish(7, 9)
+    await items.uncancel(7, 9)
+
+    expect(fetch.mock.calls.map(([url, init]) => [init?.method, url, init?.body])).toEqual([
+      ['POST', 'https://api.test/events/7/items/9/cancel', undefined],
+      ['POST', 'https://api.test/events/7/items/9/publish', undefined],
+      ['POST', 'https://api.test/events/7/items/9/uncancel', undefined],
+    ])
+  })
+
+  it("throws the API's 409 for cancelling an item in Draft", async () => {
+    const error = {
+      code: 'EVENT_ITEM_NOT_PUBLISHED',
+      message: 'Só um Event item publicado pode ser cancelado; um em Draft é apagado.',
+    }
+    const { http } = clientAnswering({ error }, 409)
+
+    await expect(createHttpEventItemsRepository(http).cancel(7, 9)).rejects.toMatchObject({
+      code: 'EVENT_ITEM_NOT_PUBLISHED',
+    })
+  })
 })

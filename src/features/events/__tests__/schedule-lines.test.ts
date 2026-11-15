@@ -164,6 +164,26 @@ describe('assembleSchedule', () => {
     expect(lines.days[2].items[1].item).toBe(passagem)
   })
 
+  it('gives each line the state of its item: Draft, published or Cancelled, in its place', () => {
+    const draft = { ...item('Ensaio no hotel', ['2026-11-21', '11:00']), state: 'DRAFT' as const }
+    const cancelled = {
+      ...item('Entrevista', ['2026-11-21', '10:00']),
+      state: 'CANCELLED' as const,
+    }
+    const schedule = {
+      generalInfo: [],
+      timeline: [{ date: '2026-11-21', items: [cancelled, draft, show] }],
+    }
+
+    const [day] = assembleSchedule(schedule, saidaManaus).days
+
+    expect(day.items.map((l) => [l.name, l.state])).toEqual([
+      ['Entrevista', 'CANCELLED'],
+      ['Ensaio no hotel', 'DRAFT'],
+      ['Show', 'PUBLISHED'],
+    ])
+  })
+
   it('is empty when there is no item', () => {
     expect(assembleSchedule({ generalInfo: [], timeline: [] }, saidaManaus)).toEqual({
       generalInfo: [],

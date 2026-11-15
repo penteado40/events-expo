@@ -79,8 +79,11 @@ export const eventItemSchema = z.object({
   name: z.string(),
   when: itemWhenSchema.nullable(),
   place: itemPlaceSchema.nullable(),
-  /** The API has only `PUBLISHED` (items born published in a Draft Event) until PROJ-224. */
-  state: z.enum(['DRAFT', 'PUBLISHED']),
+  /**
+   * Born published in a Draft Event and in Draft in a published one (PROJ-194); a published item
+   * is Cancelled until uncancelled, back to published (PROJ-195).
+   */
+  state: z.enum(['DRAFT', 'PUBLISHED', 'CANCELLED']),
   /** In the production's order; none while the API does not send them (PROJ-198). */
   fields: z.array(itemFieldSchema).default([]),
 })
