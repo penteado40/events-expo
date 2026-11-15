@@ -150,8 +150,8 @@ export const eventItemSchema = z.object({
   /** "Todos que vão" while the API does not send it (PROJ-197). */
   audience: audienceSchema.default({ kind: 'ALL' }),
   /**
-   * When the item was last written (ISO 8601): a write sends it, the schedule not yet; `null`
-   * while it does not.
+   * When the item was last written (ISO 8601): the events-api sends it on a write, not yet in the
+   * schedule (the mock does, shape assumed); `null` while it does not.
    */
   updatedAt: z.string().nullable().default(null),
   /**

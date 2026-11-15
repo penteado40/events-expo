@@ -1,9 +1,9 @@
-import { writesEvents, type GroupRole } from '@/shared/domain/group-role'
+import { canEditEvent, type GroupRole } from '@/shared/domain/group-role'
 import { plural } from '@/shared/domain/plural'
 import { timeAgo } from '@/shared/domain/relative-time'
 import type { Tone } from '@/shared/theme'
 
-import type { Audience, Event, EventItem } from './schemas'
+import type { Event, EventItem } from './schemas'
 
 /** An Event item's state (events-api PROJ-194, PROJ-195). */
 export type ItemState = EventItem['state']
@@ -57,7 +57,7 @@ export function itemActions(
   event: Pick<Event, 'state' | 'cancelled'>,
   item: ItemState,
 ): ItemActions {
-  if (!writesEvents(role) || event.cancelled) return NO_ACTIONS
+  if (!canEditEvent(role, event)) return NO_ACTIONS
   return {
     edit: item !== 'CANCELLED',
     publish: item === 'DRAFT',
@@ -86,12 +86,29 @@ export function lastChangeText(
 
 /**
  * The mark of who sees the item, for the production that sees every item (story 74): none for
- * "Todos que vão"; a chosen list, "SÓ 3 PESSOAS", by how many were chosen (whoever is in a Field
- * of people of the item sees it too, on top of them).
+ * "Todos que vão"; a chosen list, "SÓ 3 PESSOAS", by how many it reaches, as "Quem vê" counts
+ * them: the chosen (all going: leaving the Event takes them out) and, each once, whoever going is
+ * in a Field of people of the item (never a loose name).
  */
-export function audienceMark(audience: Audience): { badge: string; spoken: string } | null {
+export function audienceMark({
+  audience,
+  fields,
+}: Pick<EventItem, 'audience' | 'fields'>): { badge: string; tone: Tone; spoken: string } | null {
   if (audience.kind === 'ALL') return null
-  const n = audience.userIds.length
-  const people = plural(n, 'pessoa', 'pessoas')
-  return { badge: `SÓ ${people.toUpperCase()}`, spoken: `só ${people} ${n === 1 ? 'vê' : 'veem'}` }
+  const inFields = fields.flatMap((f) =>
+    f.type === 'PEOPLE'
+      ? f.people.flatMap((p) => (p.userId !== null && !p.outOfEvent ? [p.userId] : []))
+      : [],
+  )
+  const n = new Set([...audience.userIds, ...inFields]).size
+  // Neutral, like the Event items: it says who, not a state.
+  return {
+    badge: `SÓ ${plural(n, 'pessoa', 'pessoas').toUpperCase()}`,
+    tone: 'gray',
+    spoken: `só ${peopleSeeing(n)}`,
+  }
 }
+
+/** How many see an item: "1 pessoa vê", "3 pessoas veem". */
+export const peopleSeeing = (n: number) =>
+  `${plural(n, 'pessoa', 'pessoas')} ${n === 1 ? 'vê' : 'veem'}`

@@ -97,7 +97,7 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
   const editable = canEditEvent(role, event)
-  const opens = (line: ItemLine) =>
+  const onPressFor = (line: ItemLine) =>
     hasActions(itemActions(role, event, line.state)) ? setChosen : undefined
 
   const jumpTo = (date: string) => {
@@ -179,7 +179,7 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
             <View style={styles.day}>
               <Heading label="Informações gerais" />
               {lines.generalInfo.map((line) => (
-                <ItemRow key={line.id} line={line} onPress={opens(line)} general />
+                <ItemRow key={line.id} line={line} onPress={onPressFor(line)} general />
               ))}
             </View>
           )}
@@ -191,7 +191,7 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
             >
               <DayHeading day={day} />
               {day.items.map((line) => (
-                <ItemRow key={line.id} line={line} onPress={opens(line)} />
+                <ItemRow key={line.id} line={line} onPress={onPressFor(line)} />
               ))}
             </View>
           ))}
@@ -243,7 +243,7 @@ function ItemRow({
   const cancelled = line.state === 'CANCELLED'
   const when = general ? '' : (line.time ?? 'a definir')
   const mark = ITEM_STATE_MARKS[line.state]
-  const audience = audienceMark(line.item.audience)
+  const audience = audienceMark(line.item)
   const label = [when, line.name, line.detail, mark?.spoken, audience?.spoken]
     .filter(Boolean)
     .join(', ')
@@ -302,7 +302,7 @@ function ItemRow({
           {(mark || audience) && (
             <View style={styles.badges}>
               {mark && <Badge label={mark.badge} tone={mark.tone} />}
-              {audience && <Badge label={audience.badge} tone="blue" />}
+              {audience && <Badge label={audience.badge} tone={audience.tone} />}
             </View>
           )}
         </View>

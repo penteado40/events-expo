@@ -32,24 +32,18 @@ describe('itemActions', () => {
     // The Super admin writes like an Owner.
     ['SUPER_ADMIN', published, 'DRAFT', { ...none, edit: true, publish: true, delete: true }],
     ['SUPER_ADMIN', published, 'PUBLISHED', { ...none, edit: true, cancel: true }],
+    ['SUPER_ADMIN', published, 'CANCELLED', { ...none, uncancel: true }],
+    ['SUPER_ADMIN', inDraft, 'PUBLISHED', { ...none, edit: true, cancel: true, delete: true }],
     ['SUPER_ADMIN', cancelled, 'PUBLISHED', none],
-    // A Viewer only reads, a Participant or not.
+    // A Viewer only reads, a Participant or not: being one changes nothing here.
+    // A Finished event (published, its period over) keeps its actions: still edited.
     ['VIEWER', published, 'DRAFT', none],
     ['VIEWER', published, 'PUBLISHED', none],
     ['VIEWER', published, 'CANCELLED', none],
     ['VIEWER', inDraft, 'PUBLISHED', none],
+    ['VIEWER', cancelled, 'PUBLISHED', none],
   ])('%s, in an Event %o, has for an item %s: %o', (role, event, item, actions) => {
     expect(itemActions(role, event, item)).toEqual(actions)
-  })
-
-  it('keeps the actions of a Finished event: its period over, it is still edited', () => {
-    // A Finished event is a published one whose period is over: nothing in it says so.
-    const finished = { state: 'PUBLISHED', cancelled: false } as const
-    expect(itemActions('OWNER', finished, 'PUBLISHED')).toEqual({
-      ...none,
-      edit: true,
-      cancel: true,
-    })
   })
 })
 
@@ -78,13 +72,33 @@ describe('lastChangeText', () => {
 
 describe('audienceMark', () => {
   it('marks nothing on an item for "Todos que vão"', () => {
-    expect(audienceMark({ kind: 'ALL' })).toBeNull()
+    expect(audienceMark({ audience: { kind: 'ALL' }, fields: [] })).toBeNull()
   })
 
   it.each([
-    [[5], { badge: 'SÓ 1 PESSOA', spoken: 'só 1 pessoa vê' }],
-    [[3, 5, 7], { badge: 'SÓ 3 PESSOAS', spoken: 'só 3 pessoas veem' }],
+    [[5], { badge: 'SÓ 1 PESSOA', tone: 'gray', spoken: 'só 1 pessoa vê' }],
+    [[3, 5, 7], { badge: 'SÓ 3 PESSOAS', tone: 'gray', spoken: 'só 3 pessoas veem' }],
   ])('marks an item of a chosen list %o with how many it has: %o', (userIds, mark) => {
-    expect(audienceMark({ kind: 'SELECTED', userIds })).toEqual(mark)
+    expect(audienceMark({ audience: { kind: 'SELECTED', userIds }, fields: [] })).toEqual(mark)
+  })
+
+  it('counts, each once, who going is in a Field of people too, never a loose name', () => {
+    const carro = {
+      id: 3,
+      type: 'PEOPLE' as const,
+      name: 'Carro 1 - EC',
+      highlight: true,
+      personalNotesVisibility: 'PRIVATE' as const,
+      people: [
+        { userId: 3, name: 'Matias Costa', personalNote: null, outOfEvent: false },
+        { userId: 4, name: 'Jacque Moreira', personalNote: null, outOfEvent: false },
+        { userId: null, name: 'Seu Raimundo', personalNote: null, outOfEvent: false },
+        // In the Field, but no longer going.
+        { userId: 9, name: 'Tiago Souza', personalNote: null, outOfEvent: true },
+      ],
+    }
+    expect(
+      audienceMark({ audience: { kind: 'SELECTED', userIds: [3, 5] }, fields: [carro] }),
+    ).toMatchObject({ badge: 'SÓ 3 PESSOAS' })
   })
 })
