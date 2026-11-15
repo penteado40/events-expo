@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router'
+import { Fragment } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -14,13 +15,14 @@ import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import { participantsAvailable, useGroupMembers, useParticipants } from '../hooks/use-participants'
 import { useSchedule } from '../hooks/use-schedule'
-import { assembleSchedule } from '../schedule-lines'
+import { assembleSchedule, type ItemLine } from '../schedule-lines'
 
 /**
  * An Event's screen (D-Rascunho, PROJ-217, PROJ-220): the cover in its automatic color, and the
  * card over it with the name, where and when in its timezone. Owners see the Draft, "Editar" and
  * the schedule in short (the General info and a line per day, with "+ Item" until the Event is
- * Cancelled), which opens the Timeline; a Viewer only where and when. Every Group member sees how
+ * Cancelled; an item in Draft marked "RASCUNHO", a Cancelled one struck, "CANCELADO", as in the
+ * Timeline), which opens the Timeline; a Viewer only where and when. Every Group member sees how
  * many go, opening the Participants (PROJ-222). Publicar comes with its own ticket.
  */
 export function EventScreen({ eventId }: { eventId: number }) {
@@ -170,7 +172,8 @@ function ScheduleSummary({ event, editable }: { event: Event; editable: boolean 
               {
                 key: 'info',
                 label: 'INFO',
-                names: lines.generalInfo.map((l) => l.name).join(' · '),
+                items: lines.generalInfo,
+                separator: ' · ',
                 count: lines.generalInfo.length,
                 outsidePeriod: false,
               },
@@ -179,7 +182,8 @@ function ScheduleSummary({ event, editable }: { event: Event; editable: boolean 
         ...lines.days.map((day) => ({
           key: day.date,
           label: day.heading,
-          names: day.items.map((l) => l.name).join(', '),
+          items: day.items,
+          separator: ', ',
           count: day.items.length,
           outsidePeriod: day.outsidePeriod,
         })),
@@ -220,7 +224,7 @@ function ScheduleSummary({ event, editable }: { event: Event; editable: boolean 
               accessibilityRole="button"
               accessibilityLabel={[
                 row.key === 'info' ? 'Informações gerais' : row.label,
-                row.names,
+                row.items.map(spokenName).join(', '),
                 row.outsidePeriod ? 'fora do período' : `${row.count}`,
               ].join(', ')}
               style={[
@@ -243,7 +247,12 @@ function ScheduleSummary({ event, editable }: { event: Event; editable: boolean 
                 {row.label}
               </Text>
               <Text numberOfLines={1} style={[styles.rowNames, { color: colors.text }]}>
-                {row.names}
+                {row.items.map((line, n) => (
+                  <Fragment key={line.id}>
+                    {n > 0 && row.separator}
+                    <SummaryName line={line} />
+                  </Fragment>
+                ))}
               </Text>
               {row.outsidePeriod ? (
                 <Badge label="FORA DO PERÍODO" tone="gold" />
@@ -258,6 +267,32 @@ function ScheduleSummary({ event, editable }: { event: Event; editable: boolean 
     </View>
   )
 }
+
+/** An item's name in the summary as the Timeline marks it: Draft "RASCUNHO", Cancelled struck. */
+function SummaryName({ line }: { line: ItemLine }) {
+  const theme = useTheme()
+  if (line.state === 'PUBLISHED') return <Text>{line.name}</Text>
+  const cancelled = line.state === 'CANCELLED'
+  const badge = theme.badge(cancelled ? 'red' : 'gold')
+  return (
+    <>
+      <Text style={cancelled && [styles.struck, { color: theme.colors.textMuted }]}>
+        {line.name}
+      </Text>{' '}
+      <Text style={[textStyles.badge, { color: badge.text, backgroundColor: badge.bg }]}>
+        {cancelled ? 'CANCELADO' : 'RASCUNHO'}
+      </Text>
+    </>
+  )
+}
+
+/** The name read out, its state after it: "Show (cancelado)". */
+const spokenName = (line: ItemLine) =>
+  line.state === 'DRAFT'
+    ? `${line.name} (rascunho)`
+    : line.state === 'CANCELLED'
+      ? `${line.name} (cancelado)`
+      : line.name
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },

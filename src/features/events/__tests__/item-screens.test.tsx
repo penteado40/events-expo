@@ -95,6 +95,33 @@ describe('EventScreen, the schedule in short', () => {
     ).toBeOnTheScreen()
   })
 
+  it('marks in the day line an item in Draft (RASCUNHO) and a Cancelled one (CANCELADO, struck)', async () => {
+    const { id } = await mockBackend.createItem(BRUNO, MANAUS, {
+      name: 'Ensaio no hotel',
+      date: '2026-11-21',
+      time: '11:00',
+    })
+    await mockBackend.cancelItem(BRUNO, MANAUS, SHOW)
+    try {
+      await renderAs(OWNER, <EventScreen eventId={MANAUS} />)
+
+      const saturday = await screen.findByRole('button', {
+        name: 'Sáb 21, Almoço, Ensaio no hotel (rascunho), Passagem de som, Show (cancelado), 4',
+      })
+      expect(within(saturday).getByText('RASCUNHO')).toBeOnTheScreen()
+      expect(within(saturday).getByText('CANCELADO')).toBeOnTheScreen()
+      expect(within(saturday).getByText('Show')).toHaveStyle({
+        textDecorationLine: 'line-through',
+      })
+      expect(within(saturday).getByText('Ensaio no hotel')).not.toHaveStyle({
+        textDecorationLine: 'line-through',
+      })
+    } finally {
+      await mockBackend.uncancelItem(BRUNO, MANAUS, SHOW)
+      await mockBackend.deleteItem(BRUNO, MANAUS, id)
+    }
+  })
+
   it('opens the Timeline and the new item from it, in an Event in Draft', async () => {
     await renderAs(OWNER, <EventScreen eventId={MINAS} />)
 
