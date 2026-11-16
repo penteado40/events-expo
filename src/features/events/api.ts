@@ -17,6 +17,8 @@ import {
 import type {
   EventItemsRepository,
   EventsRepository,
+  ItemFieldChanges,
+  ItemFieldInput,
   GroupPeopleRepository,
   ParticipantsRepository,
   ScheduleRepository,
@@ -82,12 +84,32 @@ export const eventsRepository = selectRepository<EventsRepository>('events', {
   mock: createMockEventsRepository(),
 })
 
+/**
+ * A Field write in the events-api's body (PROJ-198, PROJ-201, PROJ-203): `kind` for the type, and a
+ * Field of people's people as `{ userId }` or `{ name }`. What the API does not take yet (the
+ * Highlight, Personal notes and who sees them) is left out; the editor does not offer it there.
+ */
+function toApiField(input: ItemFieldInput | ItemFieldChanges): Record<string, unknown> {
+  const body: Record<string, unknown> = {}
+  if ('type' in input) body.kind = input.type
+  if (input.name !== undefined) body.name = input.name
+  if ('value' in input && input.value !== undefined) body.value = input.value
+  if ('people' in input && input.people !== undefined) {
+    body.people = input.people.map((person) =>
+      'userId' in person ? { userId: person.userId } : { name: person.name },
+    )
+  }
+  return body
+}
+
 export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepository {
   return {
-    // PROJ-201 is not built in the events-api yet: a Field of people is refused there.
-    peopleFieldsAvailable: () => false,
-    // PROJ-197 is not built in the events-api yet: an `audience` is refused there.
+    peopleFieldsAvailable: () => true,
+    // The schedule does not send the Audience back yet: see `audienceAvailable` in the repository.
     audienceAvailable: () => false,
+    // The events-api has no Highlight (PROJ-200) nor Personal notes (PROJ-204, PROJ-205) yet.
+    highlightAvailable: () => false,
+    personalNotesAvailable: () => false,
     create: (eventId, input) =>
       http.post(`/events/${eventId}/items`, { body: input, schema: eventItemSchema }),
     update: (eventId, itemId, changes) =>
@@ -101,12 +123,12 @@ export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepo
       http.post(`/events/${eventId}/items/${itemId}/uncancel`, { schema: eventItemSchema }),
     addField: (eventId, itemId, input) =>
       http.post(`/events/${eventId}/items/${itemId}/fields`, {
-        body: input,
+        body: toApiField(input),
         schema: itemFieldSchema,
       }),
     updateField: (eventId, itemId, fieldId, changes) =>
       http.patch(`/events/${eventId}/items/${itemId}/fields/${fieldId}`, {
-        body: changes,
+        body: toApiField(changes),
         schema: itemFieldSchema,
       }),
     removeField: (eventId, itemId, fieldId) =>
@@ -136,8 +158,7 @@ export const scheduleRepository = selectRepository<ScheduleRepository>('schedule
 
 export function createHttpParticipantsRepository(http: HttpClient): ParticipantsRepository {
   return {
-    // PROJ-186 and PROJ-190 are not built in the events-api yet: these routes answer 404 there.
-    available: () => false,
+    available: () => true,
     list: (eventId) =>
       http.get(`/events/${eventId}/participants`, { schema: z.array(participantSchema) }),
     add: (eventId, userId) => http.send('PUT', `/events/${eventId}/participants/${userId}`),
