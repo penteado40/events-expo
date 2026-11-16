@@ -145,6 +145,69 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     ).rejects.toMatchObject({ code: 'EVENT_ITEM_TIME_WITHOUT_DATE' })
   })
 
+  it('reads the schedule with the Fields as the events-api sends them: kind and value, no Highlight', async () => {
+    const repo = createHttpScheduleRepository(
+      clientAnswering({
+        data: {
+          generalInfo: [
+            {
+              id: 1,
+              name: 'O que levar',
+              when: null,
+              place: null,
+              state: 'PUBLISHED',
+              fields: [{ id: 2, kind: 'TEXT', name: 'Lista', value: 'Documento com foto' }],
+            },
+          ],
+          timeline: [
+            {
+              date: '2026-11-17',
+              items: [
+                {
+                  id: 3,
+                  name: 'Ida pra Santos',
+                  when: { date: '2026-11-17', time: '05:00', timezone: 'America/Sao_Paulo' },
+                  place: null,
+                  state: 'PUBLISHED',
+                  fields: [
+                    {
+                      id: 4,
+                      kind: 'PEOPLE',
+                      name: 'Carro Pedro',
+                      value: [
+                        { userId: 3, name: 'Matias Costa' },
+                        { name: 'Drika (só até Campinas)' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }).http,
+    )
+
+    const schedule = await repo.get(7)
+
+    expect(schedule.generalInfo[0].fields).toEqual([
+      { id: 2, type: 'TEXT', name: 'Lista', value: 'Documento com foto', highlight: false },
+    ])
+    expect(schedule.timeline[0].items[0].fields).toEqual([
+      {
+        id: 4,
+        type: 'PEOPLE',
+        name: 'Carro Pedro',
+        highlight: false,
+        personalNotesVisibility: 'PRIVATE',
+        people: [
+          { userId: 3, name: 'Matias Costa', personalNote: null, outOfEvent: false },
+          { userId: null, name: 'Drika (só até Campinas)', personalNote: null, outOfEvent: false },
+        ],
+      },
+    ])
+  })
+
   it('writes a Field and its order on the item’s fields routes', async () => {
     const field = { id: 4, type: 'TEXT', name: 'Obs', value: 'Despachar o som', highlight: true }
     const { http, fetch } = clientAnswering({ data: field }, 201)
