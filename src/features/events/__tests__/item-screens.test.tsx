@@ -295,7 +295,7 @@ describe('TimelineScreen', () => {
     await press(await screen.findByText('Show').then(() => '20:00, Show, Palácio das Artes'))
     await press('Editar')
 
-    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MINAS}/items/${minas.show}`)
+    expect(mockRouter.push).toHaveBeenCalledWith(`/events/${MINAS}/items/${minas.show}/edit`)
   })
 })
 

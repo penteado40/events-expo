@@ -69,9 +69,44 @@ describe('mock backend, the schedule by Audience', () => {
     expect(await items(backend)).toContain(PASSAGEM)
   })
 
-  it('still refuses a Viewer the whole schedule with FORBIDDEN', async () => {
-    await expect(createMockBackend().schedule(LU, MANAUS)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
+  const seenBy = async (backend: ReturnType<typeof createMockBackend>, who: { email: string }) => {
+    const { generalInfo, timeline } = await backend.schedule(who, MANAUS)
+    return [...generalInfo, ...timeline.flatMap((d) => d.items)].map((i) => i.id)
+  }
+
+  it('gives a Participant only the items that reach them, never one in Draft', async () => {
+    const backend = createMockBackend()
+    await backend.updateItem(BRUNO, MANAUS, PASSAGEM, {
+      audience: { kind: 'SELECTED', userIds: [3] },
     })
+    const draft = await backend.createItem(BRUNO, MANAUS, { name: 'Coletiva', date: '2026-11-21' })
+
+    const seen = await seenBy(backend, LU)
+
+    expect(seen).not.toContain(PASSAGEM)
+    expect(seen).not.toContain(draft.id)
+    expect(seen).toContain(5)
+  })
+
+  it('keeps a Cancelled item for a Participant, frozen for reference', async () => {
+    const backend = createMockBackend()
+    await backend.cancelItem(BRUNO, MANAUS, PASSAGEM)
+
+    expect(await seenBy(backend, LU)).toContain(PASSAGEM)
+  })
+
+  it('shows a Participant the items of an Event once published', async () => {
+    const backend = createMockBackend()
+    const created = await backend.createEvent(BRUNO, 1, {
+      name: 'Saída BH',
+      place: 'Belo Horizonte, MG',
+      period: { startDate: '2026-12-04', endDate: '2026-12-06', timezone: 'America/Sao_Paulo' },
+    })
+    await backend.createItem(BRUNO, created.id, { name: 'Hotel', date: '2026-12-04' })
+    const items = async () => (await backend.schedule(LU, created.id)).timeline.length
+
+    expect(await items()).toBe(0)
+    await backend.publishEvent(BRUNO, created.id)
+    expect(await items()).toBe(1)
   })
 })

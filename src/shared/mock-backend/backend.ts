@@ -16,7 +16,10 @@ import {
   type TeamRow,
   type UserRow,
 } from './data'
-import { itemReaches } from './item-reach'
+import { itemReaches, type Reader } from './item-reach'
+
+/** Who reads a write's answer: the production, who sees it all. */
+const PRODUCTION: Reader = { userId: 0, production: true }
 
 /** What the API's AuthVerifier reads from a valid Clerk token (events-api ADR-0020). */
 export type VerifiedIdentity = { email: string }
@@ -42,6 +45,8 @@ const eventItemTimeWithoutDate = () =>
   new ApiError('EVENT_ITEM_TIME_WITHOUT_DATE', 'O Event item só pode ter hora se tiver data.')
 const eventCancelled = () =>
   new ApiError('EVENT_CANCELLED', 'O Event está cancelado. Descancele para alterar.')
+const eventNotDraft = () =>
+  new ApiError('EVENT_NOT_DRAFT', 'Só um Event em Draft pode ser publicado.')
 const eventItemNotDraft = () =>
   new ApiError('EVENT_ITEM_NOT_DRAFT', 'Só um Event item em Draft pode ser publicado.')
 const eventItemNotPublished = () =>
@@ -596,10 +601,10 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
    * An Event item as the schedule shows it: when it starts, in its place's zone or the Event's, and
    * who wrote it last and when (ADR-0013; the API does not send them yet, shape assumed).
    */
-  function scheduleItemJson(row: EventItemRow, event: EventRow) {
+  function scheduleItemJson(row: EventItemRow, event: EventRow, reader: Reader = PRODUCTION) {
     const { id, name, date, time, place, state, fields, audience, updatedAt, updatedById } = row
     const when = date === null ? null : { date, time, timezone: place?.timezone ?? event.timezone }
-    const fieldsJson = fields.map((field) => fieldJson(field, event))
+    const fieldsJson = fields.map((field) => fieldJson(field, event, reader))
     const audienceJson =
       audience.kind === 'ALL'
         ? { kind: audience.kind }
@@ -625,23 +630,27 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
 
   /**
    * A Field as the API sends it: of people, each with a name (a User's own) and, for a User no
-   * longer a Participant, `outOfEvent`, worked out on reading (PROJ-205). The schedule is the
-   * production's for now, so every Personal note goes.
+   * longer a Participant, `outOfEvent`, worked out on reading (PROJ-205). Personal notes as the
+   * reader may see them (PROJ-204): the production every one; anyone else their own, and the
+   * others' only where the Field shows them to everyone.
    */
-  function fieldJson(field: ItemFieldRow, event: EventRow) {
+  function fieldJson(field: ItemFieldRow, event: EventRow, reader: Reader = PRODUCTION) {
     if (field.type === 'TEXT') return { ...field }
+    const seesNote = (userId: number | null) =>
+      reader.production || field.personalNotesVisibility === 'ALL' || userId === reader.userId
     return {
       ...field,
-      people: field.people.map(({ userId, name, personalNote }) =>
-        userId === null
+      people: field.people.map(({ userId, name, personalNote: note }) => {
+        const personalNote = seesNote(userId) ? note : null
+        return userId === null
           ? { userId, name, personalNote, outOfEvent: false }
           : {
               userId,
               name: data.users.find((u) => u.id === userId)!.name,
               personalNote,
               outOfEvent: !event.participantIds.includes(userId),
-            },
-      ),
+            }
+      }),
     }
   }
 
@@ -1013,6 +1022,22 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     },
 
     /**
+     * `POST /events/:id/publish` (events-api): an Owner or the Super admin publishes an
+     * Event in Draft, and its published items start to reach whom they reach. The role first, a
+     * Viewer `FORBIDDEN`; then a Cancelled one, frozen, `EVENT_CANCELLED`; a published one
+     * `EVENT_NOT_DRAFT`.
+     */
+    async publishEvent(identity: VerifiedIdentity | null, eventId: number) {
+      await delay()
+      const asker = requester(identity)
+      const row = reachEvent(asker, eventId, { write: true })
+      if (row.cancelled) throw eventCancelled()
+      if (row.state !== 'DRAFT') throw eventNotDraft()
+      row.state = 'PUBLISHED'
+      return eventJson(row, asker)
+    },
+
+    /**
      * `GET /events/:id/participants`, as PROJ-186 plans it: who goes, for any Group member (going
      * or not) and the Super admin, by name.
      */
@@ -1241,26 +1266,34 @@ export function createMockBackend({ latencyMs = 0 }: Options = {}) {
     },
 
     /**
-     * `GET /events/:id/schedule` (PROJ-187): an Owner or the Super admin reads the whole schedule;
-     * a Viewer gets `FORBIDDEN` for now. The General info in creation order; the Timeline only the
-     * days with items, in date order, outside the period too, each untimed first and then by time.
+     * `GET /events/:id/schedule` (PROJ-187): any Group member and the Super admin, each with only
+     * the items that reach them. The production (an Owner, or the Super admin) sees every item; a
+     * Viewer only the published and Cancelled ones of a published Event they go to, so an empty
+     * schedule otherwise: where and when are the Event's own. The General info in creation order;
+     * the Timeline only the days with items, in date order, outside the period too, each untimed
+     * first and then by time.
      */
     async schedule(identity: VerifiedIdentity | null, eventId: number) {
       await delay()
       const asker = requester(identity)
-      // Only the production reads it for now: a Viewer is refused before any Audience applies.
-      const event = reachEvent(asker, eventId, { write: true })
-      const reader = { userId: asker.id, production: true }
-      const items = data.items.filter((i) => i.eventId === eventId && itemReaches(i, event, reader))
+      const event = reachEvent(asker, eventId, { write: false })
+      const production = asker.isSuperAdmin || roleIn(asker.id, event.groupId) === 'OWNER'
+      const reader = { userId: asker.id, production }
+      const shown = (i: EventItemRow) =>
+        production || (event.state === 'PUBLISHED' && i.state !== 'DRAFT')
+      const items = data.items.filter(
+        (i) => i.eventId === eventId && shown(i) && itemReaches(i, event, reader),
+      )
       const dates = [...new Set(items.flatMap((i) => (i.date === null ? [] : [i.date])))].sort()
+      const json = (i: EventItemRow) => scheduleItemJson(i, event, reader)
       return {
-        generalInfo: items.filter((i) => i.date === null).map((i) => scheduleItemJson(i, event)),
+        generalInfo: items.filter((i) => i.date === null).map(json),
         timeline: dates.map((date) => ({
           date,
           items: items
             .filter((i) => i.date === date)
             .sort(byTimeUntimedFirst)
-            .map((i) => scheduleItemJson(i, event)),
+            .map(json),
         })),
       }
     },

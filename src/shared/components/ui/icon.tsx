@@ -25,6 +25,12 @@ const ICONS = {
   calendar: (
     <Path d="M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1M4 10h16M8 3v4M16 3v4" />
   ),
+  place: (
+    <>
+      <Path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" />
+      <Circle cx={12} cy={9.5} r={2.5} />
+    </>
+  ),
   search: (
     <>
       <Circle cx={11} cy={11} r={7} />

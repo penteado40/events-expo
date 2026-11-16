@@ -281,3 +281,46 @@ describe.each(implementations)('EventsRepository contract, writing (%s)', (_, cr
     await expect(repo.update(3, { name: 'X' })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' })
   })
 })
+
+describe.each(implementations)(
+  'EventsRepository contract, publishing (%s)',
+  (_, createRepository) => {
+    it('publishes an Event in Draft, which stays published', async () => {
+      const repo = createRepository(BRUNO)
+
+      const published = await repo.publish(2)
+
+      expect(published).toMatchObject({ id: 2, name: 'Turnê Minas', state: 'PUBLISHED' })
+      await expect(repo.get(2)).resolves.toMatchObject({ state: 'PUBLISHED', cancelled: false })
+    })
+
+    it('lets the Super admin publish', async () => {
+      await expect(createRepository(ADMIN).publish(2)).resolves.toMatchObject({
+        state: 'PUBLISHED',
+      })
+    })
+
+    it('refuses an Event already published with EVENT_NOT_DRAFT', async () => {
+      await expect(createRepository(BRUNO).publish(3)).rejects.toMatchObject({
+        code: 'EVENT_NOT_DRAFT',
+      })
+    })
+
+    it('refuses a Cancelled Event, frozen, with EVENT_CANCELLED', async () => {
+      await expect(createRepository(BRUNO).publish(5)).rejects.toMatchObject({
+        code: 'EVENT_CANCELLED',
+      })
+    })
+
+    it('refuses a Viewer with FORBIDDEN, and someone outside the Group with NOT_FOUND', async () => {
+      await expect(createRepository(LU).publish(2)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+      await expect(createRepository(BRUNO).publish(7)).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    })
+
+    it('refuses with UNAUTHENTICATED when signed out', async () => {
+      await expect(createRepository(null).publish(2)).rejects.toMatchObject({
+        code: 'UNAUTHENTICATED',
+      })
+    })
+  },
+)

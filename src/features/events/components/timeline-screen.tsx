@@ -12,8 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn, seesDrafts, type GroupRole } from '@/shared/domain/group-role'
+import { roleIn, type GroupRole } from '@/shared/domain/group-role'
 import { weekday } from '@/shared/domain/local-dates'
+import { eventPermissions, type EventPermissions } from '@/shared/domain/permissions'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
@@ -29,12 +30,14 @@ import {
   itemActions,
   lastChangeText,
 } from '../item-state'
+import { personalItem } from '../personal-schedule'
 import {
   assembleSchedule,
   type DayLines,
   type ItemLine,
   type ScheduleLines,
 } from '../schedule-lines'
+import { EVENT_TAB_BAR_SPACE, EventTabBar } from './event-tab-bar'
 
 /**
  * The Owner's Timeline (D-Timeline, PROJ-220, PROJ-234): the whole schedule, Drafts and every
@@ -43,16 +46,19 @@ import {
  * cover jumps to its day. An item in Draft has "RASCUNHO"; a Cancelled one "CANCELADO" and its name
  * struck; one of a chosen list, how many it has ("SÓ 3 PESSOAS"). An item with actions for the
  * person (`itemActions`: editar, publicar, cancelar, descancelar, apagar) opens them, with its last
- * change; a Cancelled Event has none.
+ * change; a Cancelled Event has none. A Participant of a published Event (PROJ-224) sees the items
+ * that reach them, each with their own Fields of people ("Seu carro: Carro 1 - EC"), opening the
+ * item, and the Event's bar below.
  */
 export function TimelineScreen({ eventId }: { eventId: number }) {
   const { colors } = useTheme()
   const user = useSession((state) => state.session?.user)
   const event = useEvent(eventId)
   const role = event.data && user ? roleIn(user, event.data.groupId) : null
-  const schedule = useSchedule(eventId, { enabled: role !== null && seesDrafts(role) })
+  const can = event.data && role ? eventPermissions(role, event.data) : null
+  const schedule = useSchedule(eventId, { enabled: !!can?.seesSchedule })
 
-  if (event.data && role && !seesDrafts(role)) {
+  if (can && !can.seesSchedule) {
     return (
       <View style={[styles.screen, styles.padded, { backgroundColor: colors.bg }]}>
         <Text style={[textStyles.body, { color: colors.textMuted }]}>
@@ -61,12 +67,14 @@ export function TimelineScreen({ eventId }: { eventId: number }) {
       </View>
     )
   }
-  if (event.data && schedule.data && role) {
+  if (event.data && schedule.data && role && can && user) {
     return (
       <Timeline
         event={event.data}
         lines={assembleSchedule(schedule.data, event.data.period)}
         role={role}
+        can={can}
+        viewerId={user.id}
       />
     )
   }
@@ -85,7 +93,19 @@ export function TimelineScreen({ eventId }: { eventId: number }) {
   )
 }
 
-function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; role: GroupRole }) {
+function Timeline({
+  event,
+  lines,
+  role,
+  can,
+  viewerId,
+}: {
+  event: Event
+  lines: ScheduleLines
+  role: GroupRole
+  can: EventPermissions
+  viewerId: number
+}) {
   const theme = useTheme()
   const { colors } = theme
   const router = useRouter()
@@ -96,9 +116,17 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
-  const editable = canEditEvent(role, event)
+  const editable = can.editsItems
+  // The production opens an item's actions; whoever goes, the item itself.
+  const production = can.seesDrafts
+  const openItem = (line: ItemLine) => router.push(`/events/${event.id}/items/${line.id}`)
   const onPressFor = (line: ItemLine) =>
-    hasActions(itemActions(role, event, line.state)) ? setChosen : undefined
+    !production
+      ? openItem
+      : hasActions(itemActions(role, event, line.state))
+        ? setChosen
+        : undefined
+  const yoursOf = (line: ItemLine) => (production ? [] : personalItem(line.item, viewerId).yours)
 
   const jumpTo = (date: string) => {
     const top = dayTops.current.get(date)
@@ -107,7 +135,13 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <ScrollView ref={scroll} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        ref={scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          !production && { paddingBottom: EVENT_TAB_BAR_SPACE },
+        ]}
+      >
         <View
           style={[
             styles.header,
@@ -179,7 +213,14 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
             <View style={styles.day}>
               <Heading label="Informações gerais" />
               {lines.generalInfo.map((line) => (
-                <ItemRow key={line.id} line={line} onPress={onPressFor(line)} general />
+                <ItemRow
+                  key={line.id}
+                  line={line}
+                  yours={yoursOf(line)}
+                  production={production}
+                  onPress={onPressFor(line)}
+                  general
+                />
               ))}
             </View>
           )}
@@ -191,7 +232,13 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
             >
               <DayHeading day={day} />
               {day.items.map((line) => (
-                <ItemRow key={line.id} line={line} onPress={onPressFor(line)} />
+                <ItemRow
+                  key={line.id}
+                  line={line}
+                  yours={yoursOf(line)}
+                  production={production}
+                  onPress={onPressFor(line)}
+                />
               ))}
             </View>
           ))}
@@ -201,6 +248,7 @@ function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; 
       {chosen && (
         <ItemActions event={event} role={role} line={chosen} onClose={() => setChosen(null)} />
       )}
+      {!production && <EventTabBar eventId={event.id} current="timeline" />}
     </View>
   )
 }
@@ -226,14 +274,19 @@ function DayHeading({ day }: { day: DayLines }) {
 
 /**
  * One item: its local time (or "a definir"), the dot, and the card with the name, its state's
- * badge and who sees it when a chosen list, and the place.
+ * badge and who sees it when a chosen list, and the place, with the viewer's own Fields of people.
  */
 function ItemRow({
   line,
+  yours,
+  production,
   onPress,
   general = false,
 }: {
   line: ItemLine
+  yours: string[]
+  /** Who sees every item, and so how many each reaches. */
+  production: boolean
   onPress?: (line: ItemLine) => void
   general?: boolean
 }) {
@@ -243,10 +296,9 @@ function ItemRow({
   const cancelled = line.state === 'CANCELLED'
   const when = general ? '' : (line.time ?? 'a definir')
   const mark = ITEM_STATE_MARKS[line.state]
-  const audience = audienceMark(line.item)
-  const label = [when, line.name, line.detail, mark?.spoken, audience?.spoken]
-    .filter(Boolean)
-    .join(', ')
+  const audience = production ? audienceMark(line.item) : null
+  const detail = [line.detail, ...yours].filter(Boolean).join(' · ') || null
+  const label = [when, line.name, detail, mark?.spoken, audience?.spoken].filter(Boolean).join(', ')
   return (
     <Pressable
       onPress={onPress && (() => onPress(line))}
@@ -306,9 +358,9 @@ function ItemRow({
             </View>
           )}
         </View>
-        {(line.detail || (untimed && !general)) && (
+        {(detail || (untimed && !general)) && (
           <Text style={[styles.detail, { color: colors.textMuted }]}>
-            {line.detail ?? 'horário a confirmar'}
+            {detail ?? 'horário a confirmar'}
           </Text>
         )}
       </View>
@@ -399,7 +451,7 @@ function ItemActions({
           variant="secondary"
           onPress={() => {
             onClose()
-            router.push(`/events/${event.id}/items/${line.id}`)
+            router.push(`/events/${event.id}/items/${line.id}/edit`)
           }}
         />
       )}

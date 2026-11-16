@@ -48,6 +48,12 @@ export interface EventsRepository {
    * `create`.
    */
   update(eventId: number, changes: EventChanges): Promise<Event>
+  /**
+   * `POST /events/:id/publish`: an Owner (or the Super admin) publishes an Event in Draft, and its
+   * published items start to reach whom they reach. `EVENT_NOT_DRAFT` for one already published;
+   * `EVENT_CANCELLED` for a Cancelled one; `FORBIDDEN` for a Viewer; `NOT_FOUND` outside the Group.
+   */
+  publish(eventId: number): Promise<Event>
 }
 
 /**
