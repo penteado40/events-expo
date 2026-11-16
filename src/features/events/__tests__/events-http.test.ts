@@ -3,6 +3,7 @@ import { createHttpClient } from '@/shared/lib/http'
 import {
   createHttpEventItemsRepository,
   createHttpEventsRepository,
+  createHttpParticipantsRepository,
   createHttpScheduleRepository,
   type Audience,
   type ItemFieldInput,
@@ -57,6 +58,24 @@ describe('HTTP EventsRepository over the events-api as it is', () => {
         isParticipant: null,
       },
     ])
+  })
+
+  it('reads a Cancelled Event, sent as `state: CANCELLED`, as a Cancelled published one', async () => {
+    const repo = repositoryAnswering({ data: [{ ...API_EVENT, state: 'CANCELLED' }] })
+
+    await expect(repo.listByGroup(1)).resolves.toMatchObject([
+      { state: 'PUBLISHED', cancelled: true },
+    ])
+  })
+
+  it('reads whether the requester goes from the Event’s membership, unknown for the Super admin', async () => {
+    const going = repositoryAnswering({
+      data: { ...API_EVENT, membership: { isParticipant: true } },
+    })
+    const admin = repositoryAnswering({ data: { ...API_EVENT, membership: null } })
+
+    await expect(going.get(7)).resolves.toMatchObject({ isParticipant: true })
+    await expect(admin.get(7)).resolves.toMatchObject({ isParticipant: null })
   })
 
   it('keeps what the API says once it sends it', async () => {
@@ -208,11 +227,17 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     ])
   })
 
-  it('writes a Field and its order on the item’s fields routes, as the events-api takes them', async () => {
-    const { http, fetch } = clientAnswering(
-      { data: { id: 4, kind: 'TEXT', name: 'Obs', value: 'Despachar o som' } },
-      201,
-    )
+  it('writes a text Field in the body the API takes, leaving out the Highlight', async () => {
+    const answer = {
+      id: 4,
+      kind: 'TEXT',
+      name: 'Obs',
+      value: 'Despachar o som',
+      eventItemId: 9,
+      createdAt: '2026-11-12T22:00:00.000Z',
+      updatedAt: '2026-11-12T22:00:00.000Z',
+    }
+    const { http, fetch } = clientAnswering({ data: answer }, 201)
     const items = createHttpEventItemsRepository(http)
 
     await expect(
@@ -229,41 +254,33 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       value: 'Despachar o som',
       highlight: false,
     })
-    await items.updateField(7, 9, 4, { value: 'Som despachado', highlight: false })
+    await items.updateField(7, 9, 4, { value: 'Às 13h', highlight: false })
     await items.orderFields(7, 9, [4, 3])
 
-    const calls = fetch.mock.calls.map(([url, init]) => [
-      init?.method,
-      url,
-      JSON.parse(String(init?.body)),
-    ])
-    expect(calls).toEqual([
+    expect(
+      fetch.mock.calls.map(([url, init]) => [init?.method, url, JSON.parse(String(init?.body))]),
+    ).toEqual([
       [
         'POST',
         'https://api.test/events/7/items/9/fields',
         { kind: 'TEXT', name: 'Obs', value: 'Despachar o som' },
       ],
-      ['PATCH', 'https://api.test/events/7/items/9/fields/4', { value: 'Som despachado' }],
+      ['PATCH', 'https://api.test/events/7/items/9/fields/4', { value: 'Às 13h' }],
       ['PUT', 'https://api.test/events/7/items/9/fields/order', { fieldIds: [4, 3] }],
     ])
   })
 
-  it('writes a Field of people as the events-api takes it, without notes, and reads it back', async () => {
-    const { http, fetch } = clientAnswering(
-      {
-        data: {
-          id: 5,
-          kind: 'PEOPLE',
-          name: 'Carro 1 - EC',
-          value: [
-            { userId: 3, name: 'Matias Costa' },
-            { userId: 4, name: 'Jacque Moreira' },
-            { name: 'Seu Raimundo' },
-          ],
-        },
-      },
-      201,
-    )
+  it('writes a Field of people as `{ userId }` and `{ name }`, leaving out notes and who sees them', async () => {
+    const answer = {
+      id: 5,
+      kind: 'PEOPLE',
+      name: 'Carro 1 - EC',
+      value: [{ userId: 3, name: 'Matias Costa' }, { name: 'Seu Raimundo' }],
+      eventItemId: 9,
+      createdAt: '2026-11-12T22:00:00.000Z',
+      updatedAt: '2026-11-12T22:00:00.000Z',
+    }
+    const { http, fetch } = clientAnswering({ data: answer }, 201)
     const items = createHttpEventItemsRepository(http)
     const input = {
       type: 'PEOPLE',
@@ -272,24 +289,18 @@ describe('HTTP items and schedule over the events-api as it is', () => {
       personalNotesVisibility: 'ALL',
       people: [
         { userId: 3, personalNote: 'dirigindo' },
-        { userId: 4, personalNote: null },
         { name: 'Seu Raimundo', personalNote: null },
       ],
     } satisfies ItemFieldInput
 
     await expect(items.addField(7, 9, input)).resolves.toMatchObject({
-      id: 5,
       type: 'PEOPLE',
       people: [
-        { userId: 3, name: 'Matias Costa', personalNote: null },
-        { userId: 4, name: 'Jacque Moreira', personalNote: null },
-        { userId: null, name: 'Seu Raimundo', personalNote: null },
+        { userId: 3, name: 'Matias Costa' },
+        { userId: null, name: 'Seu Raimundo' },
       ],
     })
-    await items.updateField(7, 9, 5, {
-      personalNotesVisibility: 'PRIVATE',
-      people: [{ userId: 3, personalNote: 'dirigindo' }],
-    })
+    await items.updateField(7, 9, 5, { people: [{ userId: 3 }] })
 
     expect(
       fetch.mock.calls.map(([url, init]) => [init?.method, url, JSON.parse(String(init?.body))]),
@@ -300,20 +311,19 @@ describe('HTTP items and schedule over the events-api as it is', () => {
         {
           kind: 'PEOPLE',
           name: 'Carro 1 - EC',
-          people: [{ userId: 3 }, { userId: 4 }, { name: 'Seu Raimundo' }],
+          people: [{ userId: 3 }, { name: 'Seu Raimundo' }],
         },
       ],
       ['PATCH', 'https://api.test/events/7/items/9/fields/5', { people: [{ userId: 3 }] }],
     ])
   })
 
-  it('offers Fields of people, but not their notes nor the Highlight, which the events-api lacks', () => {
-    const { http } = clientAnswering({ data: null })
-    const items = createHttpEventItemsRepository(http)
+  it('offers Fields of people, but no Highlight nor Personal notes until the events-api has them', () => {
+    const items = createHttpEventItemsRepository(clientAnswering({ data: null }).http)
 
     expect(items.peopleFieldsAvailable()).toBe(true)
-    expect(items.personalNotesAvailable()).toBe(false)
     expect(items.highlightAvailable()).toBe(false)
+    expect(items.personalNotesAvailable()).toBe(false)
   })
 
   it('writes a chosen Audience in the item’s PATCH and reads it back as people', async () => {
@@ -351,7 +361,7 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     ).rejects.toMatchObject({ code: 'NOT_A_PARTICIPANT' })
   })
 
-  it('offers no choice of Audience while the events-api’s schedule leaves it out', () => {
+  it('offers no choice of Audience until the events-api has it', () => {
     const { http } = clientAnswering({ data: null })
 
     expect(createHttpEventItemsRepository(http).audienceAvailable()).toBe(false)
@@ -382,5 +392,23 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     await expect(createHttpEventItemsRepository(http).cancel(7, 9)).rejects.toMatchObject({
       code: 'EVENT_ITEM_NOT_PUBLISHED',
     })
+  })
+})
+
+describe('HTTP Participants over the events-api as it is', () => {
+  it('lists Participants, with no role for someone no longer a Group member', async () => {
+    const { http } = clientAnswering({
+      data: [
+        { userId: 3, name: 'Matias Costa', phone: '+5592999990002', role: 'VIEWER' },
+        { userId: 8, name: 'Ex-membro', phone: '+5592999990008', role: null },
+      ],
+    })
+    const participants = createHttpParticipantsRepository(http)
+
+    expect(participants.available()).toBe(true)
+    await expect(participants.list(7)).resolves.toEqual([
+      { userId: 3, name: 'Matias Costa', phone: '+5592999990002', role: 'VIEWER' },
+      { userId: 8, name: 'Ex-membro', phone: '+5592999990008', role: null },
+    ])
   })
 })

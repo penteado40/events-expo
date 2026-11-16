@@ -40,6 +40,43 @@ const STATUS_BY_CODE: Record<string, number> = {
 
 const noContent = () => new Response(null, { status: 204 })
 
+type MockField = {
+  type: string
+  value?: string
+  people?: { userId: number | null; name: string }[]
+  [key: string]: unknown
+}
+
+/**
+ * The events-api's Field body (PROJ-198, PROJ-201) put into the mock backend's: `kind` is the
+ * `type`. Its people come as `{ userId }` or `{ name }`, as the backend takes them.
+ */
+function fieldBodyFromApi(raw: Record<string, unknown>): ItemFieldBody {
+  const { kind, ...rest } = raw
+  return (kind === undefined ? rest : { ...rest, type: kind }) as ItemFieldBody
+}
+
+/**
+ * A Field as the events-api answers it: `kind`, and a Field of people's people in `value`, a User
+ * as `{ userId, name }` and a loose name as `{ name }`. The API has no Highlight nor Personal
+ * notes yet, so they are left out, as is who left the Event.
+ */
+function fieldToApi(field: MockField) {
+  const value =
+    field.type === 'PEOPLE'
+      ? (field.people ?? []).map(({ userId, name }) =>
+          userId === null ? { name } : { userId, name },
+        )
+      : field.value
+  return { id: field.id, kind: field.type, name: field.name, value }
+}
+
+/** An Event item as the events-api answers it, its Fields in the API's shape. */
+function itemToApi<T extends object>(item: T): T {
+  const fields = (item as { fields?: MockField[] }).fields
+  return fields ? { ...item, fields: fields.map(fieldToApi) } : item
+}
+
 export const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
@@ -128,17 +165,13 @@ export function createFakeApi({
         )
         return json(200, { data: moved })
       }
-      // The events-api names a Field's type `kind` (PROJ-198); the backend takes it as `type`.
-      const fieldBody = (): ItemFieldBody => {
-        const { kind, ...body } = JSON.parse(String(init?.body ?? '{}')) as ItemFieldBody & {
-          kind?: string
-        }
-        return kind === undefined ? body : { ...body, type: kind }
-      }
+      const fieldBody = () =>
+        fieldBodyFromApi(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>)
       const fields = route.match(/^POST \/events\/(\d+)\/items\/(\d+)\/fields$/)
       if (fields) {
         const [eventId, itemId] = fields.slice(1).map(Number)
-        return json(201, { data: await backend.addField(identity, eventId, itemId, fieldBody()) })
+        const added = await backend.addField(identity, eventId, itemId, fieldBody())
+        return json(201, { data: fieldToApi(added as unknown as MockField) })
       }
       const order = route.match(/^PUT \/events\/(\d+)\/items\/(\d+)\/fields\/order$/)
       if (order) {
@@ -155,11 +188,17 @@ export function createFakeApi({
           return noContent()
         }
         const edited = await backend.updateField(identity, eventId, itemId, fieldId, fieldBody())
-        return json(200, { data: edited })
+        return json(200, { data: fieldToApi(edited as unknown as MockField) })
       }
       const schedule = route.match(/^GET \/events\/(\d+)\/schedule$/)
       if (schedule) {
-        return json(200, { data: await backend.schedule(identity, Number(schedule[1])) })
+        const { generalInfo, timeline } = await backend.schedule(identity, Number(schedule[1]))
+        return json(200, {
+          data: {
+            generalInfo: generalInfo.map(itemToApi),
+            timeline: timeline.map((day) => ({ ...day, items: day.items.map(itemToApi) })),
+          },
+        })
       }
       const participants = route.match(/^GET \/events\/(\d+)\/participants$/)
       if (participants) {

@@ -51,9 +51,7 @@ export interface EventsRepository {
 }
 
 /**
- * Mirrors the events-api's Participants of an Event (PROJ-186, PROJ-190), not built there yet: the
- * HTTP implementation follows the planned routes.
- */
+ * Mirrors the events-api's Participants of an Event (PROJ-186, PROJ-190). */
 export interface ParticipantsRepository {
   /**
    * Whether the Participants can be read and changed here, and chosen when creating an Event.
@@ -102,7 +100,7 @@ export type EventItemInput = {
   time?: LocalTime | null
   place?: ItemPlaceInput | null
   /**
-   * Who sees it (PROJ-197, not built in the events-api yet): left out, "Todos que vão" when
+   * Who sees it (PROJ-197): left out, "Todos que vão" when
    * creating and as it was when editing. A chosen list goes whole, only with Participants.
    */
   audience?: Audience
@@ -141,24 +139,24 @@ export type ItemFieldChanges =
 
 /** Mirrors the events-api's Event item writes (`/events/:id/items`). */
 export interface EventItemsRepository {
-  /** Whether Fields of people can be written here; without them the editor offers only text ones. */
+  /** Whether Fields of people can be written here (events-api PROJ-201): else only text Fields. */
   peopleFieldsAvailable(): boolean
   /**
-   * Whether a Field's Highlight ("no Resumo") is kept here. False over HTTP until the events-api
-   * has it (PROJ-200): the editor then shows no "no Resumo".
+   * Whether the Audience can be chosen here. False over HTTP while the events-api's schedule does
+   * not send it back (it takes it only in the item's PATCH): the editor then shows no "Quem vê", so
+   * an edit never puts back "Todos que vão" over a chosen list it could not read.
+   */
+  audienceAvailable(): boolean
+  /**
+   * Whether a Field can be put in the Summary ("no Resumo", PROJ-200). False over HTTP until the
+   * events-api has the Highlight: the editor then shows no "no Resumo".
    */
   highlightAvailable(): boolean
   /**
-   * Whether the Personal notes of a Field of people, and who sees them, are kept here. False over
-   * HTTP until the events-api has them (PROJ-204): the editor then shows no notes.
+   * Whether a Field of people takes Personal notes and who sees them (PROJ-204, PROJ-205). False
+   * over HTTP until the events-api has them: the editor then shows only the people.
    */
   personalNotesAvailable(): boolean
-  /**
-   * Whether the Audience can be chosen here. False over HTTP while the events-api's schedule does
-   * not send each item's Audience: the editor could not show the one chosen, so it shows no
-   * "Quem vê" and every item reaches everyone going.
-   */
-  audienceAvailable(): boolean
   /**
    * `POST /events/:id/items`: an Owner (or the Super admin) creates the item, born published in a
    * Draft Event and in Draft in a published one (PROJ-194). `EVENT_ITEM_TIME_WITHOUT_DATE` for a

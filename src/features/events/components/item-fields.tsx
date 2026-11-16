@@ -25,11 +25,11 @@ export type PeopleFieldActions = {
 type Props = {
   fields: FieldDraft[]
   errors: ItemDraftErrors
-  /** Whether Fields of people can be added here (not over the events-api yet). */
+  /** Whether Fields of people can be added here. */
   canAddPeopleFields: boolean
-  /** Whether "no Resumo" (the Highlight) is offered (not over the events-api yet). */
+  /** Whether a Field can go "no Resumo" (the Highlight; not over the events-api yet). */
   canHighlight: boolean
-  /** Whether Personal notes are offered in Fields of people (not over the events-api yet). */
+  /** Whether Fields of people take Personal notes (not over the events-api yet). */
   canWriteNotes: boolean
   /**
    * The Event's Participants for "+ Participant": `undefined` while they load, `null` where there
@@ -100,7 +100,7 @@ export function ItemFields({
             ) : (
               <PeopleField
                 field={field}
-                canWriteNotes={canWriteNotes}
+                notesAvailable={canWriteNotes}
                 participants={participants}
                 onRename={(name) => onEdit(field.key, { name })}
                 onAddParticipant={(person) => peopleActions.onAddParticipant(field.key, person)}

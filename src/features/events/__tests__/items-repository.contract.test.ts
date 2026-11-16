@@ -463,6 +463,9 @@ describe.each(implementations)('Event item lifecycle contract (%s)', (_, createR
 const PASSAGEM = 6
 
 describe.each(implementations)('Text Fields contract (%s)', (_, createRepository) => {
+  /** The events-api has no Highlight yet (PROJ-200): over HTTP every Field reads `false`. */
+  const HIGHLIGHT = createRepository(BRUNO).items.highlightAvailable()
+
   const fieldsOf = async (
     schedule: ReturnType<typeof createRepository>['schedule'],
     itemId: number,
@@ -482,7 +485,7 @@ describe.each(implementations)('Text Fields contract (%s)', (_, createRepository
         type: 'TEXT',
         name: 'Contato',
         value: 'Técnico do teatro: (92) 98888-0000',
-        highlight: true,
+        highlight: HIGHLIGHT,
       },
     ])
     expect(await fieldsOf(schedule, 7)).toEqual([])
@@ -510,8 +513,7 @@ describe.each(implementations)('Text Fields contract (%s)', (_, createRepository
       value: '127 V',
       highlight: false,
     })
-    // Over HTTP the Highlight is not written yet (PROJ-200).
-    expect(highlighted.highlight).toBe(items.highlightAvailable())
+    expect(highlighted.highlight).toBe(HIGHLIGHT)
     expect((await fieldsOf(schedule, PASSAGEM)).map((f) => f.name)).toEqual([
       'Obs',
       'Contato',
@@ -520,26 +522,23 @@ describe.each(implementations)('Text Fields contract (%s)', (_, createRepository
     ])
   })
 
-  it('edits only what it is given', async () => {
+  it('edits only what it is given, the Highlight too', async () => {
     const { items } = createRepository(BRUNO)
 
-    expect(await items.updateField(MANAUS, PASSAGEM, 2, { value: 'Às 13h' })).toEqual({
-      id: 2,
-      type: 'TEXT',
-      name: 'Contato',
-      value: 'Às 13h',
-      highlight: true,
-    })
-  })
-
-  it('edits the Highlight where it is written (not over HTTP yet, PROJ-200)', async () => {
-    const { items } = createRepository(BRUNO)
-    if (!items.highlightAvailable()) return
-
-    expect(await items.updateField(MANAUS, PASSAGEM, 1, { highlight: true })).toMatchObject({
+    // Over HTTP there is no Highlight to edit yet: the editor does not offer it.
+    if (HIGHLIGHT) {
+      expect(await items.updateField(MANAUS, PASSAGEM, 1, { highlight: true })).toEqual({
+        id: 1,
+        type: 'TEXT',
+        name: 'Obs',
+        value: 'Despachar o som às 14h',
+        highlight: true,
+      })
+    }
+    expect(await items.updateField(MANAUS, PASSAGEM, 1, { value: 'Às 13h' })).toMatchObject({
       name: 'Obs',
-      value: 'Despachar o som às 14h',
-      highlight: true,
+      value: 'Às 13h',
+      highlight: HIGHLIGHT,
     })
   })
 
@@ -624,6 +623,14 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
   const LU_ID = 5
   /** Tiago Souza: in Vocal Livre, but not going to Saída Manaus. */
   const TIAGO = 9
+  /**
+   * The events-api has no Highlight (PROJ-200), Personal notes (PROJ-204, PROJ-205) nor "fora do
+   * Event" yet: over HTTP a Field of people reads only its people, by id and name.
+   */
+  const HIGHLIGHT = createRepository(BRUNO).items.highlightAvailable()
+  const NOTES = createRepository(BRUNO).items.personalNotesAvailable()
+  const note = (text: string) => (NOTES ? text : null)
+  const visibility = (shown: 'PRIVATE' | 'ALL') => (NOTES ? shown : 'PRIVATE')
 
   const fieldOf = async (
     schedule: ReturnType<typeof createRepository>['schedule'],
@@ -643,10 +650,15 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
       id: CARRO_1,
       type: 'PEOPLE',
       name: 'Carro 1 - EC',
-      highlight: true,
+      highlight: HIGHLIGHT,
       personalNotesVisibility: 'PRIVATE',
       people: [
-        { userId: MATIAS, name: 'Matias Costa', personalNote: 'dirigindo', outOfEvent: false },
+        {
+          userId: MATIAS,
+          name: 'Matias Costa',
+          personalNote: note('dirigindo'),
+          outOfEvent: false,
+        },
         { userId: LU_ID, name: 'Lu Andrade', personalNote: null, outOfEvent: false },
         { userId: null, name: 'Seu Raimundo', personalNote: null, outOfEvent: false },
       ],
@@ -655,8 +667,6 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
 
   it('adds a Field of people with Participants and loose names, trimmed, notes only for each one unless asked', async () => {
     const { items } = createRepository(BRUNO)
-    // Over HTTP the Personal notes are not written yet (PROJ-204).
-    const notes = items.personalNotesAvailable()
 
     const added = await items.addField(MANAUS, PASSAGEM, {
       type: 'PEOPLE',
@@ -680,24 +690,15 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
       highlight: false,
       personalNotesVisibility: 'PRIVATE',
       people: [
-        {
-          userId: JACQUE,
-          name: 'Jacque Moreira',
-          personalNote: notes ? 'LOC4X2' : null,
-          outOfEvent: false,
-        },
+        { userId: JACQUE, name: 'Jacque Moreira', personalNote: note('LOC4X2'), outOfEvent: false },
         { userId: null, name: 'Dona Célia', personalNote: null, outOfEvent: false },
       ],
     })
-    expect(shown).toMatchObject({
-      personalNotesVisibility: notes ? 'ALL' : 'PRIVATE',
-      people: [],
-    })
+    expect(shown).toMatchObject({ personalNotesVisibility: visibility('ALL'), people: [] })
   })
 
   it('edits the people whole and who sees the notes, the rest staying', async () => {
     const { items, schedule } = createRepository(BRUNO)
-    const notes = items.personalNotesAvailable()
 
     await items.updateField(MANAUS, TRANSLADO, CARRO_1, {
       personalNotesVisibility: 'ALL',
@@ -706,10 +707,10 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
 
     expect(await fieldOf(schedule, TRANSLADO, CARRO_1)).toMatchObject({
       name: 'Carro 1 - EC',
-      highlight: true,
-      personalNotesVisibility: notes ? 'ALL' : 'PRIVATE',
+      highlight: HIGHLIGHT,
+      personalNotesVisibility: visibility('ALL'),
       people: [
-        { userId: null, name: 'Seu Raimundo', personalNote: notes ? 'motorista' : null },
+        { userId: null, name: 'Seu Raimundo', personalNote: note('motorista') },
         { userId: JACQUE, name: 'Jacque Moreira', personalNote: null },
       ],
     })
@@ -718,15 +719,9 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
   it.each([
     ['a blank loose name', [{ name: '  ' }], 'people.0.name'],
     ['a loose name over 100 characters', [{ name: 'x'.repeat(101) }], 'people.0.name'],
-    [
-      'a Personal note over 500 characters',
-      [{ userId: 3, personalNote: 'x'.repeat(501) }],
-      'people.0.personalNote',
-    ],
     ['someone twice', [{ userId: 3 }, { userId: 3 }], 'people.1.userId'],
   ] as const)('refuses %s with VALIDATION_ERROR naming it', async (_, people, path) => {
     const { items } = createRepository(BRUNO)
-    if (path.endsWith('personalNote') && !items.personalNotesAvailable()) return
 
     await expect(
       items.addField(MANAUS, PASSAGEM, { type: 'PEOPLE', name: 'Carro 2', people: [...people] }),
@@ -735,6 +730,25 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
       details: [expect.objectContaining({ path })],
     })
   })
+
+  // Over HTTP the Personal note is not sent at all (the events-api has none yet).
+  ;(NOTES ? it : it.skip)(
+    'refuses a Personal note over 500 characters with VALIDATION_ERROR naming it',
+    async () => {
+      const { items } = createRepository(BRUNO)
+
+      await expect(
+        items.addField(MANAUS, PASSAGEM, {
+          type: 'PEOPLE',
+          name: 'Carro 2',
+          people: [{ userId: 3, personalNote: 'x'.repeat(501) }],
+        }),
+      ).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        details: [expect.objectContaining({ path: 'people.0.personalNote' })],
+      })
+    },
+  )
 
   it('refuses a value in a Field of people, and people in a text Field, with VALIDATION_ERROR', async () => {
     const { items } = createRepository(BRUNO)
@@ -759,35 +773,36 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
     ).rejects.toMatchObject({ code: 'NOT_A_PARTICIPANT' })
   })
 
-  it('keeps who left the Event in the Field, marked out of it, until taken out or back', async () => {
-    const { items, schedule, participants } = createRepository(BRUNO)
-    const lu = async () => {
-      const field = await fieldOf(schedule, TRANSLADO, CARRO_1)
-      return field.type === 'PEOPLE' ? field.people.find((p) => p.userId === LU_ID) : undefined
-    }
+  // The events-api does not say yet who left the Event, nor take Personal notes.
+  ;(NOTES ? it : it.skip)(
+    'keeps who left the Event in the Field, marked out of it, until taken out or back',
+    async () => {
+      const { items, schedule, participants } = createRepository(BRUNO)
+      const lu = async () => {
+        const field = await fieldOf(schedule, TRANSLADO, CARRO_1)
+        return field.type === 'PEOPLE' ? field.people.find((p) => p.userId === LU_ID) : undefined
+      }
 
-    await participants.remove(MANAUS, LU_ID)
-    expect(await lu()).toMatchObject({ name: 'Lu Andrade', outOfEvent: true })
+      await participants.remove(MANAUS, LU_ID)
+      expect(await lu()).toMatchObject({ name: 'Lu Andrade', outOfEvent: true })
 
-    // An edit may keep her where she is; it may not put her in another Field.
-    await items.updateField(MANAUS, TRANSLADO, CARRO_1, {
-      people: [{ userId: LU_ID, personalNote: 'saiu' }, { userId: MATIAS }],
-    })
-    expect(await lu()).toMatchObject({
-      personalNote: items.personalNotesAvailable() ? 'saiu' : null,
-      outOfEvent: true,
-    })
-    await expect(
-      items.addField(MANAUS, PASSAGEM, {
-        type: 'PEOPLE',
-        name: 'Carro 2',
-        people: [{ userId: LU_ID }],
-      }),
-    ).rejects.toMatchObject({ code: 'NOT_A_PARTICIPANT' })
+      // An edit may keep her where she is; it may not put her in another Field.
+      await items.updateField(MANAUS, TRANSLADO, CARRO_1, {
+        people: [{ userId: LU_ID, personalNote: 'saiu' }, { userId: MATIAS }],
+      })
+      expect(await lu()).toMatchObject({ personalNote: 'saiu', outOfEvent: true })
+      await expect(
+        items.addField(MANAUS, PASSAGEM, {
+          type: 'PEOPLE',
+          name: 'Carro 2',
+          people: [{ userId: LU_ID }],
+        }),
+      ).rejects.toMatchObject({ code: 'NOT_A_PARTICIPANT' })
 
-    await participants.add(MANAUS, LU_ID)
-    expect(await lu()).toMatchObject({ outOfEvent: false })
-  })
+      await participants.add(MANAUS, LU_ID)
+      expect(await lu()).toMatchObject({ outOfEvent: false })
+    },
+  )
 })
 
 describe.each(implementations)('Audience contract (%s)', (_, createRepository) => {

@@ -10,25 +10,48 @@ import { localDateSchema, localTimeSchema, periodSchema } from '@/shared/domain/
  * also sends `isFinished`, `createdAt` and `updatedAt`; the app works out a Finished event itself
  * (`isFinished` in local-dates) and drops the rest.
  */
-export const eventSchema = z.object({
+const eventObjectSchema = z.object({
   id: z.number().int(),
   groupId: z.number().int(),
   name: z.string(),
   place: z.string(),
   period: periodSchema,
-  /** The API has only `DRAFT` until publishing (PROJ-224) arrives. */
+  /** A Cancelled Event keeps the state it was cancelled from (see `fromApiEvent`). */
   state: z.enum(['DRAFT', 'PUBLISHED']),
   /**
    * Cancelled sits beside the state: un-cancelling returns the Event to it. The API does not send
-   * it until cancelling (PROJ-230) arrives, and until then no Event is Cancelled.
+   * it as a state of its own (`fromApiEvent`); the list leaves it out (`false`).
    */
   cancelled: z.boolean().default(false),
   /**
-   * Whether the requester is a Participant; `null` while the API does not say (Participants,
-   * PROJ-222, not there yet), shown as neither going nor "você não vai".
+   * Whether the requester is a Participant; `null` where the API does not say (its list of Events,
+   * and the Super admin), shown as neither going nor "você não vai".
    */
   isParticipant: z.boolean().nullable().default(null),
 })
+
+/**
+ * The events-api's own shape (PROJ-230, PROJ-222) put into the app's: a Cancelled Event comes as
+ * `state: 'CANCELLED'`, without the state it was cancelled from, and is read as a Cancelled
+ * published Event; `GET /events/:id` says whether the requester goes in `membership.isParticipant`
+ * (`null` for the Super admin, who has no Membership). The mock already answers in the app's shape.
+ */
+function fromApiEvent(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw
+  const event = { ...(raw as Record<string, unknown>) }
+  if (event.state === 'CANCELLED') {
+    event.state = 'PUBLISHED'
+    event.cancelled = true
+  }
+  if ('membership' in event) {
+    const membership = event.membership as { isParticipant?: unknown } | null
+    event.isParticipant = membership?.isParticipant ?? null
+    delete event.membership
+  }
+  return event
+}
+
+export const eventSchema = z.preprocess(fromApiEvent, eventObjectSchema)
 
 export type Event = z.infer<typeof eventSchema>
 
@@ -75,9 +98,9 @@ export const personalNotesVisibilitySchema = z.enum(['PRIVATE', 'ALL'])
 export type PersonalNotesVisibility = z.infer<typeof personalNotesVisibilitySchema>
 
 /**
- * One person in a Field of people (events-api PROJ-201, PROJ-203, PROJ-204, PROJ-205, not built
- * there yet; shape assumed): a Participant (`userId`), or a loose name of someone with no login
- * (`userId: null`), which only shows there. `outOfEvent` marks a User who stopped being a
+ * One person in a Field of people (events-api PROJ-201, PROJ-203; the Personal note, PROJ-204, and
+ * who left the Event are not sent there yet): a Participant (`userId`), or a loose name of someone
+ * with no login (`userId: null`), which only shows there. `outOfEvent` marks a User who stopped being a
  * Participant and stays in the Field until the production takes them out.
  */
 export const fieldPersonSchema = z.object({
@@ -138,7 +161,7 @@ export const itemFieldSchema = z.preprocess(
 export type ItemField = z.infer<typeof itemFieldSchema>
 
 /**
- * Who an Event item reaches (events-api PROJ-197, PROJ-199, not built there yet; shape assumed):
+ * Who an Event item reaches (events-api PROJ-197, PROJ-199; its schedule does not send it yet):
  * `ALL`, "Todos que vão", follows the Participants; `SELECTED` is a list of people that does not
  * change on its own (only leaving the Event takes someone out). Teams are copied into it, never
  * kept. Whoever is in a Field of people of the item is reached too, on top of it.
@@ -203,14 +226,14 @@ export const scheduleSchema = z.object({
 export type Schedule = z.infer<typeof scheduleSchema>
 
 /**
- * A Participant as `GET /events/:id/participants` lists them. PROJ-186 (not built in the
- * events-api yet) promises name, phone and role; the shape is assumed like a Group member's.
+ * A Participant as `GET /events/:id/participants` lists them (events-api PROJ-186): name, phone and
+ * role in the Group now, `null` for someone who is no longer a Group member.
  */
 export const participantSchema = z.object({
   userId: z.number().int(),
   name: z.string(),
   phone: z.string(),
-  role: groupMemberSchema.shape.role,
+  role: groupMemberSchema.shape.role.nullable(),
 })
 
 export type Participant = z.infer<typeof participantSchema>

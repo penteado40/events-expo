@@ -11,11 +11,11 @@ import type { PeopleFieldDraft, PersonChoice, PersonDraft } from '../item-draft'
 
 type Props = {
   field: PeopleFieldDraft
-  /** Whether each person's Personal note, and who sees them, are offered. */
-  canWriteNotes: boolean
+  /** Whether Personal notes and who sees them are offered (not over the events-api yet). */
+  notesAvailable: boolean
   /**
    * The Event's Participants to choose from: `undefined` while they load, `null` where there are
-   * none to read (over the events-api for now), when only loose names are added.
+   * none to read, when only loose names are added.
    */
   participants: PersonChoice[] | null | undefined
   onRename: (name: string) => void
@@ -38,7 +38,6 @@ const VISIBILITIES: { value: PersonalNotesVisibility; label: string }[] = [
  */
 export function PeopleField({
   field,
-  canWriteNotes,
   participants,
   onRename,
   onAddParticipant,
@@ -46,6 +45,7 @@ export function PeopleField({
   onRemovePerson,
   onEditNote,
   onVisibility,
+  notesAvailable,
 }: Props) {
   const { colors } = useTheme()
   const [choosing, setChoosing] = useState(false)
@@ -76,9 +76,8 @@ export function PeopleField({
               key={person.key}
               person={person}
               first={index === 0}
-              canWriteNote={canWriteNotes}
               onRemove={() => onRemovePerson(person.key)}
-              onEditNote={(note) => onEditNote(person.key, note)}
+              onEditNote={notesAvailable ? (note) => onEditNote(person.key, note) : undefined}
             />
           ))}
         </View>
@@ -122,9 +121,11 @@ export function PeopleField({
           onPress={() => setLooseName('')}
         />
       </View>
-      {canWriteNotes && (
-        <View style={[styles.visibility, { backgroundColor: colors.bg }]}>
+      <View style={[styles.visibility, { backgroundColor: colors.bg }]}>
+        {notesAvailable && (
           <Text style={[styles.visibilityTitle, { color: colors.text }]}>Quem vê as notas</Text>
+        )}
+        {notesAvailable && (
           <View accessibilityRole="radiogroup" style={styles.radios}>
             {VISIBILITIES.map(({ value, label: text }) => {
               const checked = field.visibility === value
@@ -150,11 +151,12 @@ export function PeopleField({
               )
             })}
           </View>
-          <Text style={[textStyles.caption, { color: colors.textMuted }]}>
-            A produção sempre vê todas. Quem está neste Field passa a ver o item.
-          </Text>
-        </View>
-      )}
+        )}
+        <Text style={[textStyles.caption, { color: colors.textMuted }]}>
+          {notesAvailable && 'A produção sempre vê todas. '}Quem está neste Field passa a ver o
+          item.
+        </Text>
+      </View>
 
       <Sheet visible={choosing} title="Participants" onClose={() => setChoosing(false)}>
         <ScrollView style={styles.choices} contentContainerStyle={styles.choicesList}>
@@ -191,15 +193,14 @@ export function PeopleField({
 function PersonRow({
   person,
   first,
-  canWriteNote,
   onRemove,
   onEditNote,
 }: {
   person: PersonDraft
   first: boolean
-  canWriteNote: boolean
   onRemove: () => void
-  onEditNote: (note: string) => void
+  /** Left out where Personal notes are not offered: no note to write. */
+  onEditNote?: (note: string) => void
 }) {
   const { colors } = useTheme()
   return (
@@ -215,7 +216,7 @@ function PersonRow({
           {person.userId === null && <Badge label="SEM LOGIN" tone="gray" />}
           {person.outOfEvent && <Badge label="fora do Event" tone="red" />}
         </View>
-        {canWriteNote && (
+        {onEditNote && (
           <TextInput
             value={person.note}
             onChangeText={onEditNote}
