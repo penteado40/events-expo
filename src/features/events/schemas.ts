@@ -130,14 +130,14 @@ export type PeopleField = z.infer<typeof peopleFieldSchema>
 /**
  * A Field as the events-api sends it (PROJ-198, PROJ-201, PROJ-203): `kind` instead of `type`, and
  * one `value`, the text of a TEXT Field or the people of a PEOPLE one (`{ userId, name }` or a
- * loose `{ name }`). It has no Highlight, Personal notes or out-of-Event mark yet (PROJ-200,
- * PROJ-204, PROJ-205), so they come off: no Highlight, no notes, nobody out of the Event. What
- * already has the app's shape (the mock) passes through.
+ * loose `{ name }`), and its Highlight (PROJ-200), off where it is not sent. It has no Personal
+ * notes or out-of-Event mark yet (PROJ-204, PROJ-205), so they come off: no notes, nobody out of
+ * the Event. What already has the app's shape (the mock) passes through.
  */
 function fromApiField(raw: unknown): unknown {
   if (typeof raw !== 'object' || raw === null || !('kind' in raw)) return raw
   const { kind, value, ...rest } = raw as Record<string, unknown>
-  if (kind === 'TEXT') return { ...rest, type: 'TEXT', value, highlight: false }
+  if (kind === 'TEXT') return { highlight: false, ...rest, type: 'TEXT', value }
   if (kind === 'PEOPLE') {
     const people = Array.isArray(value)
       ? value.map((person: object) => ({
@@ -147,7 +147,7 @@ function fromApiField(raw: unknown): unknown {
           ...person,
         }))
       : value
-    return { ...rest, type: 'PEOPLE', highlight: false, people }
+    return { highlight: false, ...rest, type: 'PEOPLE', people }
   }
   return raw
 }

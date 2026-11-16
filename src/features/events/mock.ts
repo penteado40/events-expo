@@ -42,6 +42,8 @@ export function createMockEventsRepository({
     get: async (eventId) => eventSchema.parse(await backend.event(await identity(), eventId)),
     update: async (eventId, changes) =>
       eventSchema.parse(await backend.updateEvent(await identity(), eventId, changes)),
+    publish: async (eventId) =>
+      eventSchema.parse(await backend.publishEvent(await identity(), eventId)),
   }
 }
 

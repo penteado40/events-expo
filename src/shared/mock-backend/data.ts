@@ -186,11 +186,29 @@ export function createDataset() {
       ...vitoria,
       address: 'Aeroporto de Vitória (VIX)',
     }),
-    item(4, 'Check-in · Hotel Taj Mahal', ['2026-11-20', '14:30'], {
-      name: 'Hotel Taj Mahal',
-      address: 'Av. Getúlio Vargas, 741 - Centro',
-      timezone: null,
-    }),
+    item(
+      4,
+      'Check-in · Hotel Taj Mahal',
+      ['2026-11-20', '14:30'],
+      { name: 'Hotel Taj Mahal', address: 'Av. Getúlio Vargas, 741 - Centro', timezone: null },
+      // Room 101 keeps its Personal notes private, each seeing only their own; 102 shows them to
+      // everyone the item reaches.
+      [
+        peopleField(4, 'Quarto 101', [
+          { userId: DEMO_VIEWER_ID, name: null, personalNote: 'Cama extra pedida' },
+          { userId: 4, name: null, personalNote: 'Chega depois do show' },
+        ]),
+        peopleField(
+          5,
+          'Quarto 102',
+          [
+            { userId: 3, name: null, personalNote: 'Acorda cedo' },
+            { userId: DEMO_OWNER_ID, name: null, personalNote: null },
+          ],
+          'ALL',
+        ),
+      ],
+    ),
     item(5, 'Show', ['2026-11-21', '19:00'], teatro),
     item(6, 'Passagem de som', ['2026-11-21', '16:00'], teatro, [
       textField(1, 'Obs', 'Despachar o som às 14h'),
@@ -210,7 +228,9 @@ export function createDataset() {
     item(10, 'Voo MAO → VIX', ['2026-11-22', '14:05']),
     // The eve, outside the period.
     item(11, 'Técnica viaja antes', ['2026-11-19', null]),
-    item(12, 'Contatos'),
+    item(12, 'Contatos', [null, null], null, [
+      textField(7, 'Produção', 'Bruno Reis · +55 27 99999-0002', true),
+    ]),
   ]
   return { users, groups, groupMembers, teams, events, items }
 
@@ -242,8 +262,13 @@ export function createDataset() {
     return { id, type: 'TEXT', name, value, highlight }
   }
 
-  function peopleField(id: number, name: string, people: FieldPersonRow[]): PeopleFieldRow {
-    return { id, type: 'PEOPLE', name, highlight: true, personalNotesVisibility: 'PRIVATE', people }
+  function peopleField(
+    id: number,
+    name: string,
+    people: FieldPersonRow[],
+    personalNotesVisibility: PeopleFieldRow['personalNotesVisibility'] = 'PRIVATE',
+  ): PeopleFieldRow {
+    return { id, type: 'PEOPLE', name, highlight: true, personalNotesVisibility, people }
   }
 
   function team(id: number, name: string, memberIds: number[]): TeamRow {

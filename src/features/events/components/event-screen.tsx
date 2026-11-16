@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router'
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { roleIn } from '@/shared/domain/group-role'
 import { periodLabel } from '@/shared/domain/local-dates'
+import { eventPermissions } from '@/shared/domain/permissions'
 import { gmtOffset } from '@/shared/domain/timezones'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -14,9 +15,11 @@ import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import { participantsAvailable, useGroupMembers, useParticipants } from '../hooks/use-participants'
+import { usePublishEvent } from '../hooks/use-publish-event'
 import { useSchedule } from '../hooks/use-schedule'
 import { ITEM_STATE_MARKS } from '../item-state'
 import { assembleSchedule, type ItemLine } from '../schedule-lines'
+import { EventSummaryScreen } from './event-summary'
 
 /**
  * An Event's screen (D-Rascunho, PROJ-217, PROJ-220): the cover in its automatic color, and the
@@ -24,7 +27,9 @@ import { assembleSchedule, type ItemLine } from '../schedule-lines'
  * the schedule in short (the General info and a line per day, with "+ Item" until the Event is
  * Cancelled; an item in Draft marked "RASCUNHO", a Cancelled one struck, "CANCELADO", as in the
  * Timeline), which opens the Timeline; a Viewer only where and when. Every Group member sees how
- * many go, opening the Participants (PROJ-222). Publicar comes with its own ticket.
+ * many go, opening the Participants (PROJ-222). An Event in Draft has "Publicar" at the foot for
+ * its Owners (story 55). A Participant of a published Event sees its Summary instead
+ * (`EventSummaryScreen`, PROJ-224).
  */
 export function EventScreen({ eventId }: { eventId: number }) {
   const theme = useTheme()
@@ -34,12 +39,17 @@ export function EventScreen({ eventId }: { eventId: number }) {
   const user = useSession((state) => state.session?.user)
   const event = useEvent(eventId)
   const role = event.data && user ? roleIn(user, event.data.groupId) : null
+  const can = event.data && role ? eventPermissions(role, event.data) : null
   const tone = autoTone(eventId)
   const [from, to] = theme.cover(tone)
 
+  if (event.data && user && can && can.seesSchedule && !can.seesDrafts) {
+    return <EventSummaryScreen event={event.data} viewerId={user.id} />
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.bg }]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, can?.publishes && styles.scrollOverFoot]}>
         <View
           style={[
             styles.cover,
@@ -58,7 +68,7 @@ export function EventScreen({ eventId }: { eventId: number }) {
             >
               <Icon name="back" color="#FFFFFF" size={20} strokeWidth={2} />
             </Pressable>
-            {event.data && role && canEditEvent(role, event.data) && (
+            {can?.editsEvent && (
               <Pressable
                 onPress={() => router.push(`/events/${eventId}/edit`)}
                 accessibilityRole="button"
@@ -74,11 +84,9 @@ export function EventScreen({ eventId }: { eventId: number }) {
         <View style={styles.body}>
           {event.data ? (
             <>
-              <EventCard event={event.data} draftShown={!!role && seesDrafts(role)} />
+              <EventCard event={event.data} draftShown={!!can?.seesDrafts} />
               {participantsAvailable() && <ParticipantsLine event={event.data} />}
-              {role && seesDrafts(role) && (
-                <ScheduleSummary event={event.data} editable={canEditEvent(role, event.data)} />
-              )}
+              {can?.seesDrafts && <ScheduleSummary event={event.data} editable={can.editsItems} />}
             </>
           ) : event.error ? (
             <ErrorState message={event.error.message} onRetry={() => event.refetch()} />
@@ -87,6 +95,31 @@ export function EventScreen({ eventId }: { eventId: number }) {
           )}
         </View>
       </ScrollView>
+      {can?.publishes && <PublishFoot eventId={eventId} />}
+    </View>
+  )
+}
+
+/**
+ * D-Rascunho's foot: "Publicar" the Event in Draft, its badge going and its items reaching the
+ * Participants (story 55).
+ */
+function PublishFoot({ eventId }: { eventId: number }) {
+  const { colors } = useTheme()
+  const publish = usePublishEvent(eventId)
+  const [error, setError] = useState<string | null>(null)
+  const run = async () => {
+    setError(null)
+    try {
+      await publish.mutateAsync()
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Não foi possível publicar.')
+    }
+  }
+  return (
+    <View style={[styles.foot, { backgroundColor: colors.bg }]}>
+      {error && <Text style={[textStyles.body, { color: palette.red[700] }]}>{error}</Text>}
+      <Button label="Publicar" loading={publish.isPending} onPress={run} />
     </View>
   )
 }
@@ -297,6 +330,16 @@ const spokenName = (line: ItemLine) => {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   scroll: { paddingBottom: 32 },
+  scrollOverFoot: { paddingBottom: 120 },
+  foot: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 8,
+  },
   cover: { borderBottomLeftRadius: 32, borderBottomRightRadius: 32, overflow: 'hidden' },
   coverBar: {
     position: 'absolute',

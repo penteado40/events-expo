@@ -58,8 +58,8 @@ function fieldBodyFromApi(raw: Record<string, unknown>): ItemFieldBody {
 
 /**
  * A Field as the events-api answers it: `kind`, and a Field of people's people in `value`, a User
- * as `{ userId, name }` and a loose name as `{ name }`. The API has no Highlight nor Personal
- * notes yet, so they are left out, as is who left the Event.
+ * as `{ userId, name }` and a loose name as `{ name }`, and its Highlight (PROJ-200). The API has
+ * no Personal notes yet, so they are left out, as is who left the Event.
  */
 function fieldToApi(field: MockField) {
   const value =
@@ -68,7 +68,7 @@ function fieldToApi(field: MockField) {
           userId === null ? { name } : { userId, name },
         )
       : field.value
-  return { id: field.id, kind: field.type, name: field.name, value }
+  return { id: field.id, kind: field.type, name: field.name, highlight: field.highlight, value }
 }
 
 /** An Event item as the events-api answers it, its Fields in the API's shape. */
@@ -128,6 +128,10 @@ export function createFakeApi({
       }
       if (event?.[1] === 'PATCH') {
         return json(200, { data: await backend.updateEvent(identity, Number(event[2]), body()) })
+      }
+      const publish = route.match(/^POST \/events\/(\d+)\/publish$/)
+      if (publish) {
+        return json(200, { data: await backend.publishEvent(identity, Number(publish[1])) })
       }
       const itemBody = () => JSON.parse(String(init?.body ?? '{}')) as EventItemBody
       const items = route.match(/^POST \/events\/(\d+)\/items$/)

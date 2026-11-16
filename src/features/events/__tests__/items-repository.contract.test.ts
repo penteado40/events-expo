@@ -67,7 +67,15 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
         when: null,
         place: null,
         state: 'PUBLISHED',
-        fields: [],
+        fields: [
+          {
+            id: 7,
+            type: 'TEXT',
+            name: 'Produção',
+            value: 'Bruno Reis · +55 27 99999-0002',
+            highlight: true,
+          },
+        ],
         audience: ALL,
         ...SEEDED,
       },
@@ -124,10 +132,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
     await expect(schedule.get(MANAUS)).resolves.toMatchObject({ generalInfo: expect.any(Array) })
   })
 
-  it('refuses a Viewer with FORBIDDEN, for now, and someone outside the Group with NOT_FOUND', async () => {
-    await expect(createRepository(LU).schedule.get(MANAUS)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-    })
+  it('answers NOT_FOUND to someone outside the Group', async () => {
     await expect(createRepository(ANA).schedule.get(MANAUS)).rejects.toMatchObject({
       code: 'NOT_FOUND',
     })
@@ -139,6 +144,53 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
     })
   })
 })
+
+describe.each(implementations)(
+  'ScheduleRepository contract, for a Viewer (%s)',
+  (_, createRepository) => {
+    /** Personal notes come only from the mock: the events-api has none yet (PROJ-204). */
+    const NOTES = createRepository(BRUNO).items.personalNotesAvailable()
+    const note = (text: string) => (NOTES ? text : null)
+    const CHECK_IN = 4
+
+    it('gives a Participant the schedule of a published Event, the eve outside the period too', async () => {
+      const { timeline, generalInfo } = await createRepository(LU).schedule.get(MANAUS)
+
+      expect(generalInfo.map((i) => i.name)).toEqual(['O que levar', 'Contatos'])
+      expect(timeline.map((day) => day.date)).toEqual([
+        '2026-11-19',
+        '2026-11-20',
+        '2026-11-21',
+        '2026-11-22',
+      ])
+    })
+
+    it('gives nothing of an Event in Draft, nor of one the Viewer does not go to', async () => {
+      const empty = { generalInfo: [], timeline: [] }
+
+      await expect(createRepository(LU).schedule.get(MINAS)).resolves.toEqual(empty)
+      await expect(createRepository(LU).schedule.get(4)).resolves.toEqual(empty)
+    })
+
+    it('shows a Viewer their own Personal note and the notes of a Field that shows them to all', async () => {
+      const { timeline } = await createRepository(LU).schedule.get(MANAUS)
+      const checkIn = timeline.flatMap((d) => d.items).find((i) => i.id === CHECK_IN)!
+      const people = (name: string) => {
+        const field = checkIn.fields.find((f) => f.name === name)
+        return field?.type === 'PEOPLE' ? field.people.map((p) => [p.name, p.personalNote]) : []
+      }
+
+      expect(people('Quarto 101')).toEqual([
+        ['Lu Andrade', note('Cama extra pedida')],
+        ['Jacque Moreira', null],
+      ])
+      expect(people('Quarto 102')).toEqual([
+        ['Matias Costa', note('Acorda cedo')],
+        ['Bruno Reis', null],
+      ])
+    })
+  },
+)
 
 describe.each(implementations)('EventItemsRepository contract (%s)', (_, createRepository) => {
   it('creates an item with date, time and a place in another timezone, born in Draft in a published Event', async () => {
@@ -463,7 +515,7 @@ describe.each(implementations)('Event item lifecycle contract (%s)', (_, createR
 const PASSAGEM = 6
 
 describe.each(implementations)('Text Fields contract (%s)', (_, createRepository) => {
-  /** The events-api has no Highlight yet (PROJ-200): over HTTP every Field reads `false`. */
+  /** The events-api reads the Highlight (PROJ-200) but the app does not write it there yet. */
   const HIGHLIGHT = createRepository(BRUNO).items.highlightAvailable()
 
   const fieldsOf = async (
@@ -485,7 +537,7 @@ describe.each(implementations)('Text Fields contract (%s)', (_, createRepository
         type: 'TEXT',
         name: 'Contato',
         value: 'Técnico do teatro: (92) 98888-0000',
-        highlight: HIGHLIGHT,
+        highlight: true,
       },
     ])
     expect(await fieldsOf(schedule, 7)).toEqual([])
@@ -624,10 +676,9 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
   /** Tiago Souza: in Vocal Livre, but not going to Saída Manaus. */
   const TIAGO = 9
   /**
-   * The events-api has no Highlight (PROJ-200), Personal notes (PROJ-204, PROJ-205) nor "fora do
-   * Event" yet: over HTTP a Field of people reads only its people, by id and name.
+   * The events-api has no Personal notes (PROJ-204, PROJ-205) nor "fora do Event" yet: over HTTP
+   * a Field of people reads only its people, by id and name, and its Highlight (PROJ-200).
    */
-  const HIGHLIGHT = createRepository(BRUNO).items.highlightAvailable()
   const NOTES = createRepository(BRUNO).items.personalNotesAvailable()
   const note = (text: string) => (NOTES ? text : null)
   const visibility = (shown: 'PRIVATE' | 'ALL') => (NOTES ? shown : 'PRIVATE')
@@ -650,7 +701,7 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
       id: CARRO_1,
       type: 'PEOPLE',
       name: 'Carro 1 - EC',
-      highlight: HIGHLIGHT,
+      highlight: true,
       personalNotesVisibility: 'PRIVATE',
       people: [
         {
@@ -707,7 +758,7 @@ describe.each(implementations)('Fields of people contract (%s)', (_, createRepos
 
     expect(await fieldOf(schedule, TRANSLADO, CARRO_1)).toMatchObject({
       name: 'Carro 1 - EC',
-      highlight: HIGHLIGHT,
+      highlight: true,
       personalNotesVisibility: visibility('ALL'),
       people: [
         { userId: null, name: 'Seu Raimundo', personalNote: note('motorista') },

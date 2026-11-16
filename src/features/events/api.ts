@@ -75,6 +75,7 @@ export function createHttpEventsRepository(http: HttpClient): EventsRepository {
     get: (eventId) => http.get(`/events/${eventId}`, { schema: eventSchema }),
     update: (eventId, changes) =>
       http.patch(`/events/${eventId}`, { body: changes, schema: eventSchema }),
+    publish: (eventId) => http.post(`/events/${eventId}/publish`, { schema: eventSchema }),
   }
 }
 
