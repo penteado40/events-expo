@@ -5,6 +5,7 @@ import { mockBackend } from '@/shared/mock-backend'
 import { useSession, userSchema } from '@/shared/session'
 
 import { EditItemScreen, NewItemScreen } from '../components/item-editor-screen'
+import * as itemWrites from '../hooks/use-item-writes'
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() }
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }))
@@ -110,5 +111,22 @@ describe('a Field of people in the item editor', () => {
         ],
       }),
     ])
+  })
+})
+
+describe('the item editor where the events-api has no Highlight nor Personal notes yet', () => {
+  afterEach(() => jest.restoreAllMocks())
+
+  it('offers neither "no Resumo" nor notes, only the people of a Field of people', async () => {
+    jest.spyOn(itemWrites, 'highlightAvailable').mockReturnValue(false)
+    jest.spyOn(itemWrites, 'personalNotesAvailable').mockReturnValue(false)
+
+    await renderAsOwner(<EditItemScreen eventId={MANAUS} itemId={TRANSLADO} />)
+
+    expect(await screen.findByText('Matias Costa')).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Nota de Matias Costa')).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'Todos no item' })).toBeNull()
+    expect(screen.queryByRole('switch', { name: /no Resumo/ })).toBeNull()
+    expect(screen.getByText('Quem está neste Field passa a ver o item.')).toBeOnTheScreen()
   })
 })

@@ -54,6 +54,8 @@ export function createMockEventItemsRepository({
   return {
     peopleFieldsAvailable: () => true,
     audienceAvailable: () => true,
+    highlightAvailable: () => true,
+    personalNotesAvailable: () => true,
     create: async (eventId, input) =>
       eventItemSchema.parse(await backend.createItem(await identity(), eventId, input)),
     update: async (eventId, itemId, changes) =>

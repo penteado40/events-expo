@@ -14,11 +14,17 @@ export type SaveAction = 'save' | 'saveAndPublish'
 /** A save from the editor: the item's own payload, its Fields' writes, and its action. */
 export type ItemSave<Input> = { input: Input; fields: FieldWrites; action: SaveAction }
 
-/** Whether the editor offers Fields of people: not over the events-api yet (PROJ-201). */
+/** Whether the editor offers Fields of people (PROJ-201). */
 export const peopleFieldsAvailable = () => itemsRepository.peopleFieldsAvailable()
 
-/** Whether the editor offers "Quem vê": not over the events-api yet (PROJ-197). */
+/** Whether the editor offers "Quem vê": not over the events-api yet (its schedule omits it). */
 export const audienceAvailable = () => itemsRepository.audienceAvailable()
+
+/** Whether the editor offers "no Resumo": not over the events-api yet (PROJ-200). */
+export const highlightAvailable = () => itemsRepository.highlightAvailable()
+
+/** Whether the editor offers Personal notes: not over the events-api yet (PROJ-204, PROJ-205). */
+export const personalNotesAvailable = () => itemsRepository.personalNotesAvailable()
 
 /** After a write the schedule is read again (no optimistic update in this slice). */
 function useInvalidateSchedule(eventId: number) {

@@ -25,8 +25,12 @@ export type PeopleFieldActions = {
 type Props = {
   fields: FieldDraft[]
   errors: ItemDraftErrors
-  /** Whether Fields of people can be added here (not over the events-api yet). */
+  /** Whether Fields of people can be added here. */
   canAddPeopleFields: boolean
+  /** Whether a Field can go "no Resumo" (the Highlight; not over the events-api yet). */
+  canHighlight: boolean
+  /** Whether Fields of people take Personal notes (not over the events-api yet). */
+  canWriteNotes: boolean
   /**
    * The Event's Participants for "+ Participant": `undefined` while they load, `null` where there
    * are none to read.
@@ -50,6 +54,8 @@ export function ItemFields({
   fields,
   errors,
   canAddPeopleFields,
+  canHighlight,
+  canWriteNotes,
   participants,
   onAdd,
   onAddPeople,
@@ -94,6 +100,7 @@ export function ItemFields({
             ) : (
               <PeopleField
                 field={field}
+                notesAvailable={canWriteNotes}
                 participants={participants}
                 onRename={(name) => onEdit(field.key, { name })}
                 onAddParticipant={(person) => peopleActions.onAddParticipant(field.key, person)}
@@ -111,30 +118,32 @@ export function ItemFields({
               </Text>
             )}
             <View style={styles.actions}>
-              <Pressable
-                onPress={() => onToggleHighlight(field.key)}
-                accessibilityRole="switch"
-                accessibilityLabel={`${label} no Resumo`}
-                accessibilityState={{ checked: field.highlight }}
-                hitSlop={4}
-                style={[
-                  styles.highlight,
-                  field.highlight
-                    ? { backgroundColor: colors.action, borderColor: colors.action }
-                    : { borderColor: colors.border },
-                ]}
-              >
-                <Text
+              {canHighlight && (
+                <Pressable
+                  onPress={() => onToggleHighlight(field.key)}
+                  accessibilityRole="switch"
+                  accessibilityLabel={`${label} no Resumo`}
+                  accessibilityState={{ checked: field.highlight }}
+                  hitSlop={4}
                   style={[
-                    styles.highlightLabel,
+                    styles.highlight,
                     field.highlight
-                      ? { color: colors.onAction, fontFamily: fonts.sans600 }
-                      : { color: colors.textMuted },
+                      ? { backgroundColor: colors.action, borderColor: colors.action }
+                      : { borderColor: colors.border },
                   ]}
                 >
-                  no Resumo
-                </Text>
-              </Pressable>
+                  <Text
+                    style={[
+                      styles.highlightLabel,
+                      field.highlight
+                        ? { color: colors.onAction, fontFamily: fonts.sans600 }
+                        : { color: colors.textMuted },
+                    ]}
+                  >
+                    no Resumo
+                  </Text>
+                </Pressable>
+              )}
               <View style={styles.spacer} />
               <IconButton
                 icon="chevronUp"

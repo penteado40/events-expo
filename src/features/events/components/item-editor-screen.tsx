@@ -33,7 +33,9 @@ import type { Event, EventItem, EventItemChanges, EventItemInput } from '../api'
 import { useEvent } from '../hooks/use-event'
 import {
   audienceAvailable,
+  highlightAvailable,
   peopleFieldsAvailable,
+  personalNotesAvailable,
   useCreateItem,
   useUpdateItem,
   type ItemSave,
@@ -425,6 +427,8 @@ function ItemEditorView<Input extends EventItemInput | EventItemChanges>({
             fields={draft.fields}
             errors={errors}
             canAddPeopleFields={canAddPeopleFields}
+            canHighlight={highlightAvailable()}
+            canWriteNotes={personalNotesAvailable()}
             participants={canChooseParticipants ? participantChoices : null}
             onAdd={() => editFields(addTextField)}
             onAddPeople={() => editFields(addPeopleField)}
