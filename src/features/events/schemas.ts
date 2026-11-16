@@ -123,9 +123,17 @@ export const audienceSchema = z.discriminatedUnion('kind', [
 export type Audience = z.infer<typeof audienceSchema>
 
 /**
+ * The Author of a write (events-api ADR-0013): a User, by id and name. The API records it on every
+ * row but does not send it yet; the shape is the one the ADR expects.
+ */
+export const authorSchema = z.object({ id: z.number().int(), name: z.string() })
+
+export type Author = z.infer<typeof authorSchema>
+
+/**
  * An Event item as the schedule shows it and a write returns it (PROJ-187). `when` is `null` for an
- * item of the General info (no date). The API also sends `eventId`, `createdAt` and `updatedAt` on
- * a write; the app drops them.
+ * item of the General info (no date). The API also sends `eventId` and `createdAt` on a write; the
+ * app drops them.
  */
 export const eventItemSchema = z.object({
   id: z.number().int(),
@@ -141,6 +149,16 @@ export const eventItemSchema = z.object({
   fields: z.array(itemFieldSchema).default([]),
   /** "Todos que vão" while the API does not send it (PROJ-197). */
   audience: audienceSchema.default({ kind: 'ALL' }),
+  /**
+   * When the item was last written (ISO 8601): the events-api sends it on a write, not yet in the
+   * schedule (the mock does, shape assumed); `null` while it does not.
+   */
+  updatedAt: z.string().nullable().default(null),
+  /**
+   * Who wrote it last (ADR-0013), `null` for a write by no User (a platform script) and while the
+   * API does not send it.
+   */
+  updatedBy: authorSchema.nullable().default(null),
 })
 
 export type EventItem = z.infer<typeof eventItemSchema>

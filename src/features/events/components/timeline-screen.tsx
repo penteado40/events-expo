@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Badge, Button, ErrorState, Icon, ListSkeleton, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
-import { canEditEvent, roleIn, seesDrafts } from '@/shared/domain/group-role'
+import { canEditEvent, roleIn, seesDrafts, type GroupRole } from '@/shared/domain/group-role'
 import { weekday } from '@/shared/domain/local-dates'
 import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
@@ -21,7 +21,14 @@ import type { Event } from '../api'
 import { useEvent } from '../hooks/use-event'
 import { useDeleteItem, useMoveItem, type ItemMove } from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
-import { DRAFT_BADGE, ITEM_STATE_MARKS, itemActions } from '../item-state'
+import {
+  audienceMark,
+  DRAFT_BADGE,
+  hasActions,
+  ITEM_STATE_MARKS,
+  itemActions,
+  lastChangeText,
+} from '../item-state'
 import {
   assembleSchedule,
   type DayLines,
@@ -30,11 +37,13 @@ import {
 } from '../schedule-lines'
 
 /**
- * The Owner's Timeline (D-Timeline, PROJ-220): the General info, then day by day, each item at the
- * local time of its place, the untimed ("a definir") first; a day outside the Event's period is
- * marked. A day picker on the cover jumps to its day. An item in Draft has "RASCUNHO"; a
- * Cancelled one "CANCELADO" and its name struck. Who writes the items opens an item's actions
- * (editar, publicar, cancelar, descancelar, apagar), until the Event is Cancelled.
+ * The Owner's Timeline (D-Timeline, PROJ-220, PROJ-234): the whole schedule, Drafts and every
+ * Audience included, the General info, then day by day, each item at the local time of its place,
+ * the untimed ("a definir") first; a day outside the Event's period is marked. A day picker on the
+ * cover jumps to its day. An item in Draft has "RASCUNHO"; a Cancelled one "CANCELADO" and its name
+ * struck; one of a chosen list, how many it has ("SÓ 3 PESSOAS"). An item with actions for the
+ * person (`itemActions`: editar, publicar, cancelar, descancelar, apagar) opens them, with its last
+ * change; a Cancelled Event has none.
  */
 export function TimelineScreen({ eventId }: { eventId: number }) {
   const { colors } = useTheme()
@@ -52,12 +61,12 @@ export function TimelineScreen({ eventId }: { eventId: number }) {
       </View>
     )
   }
-  if (event.data && schedule.data) {
+  if (event.data && schedule.data && role) {
     return (
       <Timeline
         event={event.data}
         lines={assembleSchedule(schedule.data, event.data.period)}
-        editable={!!role && canEditEvent(role, event.data)}
+        role={role}
       />
     )
   }
@@ -76,15 +85,7 @@ export function TimelineScreen({ eventId }: { eventId: number }) {
   )
 }
 
-function Timeline({
-  event,
-  lines,
-  editable,
-}: {
-  event: Event
-  lines: ScheduleLines
-  editable: boolean
-}) {
+function Timeline({ event, lines, role }: { event: Event; lines: ScheduleLines; role: GroupRole }) {
   const theme = useTheme()
   const { colors } = theme
   const router = useRouter()
@@ -95,6 +96,9 @@ function Timeline({
   const tone = autoTone(event.id)
   const [from, to] = theme.cover(tone)
   const muted = palette[tone][100]
+  const editable = canEditEvent(role, event)
+  const onPressFor = (line: ItemLine) =>
+    hasActions(itemActions(role, event, line.state)) ? setChosen : undefined
 
   const jumpTo = (date: string) => {
     const top = dayTops.current.get(date)
@@ -175,12 +179,7 @@ function Timeline({
             <View style={styles.day}>
               <Heading label="Informações gerais" />
               {lines.generalInfo.map((line) => (
-                <ItemRow
-                  key={line.id}
-                  line={line}
-                  onPress={editable ? setChosen : undefined}
-                  general
-                />
+                <ItemRow key={line.id} line={line} onPress={onPressFor(line)} general />
               ))}
             </View>
           )}
@@ -192,14 +191,16 @@ function Timeline({
             >
               <DayHeading day={day} />
               {day.items.map((line) => (
-                <ItemRow key={line.id} line={line} onPress={editable ? setChosen : undefined} />
+                <ItemRow key={line.id} line={line} onPress={onPressFor(line)} />
               ))}
             </View>
           ))}
         </View>
       </ScrollView>
 
-      {chosen && <ItemActions event={event} line={chosen} onClose={() => setChosen(null)} />}
+      {chosen && (
+        <ItemActions event={event} role={role} line={chosen} onClose={() => setChosen(null)} />
+      )}
     </View>
   )
 }
@@ -223,7 +224,10 @@ function DayHeading({ day }: { day: DayLines }) {
   )
 }
 
-/** One item: its local time (or "a definir"), the dot, and the card with the name and the place. */
+/**
+ * One item: its local time (or "a definir"), the dot, and the card with the name, its state's
+ * badge and who sees it when a chosen list, and the place.
+ */
 function ItemRow({
   line,
   onPress,
@@ -239,7 +243,10 @@ function ItemRow({
   const cancelled = line.state === 'CANCELLED'
   const when = general ? '' : (line.time ?? 'a definir')
   const mark = ITEM_STATE_MARKS[line.state]
-  const label = [when, line.name, line.detail, mark?.spoken].filter(Boolean).join(', ')
+  const audience = audienceMark(line.item)
+  const label = [when, line.name, line.detail, mark?.spoken, audience?.spoken]
+    .filter(Boolean)
+    .join(', ')
   return (
     <Pressable
       onPress={onPress && (() => onPress(line))}
@@ -292,7 +299,12 @@ function ItemRow({
           >
             {line.name}
           </Text>
-          {mark && <Badge label={mark.badge} tone={mark.tone} />}
+          {(mark || audience) && (
+            <View style={styles.badges}>
+              {mark && <Badge label={mark.badge} tone={mark.tone} />}
+              {audience && <Badge label={audience.badge} tone={audience.tone} />}
+            </View>
+          )}
         </View>
         {(line.detail || (untimed && !general)) && (
           <Text style={[styles.detail, { color: colors.textMuted }]}>
@@ -305,15 +317,18 @@ function ItemRow({
 }
 
 /**
- * D-AcoesItem by the item's state (`itemActions`): in Draft, "Editar", "Publicar" and "Apagar"
- * (with a confirmation); published, "Editar" and "Cancelar item"; Cancelled, only "Descancelar".
+ * D-AcoesItem by the item's state (`itemActions`), under its last change ("Alterado por Bruno
+ * Reis há 2 h"): in Draft, "Editar", "Publicar" and "Apagar" (with a confirmation); published,
+ * "Editar" and "Cancelar item"; Cancelled, only "Descancelar".
  */
 function ItemActions({
   event,
+  role,
   line,
   onClose,
 }: {
   event: Event
+  role: GroupRole
   line: ItemLine
   onClose: () => void
 }) {
@@ -323,7 +338,8 @@ function ItemActions({
   const move = useMoveItem(event.id)
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const can = itemActions(line.state, event.state)
+  const can = itemActions(role, event, line.state)
+  const lastChange = lastChangeText(line.item, new Date())
 
   const run = async (write: () => Promise<unknown>, fallback: string) => {
     setError(null)
@@ -365,6 +381,17 @@ function ItemActions({
       )}
       {line.state === 'DRAFT' && <Badge label={DRAFT_BADGE} tone="gold" />}
       {line.state === 'CANCELLED' && <Badge label="CANCELADO" tone="red" />}
+      {lastChange && (
+        <Text
+          style={[
+            textStyles.caption,
+            styles.lastChange,
+            { color: colors.textMuted, backgroundColor: colors.bg },
+          ]}
+        >
+          {lastChange}
+        </Text>
+      )}
       {errorText}
       {can.edit && (
         <Button
@@ -461,6 +488,8 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2.5 },
   card: { flex: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, gap: 2 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 4 },
+  lastChange: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14, overflow: 'hidden' },
   itemName: { flexShrink: 1, fontFamily: fonts.sans600, fontSize: 15 },
   struck: { textDecorationLine: 'line-through' },
   detail: { fontFamily: fonts.sans400, fontSize: 12 },

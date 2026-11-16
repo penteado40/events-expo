@@ -27,6 +27,10 @@ const MINAS = 2
 const FESTIVAL = 5
 /** Saída Manaus' Show, Saturday 19:00 at Teatro Amazonas: published. */
 const SHOW = 5
+/** Saída Manaus' Passagem de som, Saturday 16:00 at Teatro Amazonas: published. */
+const PASSAGEM = 6
+/** Saída Manaus' Check-out, Sunday 11:00: published, as Bruno last wrote it. */
+const CHECK_OUT = 9
 
 /** A Demo mode Session of a sample User: everything answers from the shared mock backend. */
 async function renderAs(userId: number, ui: React.ReactElement) {
@@ -256,6 +260,35 @@ describe('TimelineScreen', () => {
     expect((await allItems(MINAS)).map((i) => i.name)).not.toContain('Check-out')
   })
 
+  it('shows the Owner an item of a chosen list among the others, marked with how many it has', async () => {
+    await mockBackend.updateItem(BRUNO, MANAUS, PASSAGEM, {
+      audience: { kind: 'SELECTED', userIds: [3, 4] },
+    })
+    await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+
+    const chosen = await screen.findByRole('button', {
+      name: '16:00, Passagem de som, Teatro Amazonas, só 2 pessoas veem',
+    })
+    expect(within(chosen).getByText('SÓ 2 PESSOAS')).toBeOnTheScreen()
+    // "Todos que vão" is not marked.
+    expect(screen.getAllByText(/^SÓ /)).toHaveLength(1)
+    await mockBackend.updateItem(BRUNO, MANAUS, PASSAGEM, { audience: { kind: 'ALL' } })
+  })
+
+  it('shows in the item’s actions who changed it last and when: "Alterado por Bruno Reis há 2 h"', async () => {
+    // Two hours after the Manaus scenario's items were last written, by Bruno.
+    jest.useFakeTimers({ now: new Date('2026-10-20T14:00:00.000Z'), advanceTimers: true })
+    try {
+      await renderAs(OWNER, <TimelineScreen eventId={MANAUS} />)
+
+      await press(await screen.findByText('Check-out').then(() => '11:00, Check-out'))
+
+      expect(screen.getByText('Alterado por Bruno Reis há 2 h')).toBeOnTheScreen()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it('opens the editor of an item from its actions', async () => {
     await renderAs(OWNER, <TimelineScreen eventId={MINAS} />)
 
@@ -446,6 +479,17 @@ describe('EditItemScreen', () => {
       when: { date: '2027-03-13', time: '17:00', timezone: 'America/Sao_Paulo' },
       place: { name: 'Palácio das Artes' },
     })
+  })
+
+  it('ends with who changed the item last and when', async () => {
+    jest.useFakeTimers({ now: new Date('2026-10-21T13:00:00.000Z'), advanceTimers: true })
+    try {
+      await renderAs(OWNER, <EditItemScreen eventId={MANAUS} itemId={CHECK_OUT} />)
+
+      expect(await screen.findByText('Alterado por Bruno Reis ontem')).toBeOnTheScreen()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('edits, deletes, reorders and highlights the item’s text Fields, saved in that order', async () => {

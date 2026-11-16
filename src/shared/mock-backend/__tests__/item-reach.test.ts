@@ -31,6 +31,7 @@ function itemFor(audience: AudienceRow, fields: EventItemRow['fields'] = []): Ev
     audience,
     createdAt: at,
     updatedAt: at,
+    updatedById: 2,
   }
 }
 

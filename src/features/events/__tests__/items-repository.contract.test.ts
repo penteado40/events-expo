@@ -41,6 +41,8 @@ const MINAS = 2
 const FESTIVAL = 5
 /** "Todos que vão", every item's unless chosen. */
 const ALL = { kind: 'ALL' } as const
+/** Who wrote the Manaus scenario's items last, and when (ADR-0013; shape assumed). */
+const SEEDED = { updatedAt: '2026-10-20T12:00:00.000Z', updatedBy: { id: 2, name: 'Bruno Reis' } }
 
 describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRepository) => {
   it('gives the General info: the items with no date, in creation order', async () => {
@@ -57,6 +59,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
         state: 'PUBLISHED',
         fields: [],
         audience: ALL,
+        ...SEEDED,
       },
       {
         id: 12,
@@ -66,6 +69,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
         state: 'PUBLISHED',
         fields: [],
         audience: ALL,
+        ...SEEDED,
       },
     ])
   })
@@ -108,6 +112,7 @@ describe.each(implementations)('ScheduleRepository contract (%s)', (_, createRep
       state: 'PUBLISHED',
       fields: [],
       audience: ALL,
+      ...SEEDED,
     })
     expect(named('Show')?.when).toEqual({ date: '2026-11-21', time: '19:00', timezone: MANAUS_TZ })
     expect(named('Almoço')?.when).toEqual({ date: '2026-11-21', time: null, timezone: MANAUS_TZ })
@@ -154,6 +159,8 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       state: 'DRAFT',
       fields: [],
       audience: ALL,
+      updatedAt: expect.any(String),
+      updatedBy: { id: 2, name: 'Bruno Reis' },
     })
   })
 
@@ -269,6 +276,30 @@ describe.each(implementations)('EventItemsRepository contract (%s)', (_, createR
       state: 'PUBLISHED',
       fields: expect.any(Array),
       audience: ALL,
+      updatedAt: expect.any(String),
+      updatedBy: { id: 2, name: 'Bruno Reis' },
+    })
+  })
+
+  it('records who wrote the item last and when, shown in the schedule: the Super admin too', async () => {
+    const { items, schedule } = createRepository(ADMIN)
+    const before = Date.now()
+
+    await items.update(MANAUS, 6, { name: 'Passagem de som e luz' })
+
+    const passagem = (await schedule.get(MANAUS)).timeline
+      .flatMap((d) => d.items)
+      .find((i) => i.id === 6)!
+    expect(passagem.updatedBy).toEqual({ id: 1, name: 'Admin Local' })
+    expect(new Date(passagem.updatedAt!).getTime()).toBeGreaterThanOrEqual(before - 1000)
+  })
+
+  it('records the Author of a move of the item’s state too', async () => {
+    const { items } = createRepository(ADMIN)
+
+    await expect(items.cancel(MANAUS, 6)).resolves.toMatchObject({
+      state: 'CANCELLED',
+      updatedBy: { id: 1, name: 'Admin Local' },
     })
   })
 

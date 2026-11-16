@@ -4,10 +4,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Button, Sheet } from '@/shared/components/ui'
 import { autoTone } from '@/shared/domain/auto-tone'
 import { initials } from '@/shared/domain/initials'
-import { plural } from '@/shared/domain/plural'
 import { fonts, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Team } from '../api'
+import { peopleSeeing } from '../item-state'
 import {
   audienceReach,
   copyTeam,
@@ -143,10 +143,9 @@ function AudienceChoice({ itemName, audience, fields, participants, teams, onApp
       </ScrollView>
 
       <View style={styles.footer}>
-        <Text
-          accessibilityLiveRegion="polite"
-          style={[styles.reach, { color: colors.text }]}
-        >{`${plural(reach, 'pessoa', 'pessoas')} ${reach === 1 ? 'vê' : 'veem'}`}</Text>
+        <Text accessibilityLiveRegion="polite" style={[styles.reach, { color: colors.text }]}>
+          {peopleSeeing(reach)}
+        </Text>
         <Text style={[textStyles.caption, styles.notice, { color: colors.textMuted }]}>
           Quem estiver num Field de pessoas do item também vê, e já está na conta.
         </Text>
