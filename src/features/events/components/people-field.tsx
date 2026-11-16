@@ -11,6 +11,8 @@ import type { PeopleFieldDraft, PersonChoice, PersonDraft } from '../item-draft'
 
 type Props = {
   field: PeopleFieldDraft
+  /** Whether each person's Personal note, and who sees them, are offered. */
+  canWriteNotes: boolean
   /**
    * The Event's Participants to choose from: `undefined` while they load, `null` where there are
    * none to read (over the events-api for now), when only loose names are added.
@@ -36,6 +38,7 @@ const VISIBILITIES: { value: PersonalNotesVisibility; label: string }[] = [
  */
 export function PeopleField({
   field,
+  canWriteNotes,
   participants,
   onRename,
   onAddParticipant,
@@ -73,6 +76,7 @@ export function PeopleField({
               key={person.key}
               person={person}
               first={index === 0}
+              canWriteNote={canWriteNotes}
               onRemove={() => onRemovePerson(person.key)}
               onEditNote={(note) => onEditNote(person.key, note)}
             />
@@ -118,37 +122,39 @@ export function PeopleField({
           onPress={() => setLooseName('')}
         />
       </View>
-      <View style={[styles.visibility, { backgroundColor: colors.bg }]}>
-        <Text style={[styles.visibilityTitle, { color: colors.text }]}>Quem vê as notas</Text>
-        <View accessibilityRole="radiogroup" style={styles.radios}>
-          {VISIBILITIES.map(({ value, label: text }) => {
-            const checked = field.visibility === value
-            return (
-              <Pressable
-                key={value}
-                onPress={() => onVisibility(value)}
-                accessibilityRole="radio"
-                accessibilityState={{ checked }}
-                style={[styles.radio, checked && { backgroundColor: colors.action }]}
-              >
-                <Text
-                  style={[
-                    styles.radioLabel,
-                    checked
-                      ? { color: colors.onAction, fontFamily: fonts.sans600 }
-                      : { color: colors.textMuted },
-                  ]}
+      {canWriteNotes && (
+        <View style={[styles.visibility, { backgroundColor: colors.bg }]}>
+          <Text style={[styles.visibilityTitle, { color: colors.text }]}>Quem vê as notas</Text>
+          <View accessibilityRole="radiogroup" style={styles.radios}>
+            {VISIBILITIES.map(({ value, label: text }) => {
+              const checked = field.visibility === value
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => onVisibility(value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked }}
+                  style={[styles.radio, checked && { backgroundColor: colors.action }]}
                 >
-                  {text}
-                </Text>
-              </Pressable>
-            )
-          })}
+                  <Text
+                    style={[
+                      styles.radioLabel,
+                      checked
+                        ? { color: colors.onAction, fontFamily: fonts.sans600 }
+                        : { color: colors.textMuted },
+                    ]}
+                  >
+                    {text}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+          <Text style={[textStyles.caption, { color: colors.textMuted }]}>
+            A produção sempre vê todas. Quem está neste Field passa a ver o item.
+          </Text>
         </View>
-        <Text style={[textStyles.caption, { color: colors.textMuted }]}>
-          A produção sempre vê todas. Quem está neste Field passa a ver o item.
-        </Text>
-      </View>
+      )}
 
       <Sheet visible={choosing} title="Participants" onClose={() => setChoosing(false)}>
         <ScrollView style={styles.choices} contentContainerStyle={styles.choicesList}>
@@ -185,11 +191,13 @@ export function PeopleField({
 function PersonRow({
   person,
   first,
+  canWriteNote,
   onRemove,
   onEditNote,
 }: {
   person: PersonDraft
   first: boolean
+  canWriteNote: boolean
   onRemove: () => void
   onEditNote: (note: string) => void
 }) {
@@ -207,14 +215,16 @@ function PersonRow({
           {person.userId === null && <Badge label="SEM LOGIN" tone="gray" />}
           {person.outOfEvent && <Badge label="fora do Event" tone="red" />}
         </View>
-        <TextInput
-          value={person.note}
-          onChangeText={onEditNote}
-          placeholder="Nota (ex.: localizador)"
-          placeholderTextColor={colors.textMuted}
-          accessibilityLabel={`Nota de ${person.name}`}
-          style={[styles.note, { color: colors.textMuted, borderBottomColor: colors.border }]}
-        />
+        {canWriteNote && (
+          <TextInput
+            value={person.note}
+            onChangeText={onEditNote}
+            placeholder="Nota (ex.: localizador)"
+            placeholderTextColor={colors.textMuted}
+            accessibilityLabel={`Nota de ${person.name}`}
+            style={[styles.note, { color: colors.textMuted, borderBottomColor: colors.border }]}
+          />
+        )}
       </View>
       <Pressable
         onPress={onRemove}

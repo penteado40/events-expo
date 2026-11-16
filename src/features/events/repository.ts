@@ -141,14 +141,22 @@ export type ItemFieldChanges =
 
 /** Mirrors the events-api's Event item writes (`/events/:id/items`). */
 export interface EventItemsRepository {
-  /**
-   * Whether Fields of people can be written here. False over HTTP until the events-api has them
-   * (PROJ-201): the editor then offers only text Fields.
-   */
+  /** Whether Fields of people can be written here; without them the editor offers only text ones. */
   peopleFieldsAvailable(): boolean
   /**
-   * Whether the Audience can be chosen here. False over HTTP until the events-api has it
-   * (PROJ-197): the editor then shows no "Quem vê" and every item reaches everyone going.
+   * Whether a Field's Highlight ("no Resumo") is kept here. False over HTTP until the events-api
+   * has it (PROJ-200): the editor then shows no "no Resumo".
+   */
+  highlightAvailable(): boolean
+  /**
+   * Whether the Personal notes of a Field of people, and who sees them, are kept here. False over
+   * HTTP until the events-api has them (PROJ-204): the editor then shows no notes.
+   */
+  personalNotesAvailable(): boolean
+  /**
+   * Whether the Audience can be chosen here. False over HTTP while the events-api's schedule does
+   * not send each item's Audience: the editor could not show the one chosen, so it shows no
+   * "Quem vê" and every item reaches everyone going.
    */
   audienceAvailable(): boolean
   /**

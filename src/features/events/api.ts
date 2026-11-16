@@ -18,6 +18,7 @@ import type {
   EventItemsRepository,
   EventsRepository,
   GroupPeopleRepository,
+  ItemFieldChanges,
   ParticipantsRepository,
   ScheduleRepository,
 } from './repository'
@@ -82,11 +83,29 @@ export const eventsRepository = selectRepository<EventsRepository>('events', {
   mock: createMockEventsRepository(),
 })
 
+/**
+ * A Field's write as the events-api takes it (PROJ-198, PROJ-201, PROJ-203): its name, and the
+ * text or the people, each `{ userId }` or a loose `{ name }`. The Highlight and the Personal notes
+ * are not there yet (PROJ-200, PROJ-204), so they stay out; the type goes as `kind` on a create.
+ */
+function fieldToApi(field: ItemFieldChanges) {
+  return {
+    ...('name' in field && field.name !== undefined && { name: field.name }),
+    ...('value' in field && field.value !== undefined && { value: field.value }),
+    ...('people' in field &&
+      field.people !== undefined && {
+        people: field.people.map((p) => ('userId' in p ? { userId: p.userId } : { name: p.name })),
+      }),
+  }
+}
+
 export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepository {
   return {
-    // PROJ-201 is not built in the events-api yet: a Field of people is refused there.
-    peopleFieldsAvailable: () => false,
-    // PROJ-197 is not built in the events-api yet: an `audience` is refused there.
+    peopleFieldsAvailable: () => true,
+    // PROJ-200 and PROJ-204 are not built in the events-api yet: fieldToApi leaves them out.
+    highlightAvailable: () => false,
+    personalNotesAvailable: () => false,
+    // The events-api takes an `audience` (PROJ-197), but its schedule does not send it back.
     audienceAvailable: () => false,
     create: (eventId, input) =>
       http.post(`/events/${eventId}/items`, { body: input, schema: eventItemSchema }),
@@ -101,12 +120,12 @@ export function createHttpEventItemsRepository(http: HttpClient): EventItemsRepo
       http.post(`/events/${eventId}/items/${itemId}/uncancel`, { schema: eventItemSchema }),
     addField: (eventId, itemId, input) =>
       http.post(`/events/${eventId}/items/${itemId}/fields`, {
-        body: input,
+        body: { kind: input.type, ...fieldToApi(input) },
         schema: itemFieldSchema,
       }),
     updateField: (eventId, itemId, fieldId, changes) =>
       http.patch(`/events/${eventId}/items/${itemId}/fields/${fieldId}`, {
-        body: changes,
+        body: fieldToApi(changes),
         schema: itemFieldSchema,
       }),
     removeField: (eventId, itemId, fieldId) =>

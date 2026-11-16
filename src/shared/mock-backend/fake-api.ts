@@ -128,7 +128,13 @@ export function createFakeApi({
         )
         return json(200, { data: moved })
       }
-      const fieldBody = () => JSON.parse(String(init?.body ?? '{}')) as ItemFieldBody
+      // The events-api names a Field's type `kind` (PROJ-198); the backend takes it as `type`.
+      const fieldBody = (): ItemFieldBody => {
+        const { kind, ...body } = JSON.parse(String(init?.body ?? '{}')) as ItemFieldBody & {
+          kind?: string
+        }
+        return kind === undefined ? body : { ...body, type: kind }
+      }
       const fields = route.match(/^POST \/events\/(\d+)\/items\/(\d+)\/fields$/)
       if (fields) {
         const [eventId, itemId] = fields.slice(1).map(Number)
