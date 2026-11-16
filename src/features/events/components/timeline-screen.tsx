@@ -18,6 +18,7 @@ import { useSession } from '@/shared/session'
 import { fonts, palette, spacing, textStyles, useTheme } from '@/shared/theme'
 
 import type { Event } from '../api'
+import type { ItemField } from '../schemas'
 import { useEvent } from '../hooks/use-event'
 import { useDeleteItem, useMoveItem, type ItemMove } from '../hooks/use-item-writes'
 import { useSchedule } from '../hooks/use-schedule'
@@ -381,6 +382,7 @@ function ItemActions({
       )}
       {line.state === 'DRAFT' && <Badge label={DRAFT_BADGE} tone="gold" />}
       {line.state === 'CANCELLED' && <Badge label="CANCELADO" tone="red" />}
+      <ItemContent fields={line.item.fields} />
       {lastChange && (
         <Text
           style={[
@@ -431,7 +433,51 @@ function ItemActions({
   )
 }
 
+/**
+ * What the item holds, so the Owner sees it before choosing an action: each Field in order, a text
+ * one with its value, one of people with their names (and Personal notes, the Owner sees them all).
+ * Long content scrolls inside the sheet; an item with no Fields says so.
+ */
+function ItemContent({ fields }: { fields: ItemField[] }) {
+  const { colors } = useTheme()
+  if (fields.length === 0) {
+    return <Text style={[textStyles.body, { color: colors.textMuted }]}>Sem conteúdo ainda.</Text>
+  }
+  return (
+    <ScrollView
+      style={[styles.content, { backgroundColor: colors.bg }]}
+      contentContainerStyle={styles.contentInner}
+    >
+      {fields.map((field) => (
+        <View key={field.id} style={styles.field}>
+          <Text style={[styles.fieldName, { color: colors.textMuted }]}>{field.name}</Text>
+          {field.type === 'TEXT' ? (
+            <Text selectable style={[textStyles.body, { color: colors.text }]}>
+              {field.value}
+            </Text>
+          ) : field.people.length === 0 ? (
+            <Text style={[textStyles.body, { color: colors.textMuted }]}>Ninguém ainda.</Text>
+          ) : (
+            field.people.map((person, index) => (
+              <Text key={`${person.userId ?? person.name}-${index}`} style={textStyles.body}>
+                <Text style={{ color: colors.text }}>{person.name}</Text>
+                {person.personalNote ? (
+                  <Text style={{ color: colors.textMuted }}> · {person.personalNote}</Text>
+                ) : null}
+              </Text>
+            ))
+          )}
+        </View>
+      ))}
+    </ScrollView>
+  )
+}
+
 const styles = StyleSheet.create({
+  content: { maxHeight: 280, borderRadius: 14 },
+  contentInner: { padding: 12, gap: 12 },
+  field: { gap: 2 },
+  fieldName: { fontFamily: fonts.sans600, fontSize: 12, textTransform: 'uppercase' },
   screen: { flex: 1 },
   padded: { padding: 20, paddingTop: 80 },
   scroll: { paddingBottom: 40 },

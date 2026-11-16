@@ -289,6 +289,27 @@ describe('TimelineScreen', () => {
     }
   })
 
+  it('shows the item’s content in its actions, before choosing one', async () => {
+    await renderAs(OWNER, <TimelineScreen eventId={MINAS} />)
+
+    await press(await screen.findByText('Show').then(() => '20:00, Show, Palácio das Artes'))
+
+    expect(screen.getByText('Contato')).toBeOnTheScreen()
+    expect(screen.getByText('Produção: (27) 99999-0000')).toBeOnTheScreen()
+  })
+
+  it('says an item with no Fields has no content yet', async () => {
+    await renderAs(OWNER, <TimelineScreen eventId={MINAS} />)
+
+    await press(
+      await screen
+        .findByText('Passagem de som')
+        .then(() => '16:00, Passagem de som, Palácio das Artes'),
+    )
+
+    expect(screen.getByText('Sem conteúdo ainda.')).toBeOnTheScreen()
+  })
+
   it('opens the editor of an item from its actions', async () => {
     await renderAs(OWNER, <TimelineScreen eventId={MINAS} />)
 
