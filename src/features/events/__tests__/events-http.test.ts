@@ -164,34 +164,64 @@ describe('HTTP items and schedule over the events-api as it is', () => {
     ).rejects.toMatchObject({ code: 'EVENT_ITEM_TIME_WITHOUT_DATE' })
   })
 
-  it('reads Fields as the API sends them: `kind`, people in `value`, no Highlight nor notes', async () => {
-    const { eventId: _, createdAt: __, updatedAt: ___, ...scheduled } = API_ITEM
-    const fields = [
-      { id: 4, kind: 'TEXT', name: 'Obs', value: 'Despachar o som' },
-      {
-        id: 5,
-        kind: 'PEOPLE',
-        name: 'Carro 1 - EC',
-        value: [{ userId: 3, name: 'Matias Costa' }, { name: 'Seu Raimundo' }],
-      },
-    ]
-    const { http } = clientAnswering({
-      data: { generalInfo: [{ ...scheduled, when: null, fields }], timeline: [] },
-    })
+  it('reads the schedule with the Fields as the events-api sends them: kind and value, no Highlight', async () => {
+    const repo = createHttpScheduleRepository(
+      clientAnswering({
+        data: {
+          generalInfo: [
+            {
+              id: 1,
+              name: 'O que levar',
+              when: null,
+              place: null,
+              state: 'PUBLISHED',
+              fields: [{ id: 2, kind: 'TEXT', name: 'Lista', value: 'Documento com foto' }],
+            },
+          ],
+          timeline: [
+            {
+              date: '2026-11-17',
+              items: [
+                {
+                  id: 3,
+                  name: 'Ida pra Santos',
+                  when: { date: '2026-11-17', time: '05:00', timezone: 'America/Sao_Paulo' },
+                  place: null,
+                  state: 'PUBLISHED',
+                  fields: [
+                    {
+                      id: 4,
+                      kind: 'PEOPLE',
+                      name: 'Carro Pedro',
+                      value: [
+                        { userId: 3, name: 'Matias Costa' },
+                        { name: 'Drika (só até Campinas)' },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      }).http,
+    )
 
-    const schedule = await createHttpScheduleRepository(http).get(7)
+    const schedule = await repo.get(7)
 
     expect(schedule.generalInfo[0].fields).toEqual([
-      { id: 4, type: 'TEXT', name: 'Obs', value: 'Despachar o som', highlight: false },
+      { id: 2, type: 'TEXT', name: 'Lista', value: 'Documento com foto', highlight: false },
+    ])
+    expect(schedule.timeline[0].items[0].fields).toEqual([
       {
-        id: 5,
+        id: 4,
         type: 'PEOPLE',
-        name: 'Carro 1 - EC',
+        name: 'Carro Pedro',
         highlight: false,
         personalNotesVisibility: 'PRIVATE',
         people: [
           { userId: 3, name: 'Matias Costa', personalNote: null, outOfEvent: false },
-          { userId: null, name: 'Seu Raimundo', personalNote: null, outOfEvent: false },
+          { userId: null, name: 'Drika (só até Campinas)', personalNote: null, outOfEvent: false },
         ],
       },
     ])

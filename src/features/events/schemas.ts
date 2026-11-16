@@ -127,33 +127,32 @@ export const peopleFieldSchema = z.object({
 
 export type PeopleField = z.infer<typeof peopleFieldSchema>
 
-/** A Field of an Event item: of one type, text or people. */
 /**
- * A Field as the events-api sends it (PROJ-198, PROJ-201, PROJ-203) put into the app's shape: `kind`
- * is the `type`, and a Field of people carries its people in `value`, a User as `{ userId, name }`
- * and a loose name as `{ name }`. The API has no Highlight (`false`) nor Personal notes yet. The
- * mock already answers in the app's shape.
+ * A Field as the events-api sends it (PROJ-198, PROJ-201, PROJ-203): `kind` instead of `type`, and
+ * one `value`, the text of a TEXT Field or the people of a PEOPLE one (`{ userId, name }` or a
+ * loose `{ name }`). It has no Highlight, Personal notes or out-of-Event mark yet (PROJ-200,
+ * PROJ-204, PROJ-205), so they come off: no Highlight, no notes, nobody out of the Event. What
+ * already has the app's shape (the mock) passes through.
  */
 function fromApiField(raw: unknown): unknown {
-  if (!raw || typeof raw !== 'object' || !('kind' in raw)) return raw
-  const {
-    kind,
-    value,
-    eventItemId: _,
-    createdAt: __,
-    updatedAt: ___,
-    ...rest
-  } = raw as Record<string, unknown>
-  if (kind !== 'PEOPLE') return { highlight: false, ...rest, type: kind, value }
-  const people = Array.isArray(value) ? (value as { userId?: number; name: string }[]) : []
-  return {
-    highlight: false,
-    ...rest,
-    type: kind,
-    people: people.map((person) => ({ userId: person.userId ?? null, name: person.name })),
+  if (typeof raw !== 'object' || raw === null || !('kind' in raw)) return raw
+  const { kind, value, ...rest } = raw as Record<string, unknown>
+  if (kind === 'TEXT') return { ...rest, type: 'TEXT', value, highlight: false }
+  if (kind === 'PEOPLE') {
+    const people = Array.isArray(value)
+      ? value.map((person: object) => ({
+          userId: null,
+          personalNote: null,
+          outOfEvent: false,
+          ...person,
+        }))
+      : value
+    return { ...rest, type: 'PEOPLE', highlight: false, people }
   }
+  return raw
 }
 
+/** A Field of an Event item: of one type, text or people. */
 export const itemFieldSchema = z.preprocess(
   fromApiField,
   z.discriminatedUnion('type', [textFieldSchema, peopleFieldSchema]),
